@@ -1,0 +1,815 @@
+:root {
+  --bg: #212121; /* the deck's slide background */
+  --panel: #1a1a1a;
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.62);
+  --gold: #e7b725; /* the deck's description gold */
+  --green: #3ee23e; /* WoW "can learn" green */
+  --locked: #666666;
+  --red: #ff4b4b;
+
+  /*
+   * 1u = one inch of the deck's tree panel (3u × 4u). Sized so the 3 × 2 slot grid fits the
+   * screen: 9u plus gaps across, and two rows of (slot header + 4u) down.
+   */
+  --u: clamp(84px, min(calc((100vw - 104px) / 9), calc((100dvh - 196px) / 8)), 132px);
+
+  color-scheme: dark;
+  font-family: Lexend, system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --u: clamp(84px, calc((100vw - 84px) / 6), 132px);
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --u: min(120px, calc((100vw - 40px) / 3));
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: radial-gradient(ellipse at 50% 0%, #2d2d2d 0%, var(--bg) 55%, #181818 100%) fixed;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+img {
+  display: block;
+}
+
+.btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    background-color 120ms,
+    border-color 120ms;
+}
+
+.btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.75);
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.btn--lg {
+  padding: 7px 16px;
+  font-size: 13px;
+  border-width: 1.5px;
+  border-color: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+}
+
+.tag {
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* ---------- Icons (art, or a placeholder tile until there is art) ---------- */
+
+/* Fills its box by default; the sized icon classes further down override the size. */
+.art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.art--placeholder {
+  display: grid;
+  place-items: center;
+  container-type: size;
+  background: radial-gradient(
+    circle at 32% 26%,
+    color-mix(in srgb, var(--tint) 55%, white) 0%,
+    var(--tint) 36%,
+    color-mix(in srgb, var(--tint) 28%, black) 100%
+  );
+}
+
+.art--placeholder > span {
+  font-weight: 900;
+  font-size: 40cqmin;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+}
+
+/* ---------- Page ---------- */
+
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 12px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.topbar__title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.topbar__brand {
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.topbar__name {
+  font-weight: 300;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.topbar__help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.points {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.points__label,
+.points__total {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.points__left {
+  font-weight: 900;
+  font-size: 22px;
+  color: var(--gold);
+}
+
+.builder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px 24px;
+}
+
+.data-problems {
+  width: min(640px, 100%);
+  padding: 12px 16px;
+  border: 1.5px solid var(--red);
+  border-radius: 6px;
+  background: rgba(255, 75, 75, 0.08);
+  font-size: 13px;
+}
+
+.data-problems ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+/* ---------- Slots ---------- */
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(3, calc(var(--u) * 3));
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .slots {
+    grid-template-columns: repeat(2, calc(var(--u) * 3));
+  }
+}
+
+@media (max-width: 600px) {
+  .slots {
+    grid-template-columns: calc(var(--u) * 3);
+  }
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slot__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+}
+
+.slot__num {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 900;
+  font-size: 11px;
+}
+
+.slot__kind {
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.slot__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.slot__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 4);
+  padding: 0;
+  font-size: 13px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1.5px dashed rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color 120ms,
+    background-color 120ms,
+    border-color 120ms;
+}
+
+.slot__empty:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.slot__plus {
+  font-weight: 300;
+  font-size: 36px;
+  line-height: 1;
+}
+
+.artifact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 4);
+  padding: 24px;
+  text-align: center;
+  border-radius: 6px;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 30%, color-mix(in srgb, var(--tint) 26%, transparent), transparent 75%),
+    linear-gradient(#1d1d1d, #131313);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.artifact__icon {
+  width: calc(var(--u) * 0.8);
+  height: calc(var(--u) * 0.8);
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px #000,
+    0 6px 16px rgba(0, 0, 0, 0.6);
+}
+
+.artifact__name {
+  font-weight: 900;
+  font-size: calc(var(--u) * 0.2);
+}
+
+.artifact__note {
+  max-width: 28ch;
+  margin: 0;
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ---------- Tree panel ---------- */
+
+.tree {
+  position: relative;
+  width: calc(var(--u) * 3);
+  background: var(--panel) center / cover no-repeat;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 24px 60px rgba(0, 0, 0, 0.55);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* No painted background yet: a tinted wash with faint stripes, so it reads as a placeholder. */
+.tree--placeholder {
+  background:
+    radial-gradient(ellipse 90% 45% at 50% 0%, color-mix(in srgb, var(--tint) 30%, transparent), transparent 75%),
+    radial-gradient(ellipse 100% 55% at 50% 100%, color-mix(in srgb, var(--tint) 18%, transparent), transparent 75%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 10px),
+    linear-gradient(#1d1d1d, #121212);
+}
+
+/* Darkens the painting a touch so the white text and icon borders read over the bright clouds. */
+.tree::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.45),
+    rgba(0, 0, 0, 0.12) 32%,
+    rgba(0, 0, 0, 0.12) 70%,
+    rgba(0, 0, 0, 0.35)
+  );
+  pointer-events: none;
+}
+
+.tree__header {
+  position: absolute;
+  top: calc(var(--u) * 0.22);
+  left: 0;
+  right: 0;
+  height: calc(var(--u) * 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 0.12);
+}
+
+.tree__emblem,
+.talent {
+  position: relative;
+  width: calc(var(--u) * 0.4);
+  height: calc(var(--u) * 0.4);
+  padding: 0;
+  border: 2px solid var(--state);
+  border-radius: 4px;
+  background: #000;
+  box-shadow:
+    0 0 0 1px #000,
+    0 3px 8px rgba(0, 0, 0, 0.65);
+}
+
+.tree__emblem {
+  --state: rgba(255, 255, 255, 0.85);
+  cursor: default;
+}
+
+.tree__name {
+  margin: 0;
+  font-weight: 900;
+  font-size: calc(var(--u) * 0.2);
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow:
+    0 1px 2px #000,
+    0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+.tree__divider {
+  position: absolute;
+  top: calc(var(--u) * 0.875);
+  left: calc(var(--u) * 0.25);
+  width: calc(var(--u) * 2.5);
+  height: calc(var(--u) * 0.03);
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 calc(var(--u) * 0.08) #000;
+}
+
+.badge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  height: calc(var(--u) * 0.18);
+  padding: 0 calc(var(--u) * 0.035);
+  font-weight: 400;
+  font-size: max(10px, calc(var(--u) * 0.1));
+  line-height: 1;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 3px;
+}
+
+.tree__spent {
+  right: calc(var(--u) * -0.1);
+  bottom: calc(var(--u) * -0.08);
+  min-width: calc(var(--u) * 0.22);
+  color: var(--gold);
+}
+
+/* ---------- Talents ---------- */
+
+.talent {
+  --state: var(--green);
+  position: absolute;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    box-shadow 120ms,
+    border-color 120ms,
+    transform 80ms;
+}
+
+.talent .art {
+  transition: filter 120ms;
+}
+
+.talent:hover {
+  box-shadow:
+    0 0 0 1px #000,
+    0 0 calc(var(--u) * 0.12) var(--state);
+}
+
+.talent:hover .art {
+  filter: brightness(1.2);
+}
+
+.talent:active {
+  transform: scale(0.95);
+}
+
+.talent--maxed {
+  --state: var(--gold);
+}
+
+.talent--locked {
+  --state: var(--locked);
+  cursor: default;
+}
+
+.talent--locked .art,
+.talent--locked:hover .art {
+  filter: grayscale(1) brightness(0.5);
+}
+
+.talent--locked:hover {
+  box-shadow:
+    0 0 0 1px #000,
+    0 3px 8px rgba(0, 0, 0, 0.65);
+}
+
+.talent--locked:active {
+  transform: none;
+}
+
+.talent__rank {
+  right: calc(var(--u) * -0.1);
+  bottom: calc(var(--u) * -0.07);
+  color: var(--state);
+}
+
+.talent--locked .talent__rank {
+  color: #a0a0a0;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.tree__emblem:focus-visible,
+.talent:focus-visible,
+.btn:focus-visible,
+.slot__empty:focus-visible,
+.picker__option:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/* ---------- Prerequisite arrows (drawn in panel units) ---------- */
+
+.tree__arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px #000) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
+}
+
+.arrow {
+  --arrow: rgba(205, 205, 205, 0.7);
+}
+
+.arrow--lit {
+  --arrow: var(--gold);
+}
+
+.arrow path {
+  fill: none;
+  stroke: var(--arrow);
+  stroke-width: 0.03;
+}
+
+.arrow polygon {
+  fill: var(--arrow);
+}
+
+/* ---------- Tooltips (the deck's card: icon beside a white-bordered card) ---------- */
+
+.tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  pointer-events: none;
+  visibility: hidden; /* until Tooltip has placed it */
+}
+
+.tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tip__icon {
+  flex: none;
+  width: 76px;
+  height: 76px;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 1px #000,
+    0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.tip__card {
+  width: min(300px, calc(100vw - 32px - 84px));
+  padding: 10px 12px 12px;
+  background: rgba(24, 24, 24, 0.97);
+  border: 1.5px solid #fff;
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+.tip__title {
+  font-weight: 900;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.tip__meta {
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+.tip__meta--split {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tip__meta--end {
+  text-align: right;
+}
+
+.tip__req {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--red);
+}
+
+.tip__desc {
+  margin: 8px 0 0;
+  font-weight: 300;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--gold);
+}
+
+.tip__next {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.tip__next + .tip__desc {
+  margin-top: 2px;
+}
+
+.tip__hints {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--green);
+}
+
+.tip__effects {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  list-style: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.tip__effect {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tip__effect-icon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.tip__effect-name {
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.tip__effect-desc {
+  font-weight: 300;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--gold);
+}
+
+@media (max-width: 480px) {
+  .tip__icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .tip__card {
+    width: min(300px, calc(100vw - 32px - 56px));
+  }
+}
+
+/* ---------- Ability picker ---------- */
+
+.picker {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(720px, calc(100dvh - 48px));
+  padding: 0;
+  color: var(--text);
+  background: #1c1c1c;
+  border: 1.5px solid #fff;
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+}
+
+.picker::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.picker__body {
+  padding: 18px 18px 14px;
+}
+
+.picker__title {
+  margin: 0;
+  font-weight: 900;
+  font-size: 20px;
+}
+
+.picker__sub {
+  margin: 4px 0 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.picker__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.picker__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background-color 120ms,
+    border-color 120ms;
+}
+
+.picker__option:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.picker__option:disabled {
+  cursor: default;
+  border-color: var(--gold);
+}
+
+.picker__icon {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.picker__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.picker__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  font-size: 15px;
+}
+
+.picker__note {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--gold);
+}
+
+.picker__meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.picker__desc {
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--gold);
+}
+
+.picker__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
