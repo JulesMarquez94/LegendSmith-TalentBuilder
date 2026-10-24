@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { abilityLines } from '../game/describe.ts'
 import { reach, type Kit } from '../game/resolve.ts'
+import { withResource } from '../game/stats.ts'
 import type { ResolvedAbility } from '../game/types.ts'
 import { describeRank } from '../talents/description.ts'
 import {
@@ -93,6 +94,8 @@ export function TalentTooltip({ tree, talent, ranks, pointsLeft, cap, kit }: Tal
   const unlearnable = canUnlearn(tree, ranks, talent)
   const atCap = pointsSpent(tree, ranks) >= cap && rank < talent.maxRank
   const reaches = kit && talent.effects ? reach(talent.effects(Math.max(rank, 1)), kit) : []
+  // Shared trees say "@resource"; show the held artifact's (mana for the staff).
+  const text = (r: number) => withResource(describeRank(talent.description, r), kit?.resource ?? 'Resource')
   const icon = (
     <ArtIcon folder={tree.artFolder} icon={talent.icon} label={talent.name} tint={tree.color} className="tip__icon" />
   )
@@ -117,11 +120,11 @@ export function TalentTooltip({ tree, talent, ranks, pointsLeft, cap, kit }: Tal
           {tree.ability.name} is at its {cap}-point limit
         </div>
       )}
-      <p className="tip__desc">{describeRank(talent.description, Math.max(rank, 1))}</p>
+      <p className="tip__desc">{text(Math.max(rank, 1))}</p>
       {rank > 0 && rank < talent.maxRank && (
         <>
           <div className="tip__next">Next rank:</div>
-          <p className="tip__desc">{describeRank(talent.description, rank + 1)}</p>
+          <p className="tip__desc">{text(rank + 1)}</p>
         </>
       )}
       {kit && talent.effects && (

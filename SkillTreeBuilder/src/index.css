@@ -1018,17 +1018,34 @@ img {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 8px;
-  padding: 10px;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 8px;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
+}
+
+/* Power and Health side by side, the biggest numbers on the sheet. */
+.char__main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.char__main .vital__value {
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .vital {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
   border-radius: 4px;
 }
 
@@ -1085,6 +1102,22 @@ select {
 }
 
 .stats {
+  display: grid;
+  gap: 4px;
+}
+
+.stats__title {
+  margin: 0;
+  padding-bottom: 4px;
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stats__list {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2px 16px;
@@ -1784,7 +1817,7 @@ select {
   gap: 5px;
 }
 
-.you__mana .bar__fill {
+.you__resource .bar__fill {
   background: var(--mana);
 }
 
@@ -1988,34 +2021,34 @@ select {
   color: var(--muted);
 }
 
-.meter__mana {
+.meter__resource {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-top: 12px;
 }
 
-.meter__mana h3 {
+.meter__resource h3 {
   margin: 0 0 4px;
   font-size: 11px;
   font-weight: 400;
   color: var(--mana);
 }
 
-.meter__mana ul {
+.meter__resource ul {
   margin: 0;
   padding: 0;
   list-style: none;
   font-size: 11.5px;
 }
 
-.meter__mana li {
+.meter__resource li {
   display: flex;
   justify-content: space-between;
   gap: 6px;
 }
 
-.meter__mana b {
+.meter__resource b {
   font-variant-numeric: tabular-nums;
 }
 

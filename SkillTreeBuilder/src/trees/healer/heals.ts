@@ -1,11 +1,12 @@
 import { int, pct, sec, yd } from '../../game/format.ts'
 import { periodicTotal } from '../../game/resolve.ts'
 import type { TreeDef } from '../../talents/types.ts'
-import { apply, buff, cooldown, grant, heal, hot, mana, more, plus, proc, shield, talent, zone } from '../authoring.ts'
+import { apply, buff, cooldown, grant, heal, hot, more, plus, proc, restore, shield, talent, zone } from '../authoring.ts'
 
 // The healer's role abilities: three of these six go in the right trigger and bumper slots.
-// Talents aim at families wherever they can ("your HoTs", "your zones", "your direct heals"),
-// so a point in one tree also lifts every other ability of that family you have slotted.
+// Each tree's "heals more" talent aims at a family (direct heals, chain heals, zones, HoTs…), so a
+// point in one tree also lifts every other ability of that family you have slotted. Costs and
+// resource talents say "@resource", so any healing weapon can use these with its own resource.
 
 const healer = { role: 'healer', kind: 'heal', columns: 4, pointsPerRow: 2 } as const
 
@@ -22,7 +23,7 @@ export const mend: TreeDef = {
     description: 'Heal the lowest-health ally in range.',
   },
   spec: {
-    cost: 50,
+    cost: 100,
     castTime: 1.5,
     range: 40,
     effects: [heal(1800)],
@@ -35,8 +36,8 @@ export const mend: TreeDef = {
       row: 0,
       col: 0,
       per: [8, 16, 24],
-      text: 'Mend heals {}% more.',
-      does: (v) => [more('amount', 'mend', v)],
+      text: 'Your direct heals heal {}% more.',
+      does: (v) => [more('amount', 'direct-heal', v)],
     }),
     talent({
       id: 'swift-hands',
@@ -44,8 +45,8 @@ export const mend: TreeDef = {
       row: 0,
       col: 1,
       per: [0.25, 0.5],
-      text: "Mend's cast time is {} sec shorter.",
-      does: (v) => [plus('castTime', 'mend', -v)],
+      text: 'Your direct heals cast {} sec faster.',
+      does: (v) => [plus('castTime', 'direct-heal', -v)],
     }),
     talent({
       id: 'efficient-prayers',
@@ -53,7 +54,7 @@ export const mend: TreeDef = {
       row: 0,
       col: 2,
       per: [4, 8, 12],
-      text: 'Your direct heals cost {}% less mana.',
+      text: 'Your direct heals cost {}% less.',
       does: (v) => [more('cost', 'direct-heal', -v)],
     }),
     talent({
@@ -136,7 +137,7 @@ export const mend: TreeDef = {
       name: 'Inner Focus',
       row: 3,
       col: 3,
-      text: 'After every 3 Mends, your next Mend costs no mana.',
+      text: 'After every 3 Mends, your next Mend costs nothing.',
       does: () => [
         proc(
           'cast',
@@ -171,7 +172,7 @@ export const chainHeal: TreeDef = {
     description: 'Heal the lowest-health ally, then jump from ally to ally, healing less with each jump.',
   },
   spec: {
-    cost: 80,
+    cost: 160,
     castTime: 1.5,
     cooldown: 6,
     range: 40,
@@ -209,8 +210,8 @@ export const chainHeal: TreeDef = {
       row: 0,
       col: 2,
       per: [8, 16, 24],
-      text: 'Chain Heal heals {}% more.',
-      does: (v) => [more('amount', 'chain-heal', v)],
+      text: 'Your chain heals heal {}% more.',
+      does: (v) => [more('amount', 'chain', v)],
     }),
     talent({
       id: 'wide-arc',
@@ -253,8 +254,8 @@ export const chainHeal: TreeDef = {
       row: 2,
       col: 2,
       per: [10, 20, 30],
-      text: 'Chain Heal heals {}% more on allies with one of your heal-over-time effects.',
-      does: (v) => [more('amount', 'chain-heal', v, { targetHas: 'hot' })],
+      text: 'Your chain heals heal {}% more on allies with one of your heal-over-time effects.',
+      does: (v) => [more('amount', 'chain', v, { targetHas: 'hot' })],
     }),
     talent({
       id: 'cascade',
@@ -296,15 +297,17 @@ export const healingRain: TreeDef = {
     description: 'Rain light around the lowest-health ally, healing everyone who stands in it.',
   },
   spec: {
-    cost: 100,
+    cost: 200,
     cooldown: 10,
     range: 40,
-    effects: [zone(220, 10, 1, 8)],
+    // Never two rains on one ally: a second one goes to the most injured ally not already under one.
+    effects: [zone(220, 10, 1, 8, 'lowest-missing')],
     text: (a) => {
       const e = a.effects[0]
       return (
-        `Rains light around the lowest-health ally within ${yd(a.range)} yd for ${sec(e.duration)} sec. ` +
-        `Every ally within ${yd(e.radius)} yd of it is healed for ${int(e.amount)} every ${sec(e.interval)} sec.` +
+        `Rains light around the lowest-health ally within ${yd(a.range)} yd who isn't already under it, for ` +
+        `${sec(e.duration)} sec. Every ally within ${yd(e.radius)} yd of it is healed for ${int(e.amount)} every ` +
+        `${sec(e.interval)} sec.` +
         (e.follow ? ' The rain follows that ally.' : '')
       )
     },
@@ -325,8 +328,8 @@ export const healingRain: TreeDef = {
       row: 0,
       col: 1,
       per: [2, 4],
-      text: 'Healing Rain is {} yd wider.',
-      does: (v) => [plus('radius', 'healing-rain', v)],
+      text: 'Your zones are {} yd wider.',
+      does: (v) => [plus('radius', 'zone', v)],
     }),
     talent({
       id: 'lasting-storm',
@@ -344,8 +347,8 @@ export const healingRain: TreeDef = {
       col: 0,
       requires: 'downpour',
       per: [10, 20, 30],
-      text: 'Healing Rain ticks {}% faster.',
-      does: (v) => [more('tickRate', 'healing-rain', v)],
+      text: 'Your zones tick {}% faster.',
+      does: (v) => [more('tickRate', 'zone', v)],
     }),
     talent({
       id: 'gathering-clouds',
@@ -383,6 +386,17 @@ export const healingRain: TreeDef = {
       does: (v) => [more('amount', 'zone', v, { targetHas: 'hot' })],
     }),
     talent({
+      id: 'gathering-storm',
+      name: 'Gathering Storm',
+      row: 2,
+      col: 3,
+      per: [10, 20, 30],
+      text: 'Each critical heal from Healing Rain makes it last 0.5 sec longer, up to {}% longer than it started.',
+      does: (v) => [
+        proc('crit', 'healing-rain', [{ do: 'extend', match: 'healing-rain', seconds: 0.5, scope: 'source', capPct: v }]),
+      ],
+    }),
+    talent({
       id: 'cloudburst',
       name: 'Cloudburst',
       row: 3,
@@ -397,8 +411,8 @@ export const healingRain: TreeDef = {
       row: 3,
       col: 3,
       per: [1, 2, 3],
-      text: 'Each Healing Rain tick restores {} mana.',
-      does: (v) => [proc('tick', 'healing-rain', [mana(v)])],
+      text: 'Each Healing Rain tick gives you back {} @resource.',
+      does: (v) => [proc('tick', 'healing-rain', [restore(v)])],
     }),
   ],
 }
@@ -416,7 +430,7 @@ export const renew: TreeDef = {
     description: 'Heal the lowest-health ally without Renew over time.',
   },
   spec: {
-    cost: 40,
+    cost: 80,
     range: 40,
     effects: [hot(300, 12, 2, 'lowest-missing')],
     text: (a) => {
@@ -470,8 +484,8 @@ export const renew: TreeDef = {
       row: 1,
       col: 3,
       per: [15, 30],
-      text: 'Renew costs {}% less mana.',
-      does: (v) => [more('cost', 'renew', -v)],
+      text: 'Your heal-over-time spells cost {}% less.',
+      does: (v) => [more('cost', 'hot', -v)],
     }),
     talent({
       id: 'twin-renewal',
@@ -513,7 +527,7 @@ export const renew: TreeDef = {
   ],
 }
 
-// ---------- Bloom: spends mana to burst everyone your HoTs and zones touch ----------
+// ---------- Bloom: spends resource to burst everyone your HoTs and zones touch ----------
 
 export const bloom: TreeDef = {
   ...healer,
@@ -525,18 +539,18 @@ export const bloom: TreeDef = {
     range: '40 range',
     cooldown: '8 sec cooldown',
     description:
-      'Make your healing bloom: every ally with one of your heal-over-time effects, or standing in one of your zones, is healed. Costs more mana for each ally.',
+      'Make your healing bloom: every ally with one of your heal-over-time effects, or standing in one of your zones, is healed. Costs more for each ally.',
   },
   spec: {
-    cost: 30,
+    cost: 60,
     cooldown: 8,
     range: 40,
-    effects: [{ type: 'bloom', amount: 900, extraCost: 15, target: 'all' }],
+    effects: [{ type: 'bloom', amount: 900, extraCost: 30, target: 'all' }],
     text: (a) => {
       const e = a.effects[0]
       return (
         `Heals every ally within ${yd(a.range)} yd who has one of your heal-over-time effects or stands in one of ` +
-        `your zones for ${int(e.amount)}. Costs ${int(e.extraCost)} more mana for each ally healed, most injured first.`
+        `your zones for ${int(e.amount)}. Costs ${int(e.extraCost)} more ${a.resource} for each ally healed, most injured first.`
       )
     },
   },
@@ -546,17 +560,17 @@ export const bloom: TreeDef = {
       name: 'Full Bloom',
       row: 0,
       col: 0,
-      per: [8, 16, 24],
-      text: 'Bloom heals {}% more.',
-      does: (v) => [more('amount', 'bloom', v)],
+      per: [6, 12, 18],
+      text: 'All your healing is {}% stronger on allies who have one of your heal-over-time effects or stand in one of your zones.',
+      does: (v) => [more('amount', 'healing', v, { affected: true })],
     }),
     talent({
       id: 'thrifty-bloom',
       name: 'Thrifty Bloom',
       row: 0,
       col: 1,
-      per: [5, 10],
-      text: 'Bloom costs {} less mana per ally.',
+      per: [10, 20],
+      text: 'Bloom costs {} less @resource per ally.',
       does: (v) => [plus('extraCost', 'bloom', -v)],
     }),
     talent({
@@ -585,6 +599,15 @@ export const bloom: TreeDef = {
       per: [1, 2],
       text: 'Bloom adds {} sec to your heal-over-time effects on each ally it heals.',
       does: (v) => [proc('heal', 'bloom', [{ do: 'extend', match: 'hot', seconds: v, scope: 'event' }])],
+    }),
+    talent({
+      id: 'ripening',
+      name: 'Ripening',
+      row: 1,
+      col: 3,
+      per: [0.5, 1],
+      text: "Each critical heal from your heal-over-time effects takes {} sec off Bloom's cooldown.",
+      does: (v) => [proc('crit', 'hot', [cooldown('bloom', v)])],
     }),
     talent({
       id: 'burst-of-life',
@@ -642,7 +665,7 @@ export const conduit: TreeDef = {
   spec: {
     range: 40,
     passive: { on: 'hit', match: 'main-attack' },
-    effects: [{ type: 'chain', amount: 350, bounces: 0, falloff: 20, radius: 10, target: 'lowest', tags: ['chain'] }],
+    effects: [{ type: 'chain', amount: 250, bounces: 0, falloff: 20, radius: 10, target: 'lowest', tags: ['chain'] }],
     text: (a) => {
       const e = a.effects[0]
       const who = e.targets > 1 ? `the ${e.targets} lowest-health allies` : 'the lowest-health ally'
@@ -659,9 +682,9 @@ export const conduit: TreeDef = {
       name: 'Strong Current',
       row: 0,
       col: 0,
-      per: [10, 20, 30],
-      text: 'Conduit heals {}% more.',
-      does: (v) => [more('amount', 'conduit', v)],
+      per: [4, 8, 12],
+      text: 'Your direct heals heal {}% more.',
+      does: (v) => [more('amount', 'direct-heal', v)],
     }),
     talent({
       id: 'grounded',
@@ -673,22 +696,36 @@ export const conduit: TreeDef = {
       does: (v) => [more('amount', 'conduit', v, { inZone: true })],
     }),
     talent({
-      id: 'mana-siphon',
-      name: 'Mana Siphon',
+      id: 'siphon',
+      name: 'Siphon',
       row: 0,
       col: 3,
-      per: [4, 8],
-      text: 'When Conduit heals an ally below 50% health, you restore {} mana.',
-      does: (v) => [proc('heal', { all: ['conduit', 'direct-heal'] }, [mana(v)], { when: { targetBelow: 50 } })],
+      per: [3, 6],
+      text: 'When Conduit heals an ally below 50% health, you get {} @resource back.',
+      does: (v) => [proc('heal', { all: ['conduit', 'direct-heal'] }, [restore(v)], { when: { targetBelow: 50 } })],
     }),
     talent({
-      id: 'living-current',
-      name: 'Living Current',
+      id: 'latent-charge',
+      name: 'Latent Charge',
       row: 1,
       col: 0,
       requires: 'strong-current',
-      text: "Conduit also leaves a heal-over-time effect that heals for 40% of Conduit's base over 6 sec.",
-      does: () => [grant('conduit', hot(47, 6, 2, 'same', { name: 'Living Current' }))],
+      per: [5, 10],
+      text:
+        'Each Radiant Bolt hit that fires Conduit gives you a stack of Latent Charge, up to 5. The next direct heal ' +
+        'you cast uses them all and heals {}% more per stack.',
+      does: (v) => [
+        proc('hit', 'main-attack', [
+          buff({
+            id: 'latent-charge',
+            name: 'Latent Charge',
+            duration: 15,
+            maxStacks: 5,
+            mods: [more('amount', 'direct-heal', v)],
+            consumeOn: 'direct-heal',
+          }),
+        ]),
+      ],
     }),
     talent({
       id: 'split-current',
@@ -713,9 +750,9 @@ export const conduit: TreeDef = {
       name: 'Feedback',
       row: 2,
       col: 3,
-      requires: 'mana-siphon',
+      requires: 'siphon',
       per: [10, 20],
-      text: 'When Conduit critically heals, your next heal costs {}% less mana.',
+      text: 'When Conduit critically heals, your next heal costs {}% less.',
       does: (v) => [
         proc('crit', 'conduit', [
           buff({
@@ -727,6 +764,15 @@ export const conduit: TreeDef = {
           }),
         ]),
       ],
+    }),
+    talent({
+      id: 'overdrive',
+      name: 'Overdrive',
+      row: 3,
+      col: 0,
+      requires: 'latent-charge',
+      text: 'Your spells cost 100% more @resource and heal 60% more.',
+      does: () => [more('cost', 'spell', 100), more('amount', { all: ['spell', 'healing'] }, 60)],
     }),
     talent({
       id: 'arc-conduit',

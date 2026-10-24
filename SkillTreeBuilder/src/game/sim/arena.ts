@@ -24,8 +24,8 @@ import { ARENA, type AllyRole, type Scenario, type ScenarioEvent, type Vec } fro
 const HEAL_RANGE = 40
 /** How close to a dash's path an ally must be for path heals. */
 const PATH_WIDTH = 3
-/** Reservoir never stores more mana than this. */
-const RESERVOIR_CAP = 100
+/** Reservoir never stores more resource than this. */
+const RESERVOIR_CAP = 80
 /** A shield never grows past this share of its target's health. */
 const SHIELD_CAP = 0.5
 /** Presses are remembered this long, so a key hit just before a cast ends still goes off (like WoW's spell queue). */
@@ -71,6 +71,8 @@ export interface Hot {
   duration: number
   nextTick: number
   endsAt: number
+  /** When it would end with no extensions, for talents that cap how far they extend it. */
+  baseEnd: number
   tick: number
   /** 1 once it has jumped (Wandering Seed), so it never jumps again. */
   generation: number
@@ -86,6 +88,8 @@ export interface Shield {
 
 export interface Zone {
   id: number
+  /** The same for every zone one ability places, so a second one goes to someone else. */
+  key: string
   name: string
   effect: ResolvedEffect
   pos: Vec
@@ -96,6 +100,8 @@ export interface Zone {
   duration: number
   nextTick: number
   endsAt: number
+  /** When it would end with no extensions, for talents that cap how far they extend it. */
+  baseEnd: number
   tick: number
   damageReduction: number
   depth: number
@@ -138,6 +144,8 @@ export interface ActiveBuff {
   stats: Partial<CharStats>
   mods: readonly ModMechanic[]
   consumeOn?: Match
+  /** Its stats and mods count once per stack. */
+  stacks: number
 }
 
 export interface Casting {
@@ -207,6 +215,9 @@ interface CastContext {
   /** 0 for a cast; each proc adds one. Procs stop at 2 so they can't feed each other forever. */
   depth: number
   range: number
+  /** The HoT or zone whose tick this is, for talents that extend it. */
+  sourceHot?: Hot
+  sourceZone?: Zone
 }
 
 interface GameEvent {
@@ -240,7 +251,8 @@ export class Arena {
   readonly allies: Ally[] = []
   readonly player: Ally
   readonly boss: { name: string; pos: Vec; radius: number; maxHp: number; hp: number }
-  mana: number
+  /** The artifact's resource (mana for the staff). */
+  resource: number
   zones: Zone[] = []
   hazards: Hazard[] = []
   buffs: ActiveBuff[] = []
@@ -248,7 +260,7 @@ export class Arena {
   gcdStart = 0
   gcdUntil = 0
   readonly cooldowns = new Map<string, Cooldown>()
-  /** Overhealing stored by Reservoir, as mana. */
+  /** Overhealing stored by Reservoir, as resource. */
   reservoir = 0
   facing: Vec = { x: 0, y: -1 }
   dashing: { from: Vec; to: Vec; start: number } | null = null
@@ -259,8 +271,8 @@ export class Arena {
     rows: new Map<string, MeterRow>(),
     damage: 0,
     damageTaken: 0,
-    manaSpent: new Map<string, number>(),
-    manaGained: new Map<string, number>(),
+    resourceSpent: new Map<string, number>(),
+    resourceGained: new Map<string, number>(),
     casts: new Map<string, number>(),
   }
   log: LogLine[] = []
@@ -284,7 +296,7 @@ export class Arena {
     for (const t of scenario.party) this.makeAlly(t.name, t.role, t.maxHp, t.home, t.dps, false)
     for (const a of this.allies) a.hp = a.maxHp * scenario.startHealth
     this.boss = { name: scenario.boss.name, pos: { ...ARENA.boss }, radius: ARENA.bossRadius, maxHp: scenario.boss.maxHp, hp: scenario.boss.maxHp }
-    this.mana = this.stats().maxMana
+    this.resource = this.stats().maxResource
     this.schedule = scenario.events.map((event) => ({
       event,
       next: 'first' in event && event.first !== undefined ? event.first : 'every' in event ? event.every : 0,
@@ -326,7 +338,7 @@ export class Arena {
     this.kit = kit
     this.player.maxHp = kit.character.stats.health
     this.player.hp = (this.player.hp / oldMax) * this.player.maxHp
-    this.mana = Math.min(this.mana, this.stats().maxMana)
+    this.resource = Math.min(this.resource, this.stats().maxResource)
     if (this.cast && !kit.slots.some((a) => a?.treeId === this.cast!.ability.treeId)) this.cast = null
     this.syncCooldowns()
   }
@@ -352,16 +364,22 @@ export class Arena {
   stats(): CharStats {
     if (this.buffs.length === 0) return this.kit.character.stats
     const s = { ...this.kit.character.stats }
-    for (const b of this.buffs) for (const [k, v] of Object.entries(b.stats)) s[k as keyof CharStats] += v ?? 0
+    for (const b of this.buffs) {
+      for (const [k, v] of Object.entries(b.stats)) s[k as keyof CharStats] += (v ?? 0) * b.stacks
+    }
     return s
   }
 
-  get maxMana() {
-    return this.stats().maxMana
+  get maxResource() {
+    return this.stats().maxResource
   }
 
   private buffMods(): ModMechanic[] {
-    return this.buffs.flatMap((b) => b.mods)
+    return this.buffs.flatMap((b) =>
+      b.stacks === 1
+        ? b.mods
+        : b.mods.map((m) => ({ ...m, add: m.add && m.add * b.stacks, pct: m.pct && m.pct * b.stacks })),
+    )
   }
 
   /** A slot's ability as it would be cast right now, buffs included. */
@@ -371,10 +389,10 @@ export class Arena {
     return this.kit.resolve(base.treeId, this.buffMods(), this.stats())
   }
 
-  manaRegen(): number {
+  resourceRegen(): number {
     const s = this.stats()
-    const low = this.mana < this.maxMana * 0.3 ? 1 + s.lowManaRegen / 100 : 1
-    return s.manaRegen * low + (this.inZone(this.player) ? s.zoneManaRegen : 0)
+    const low = this.resource < this.maxResource * 0.3 ? 1 + s.lowResourceRegen / 100 : 1
+    return s.resourceRegen * low + (this.inZone(this.player) ? s.zoneResourceRegen : 0)
   }
 
   // ---------- Input ----------
@@ -391,7 +409,7 @@ export class Arena {
     this.time += dt
     this.movePlayer(dt, input)
     this.moveBots(dt)
-    if (this.player.alive) this.gainMana(this.manaRegen() * dt, 'Regeneration', true)
+    if (this.player.alive) this.gainResource(this.resourceRegen() * dt, 'Regeneration', true)
     if (this.cast && this.time >= this.cast.end) {
       const c = this.cast
       this.cast = null
@@ -437,7 +455,7 @@ export class Arena {
     const cd = this.cooldowns.get(base.treeId)
     if (cd && cd.charges < 1) return `${base.name} isn't ready yet`
     const a = this.current(slot)!
-    if (this.mana + 1e-6 < a.cost) return 'Not enough mana'
+    if (this.resource + 1e-6 < a.cost) return `Not enough ${this.kit.resource.toLowerCase()}`
     if (a.tags.has('main-attack') && dist(this.player.pos, this.boss.pos) - this.boss.radius > a.range) {
       return 'Out of range'
     }
@@ -531,7 +549,7 @@ export class Arena {
         const healed: Ally[] = []
         for (const t of this.byHealth(this.alliesInRange(ctx.range).filter((x) => this.affected(x)))) {
           if (e.extraCost > 0) {
-            if (this.mana + 1e-6 < e.extraCost) break
+            if (this.resource + 1e-6 < e.extraCost) break
             this.spend(e.extraCost, opts.label)
           }
           this.ring(t.pos, 2.5, e.color)
@@ -556,10 +574,10 @@ export class Arena {
       case 'damage':
         this.hitBoss(e, ctx)
         break
-      case 'mana':
-        this.gainMana(e.mana, opts.label)
+      case 'restore':
+        this.gainResource(e.restore, opts.label)
         if (e.tags.has('main-attack') && this.reservoir > 0) {
-          this.gainMana(this.reservoir, 'Reservoir')
+          this.gainResource(this.reservoir, 'Reservoir')
           this.reservoir = 0
         }
         break
@@ -597,7 +615,7 @@ export class Arena {
     row.hits += 1
     if (crit) row.crits += 1
     this.meter.rows.set(opts.label, row)
-    const stored = this.stats().overhealToMana
+    const stored = this.stats().overhealToResource
     if (overheal > 0 && stored > 0) this.reservoir = Math.min(RESERVOIR_CAP, this.reservoir + (overheal * stored) / 100)
     if (!opts.quiet) this.text(target.pos, `+${int(amount)}${crit ? '!' : ''}`, e.color, crit || e.family === 'direct-heal')
 
@@ -612,6 +630,7 @@ export class Arena {
     if (hot) {
       Object.assign(hot, { effect: e, amount: e.amount, interval: e.interval, duration: e.duration, tick: 0 })
       hot.endsAt = this.time + e.duration
+      hot.baseEnd = hot.endsAt
     } else {
       hot = {
         key: e.key,
@@ -623,6 +642,7 @@ export class Arena {
         duration: e.duration,
         nextTick: this.time + e.interval,
         endsAt: this.time + e.duration,
+        baseEnd: this.time + e.duration,
         tick: 0,
         generation,
         depth: ctx.depth,
@@ -633,7 +653,7 @@ export class Arena {
   }
 
   private hotContext(h: Hot): CastContext {
-    return { ...this.newContext(null, -1, 0, h.depth), primary: [h.target], eventTarget: h.target }
+    return { ...this.newContext(null, -1, 0, h.depth), primary: [h.target], eventTarget: h.target, sourceHot: h }
   }
 
   private spawnZone(e: ResolvedEffect, ctx: CastContext, name: string) {
@@ -642,11 +662,16 @@ export class Arena {
     if (e.target === 'origin') pos = ctx.origin
     else if (e.target === 'self') anchor = this.player
     else if (e.target === 'event') anchor = ctx.eventTarget ?? null
-    else anchor = this.pick('lowest', ctx, e, 1)[0] ?? null
+    else if (e.target === 'lowest-missing') {
+      // Never two of the same zone on one ally: the next goes to the most injured ally not already in one.
+      const pool = this.byHealth(this.alliesInRange(ctx.range))
+      anchor = pool.find((a) => !this.zones.some((z) => z.key === e.key && dist(z.pos, a.pos) <= z.radius)) ?? pool[0] ?? null
+    } else anchor = this.pick('lowest', ctx, e, 1)[0] ?? null
     pos = pos ?? anchor?.pos
     if (!pos || e.duration <= 0 || e.interval <= 0) return
     this.zones.push({
       id: this.nextId++,
+      key: e.key,
       name,
       effect: e,
       pos: { ...pos },
@@ -657,6 +682,7 @@ export class Arena {
       duration: e.duration,
       nextTick: this.time + e.interval,
       endsAt: this.time + e.duration,
+      baseEnd: this.time + e.duration,
       tick: 0,
       damageReduction: e.damageReduction,
       depth: ctx.depth,
@@ -676,7 +702,9 @@ export class Arena {
   /** Talent buffs get Potency here; buff effects (Sprint) already have it, so they pass `potency: false`. */
   private addBuff(spec: BuffSpec, potency = true) {
     const duration = potency ? spec.duration * (1 + this.stats().potency / 100) : spec.duration
-    this.buffs = this.buffs.filter((b) => b.id !== spec.id)
+    const existing = this.buffs.find((b) => b.id === spec.id)
+    const stacks = existing ? Math.min(spec.maxStacks ?? 1, existing.stacks + 1) : 1
+    this.buffs = this.buffs.filter((b) => b !== existing)
     this.buffs.push({
       id: spec.id,
       name: spec.name,
@@ -685,6 +713,7 @@ export class Arena {
       stats: spec.stats ?? {},
       mods: spec.mods ?? [],
       consumeOn: spec.consumeOn,
+      stacks,
     })
   }
 
@@ -758,13 +787,13 @@ export class Arena {
     const name = rp.source.talentName
     const ctx = this.childContext(ev, null)
     switch (action.do) {
-      case 'mana':
-        this.gainMana(action.amount, name)
+      case 'restore':
+        this.gainResource(action.amount, name)
         break
       case 'refund':
         if (ev.ctx.cost > 0 && !this.refunded.has(ev.ctx.castId)) {
           this.refunded.add(ev.ctx.castId)
-          this.gainMana((ev.ctx.cost * action.pct) / 100, name)
+          this.gainResource((ev.ctx.cost * action.pct) / 100, name)
         }
         break
       case 'apply': {
@@ -780,6 +809,13 @@ export class Arena {
         break
       }
       case 'extend': {
+        if (action.scope === 'source') {
+          const source = ev.ctx.sourceZone ?? ev.ctx.sourceHot
+          if (!source || !matches(action.match, source.effect.tags)) break
+          const cap = action.capPct === undefined ? Infinity : source.baseEnd + (source.duration * action.capPct) / 100
+          source.endsAt = Math.max(source.endsAt, Math.min(cap, source.endsAt + action.seconds))
+          break
+        }
         const targets =
           action.scope === 'event'
             ? ev.target
@@ -848,7 +884,7 @@ export class Arena {
         break
       }
     }
-    if (action.do !== 'mana' && action.do !== 'refund') this.addLog(`${name} triggers`, 'proc')
+    if (action.do !== 'restore' && action.do !== 'refund') this.addLog(`${name} triggers`, 'proc')
   }
 
   /** One tick of a HoT or zone, after its growth or decay so far. */
@@ -865,7 +901,7 @@ export class Arena {
   }
 
   private zoneContext(z: Zone): CastContext {
-    return this.newContext(null, -1, 0, z.depth)
+    return { ...this.newContext(null, -1, 0, z.depth), sourceZone: z }
   }
 
   // ---------- Conditions and targeting ----------
@@ -875,6 +911,7 @@ export class Arena {
     if (when.targetBelow !== undefined && (target.hp / target.maxHp) * 100 >= when.targetBelow) return false
     if (when.targetHas !== undefined && !target.hots.some((h) => matches(when.targetHas!, h.effect.tags))) return false
     if (when.inZone && !this.inZone(target)) return false
+    if (when.affected && !this.affected(target)) return false
     if (when.targetSelf && !target.isPlayer) return false
     return true
   }
@@ -883,7 +920,8 @@ export class Arena {
   private eventMeets(when: Condition, ev: GameEvent): boolean {
     if (when.overheal && !((ev.overheal ?? 0) > 0)) return false
     const target = ev.target
-    const needsTarget = when.targetBelow !== undefined || when.targetHas !== undefined || when.inZone || when.targetSelf
+    const needsTarget =
+      when.targetBelow !== undefined || when.targetHas !== undefined || when.inZone || when.affected || when.targetSelf
     if (!needsTarget) return true
     if (!target) return false
     if (when.targetBelow !== undefined && (ev.before ?? target.hp / target.maxHp) * 100 >= when.targetBelow) return false
@@ -939,19 +977,19 @@ export class Arena {
 
   // ---------- Mana ----------
 
-  private gainMana(n: number, source: string, quiet = false) {
-    const before = this.mana
-    this.mana = Math.min(this.maxMana, this.mana + n)
-    const gained = this.mana - before
+  private gainResource(n: number, source: string, quiet = false) {
+    const before = this.resource
+    this.resource = Math.min(this.maxResource, this.resource + n)
+    const gained = this.resource - before
     if (gained <= 0) return
-    this.meter.manaGained.set(source, (this.meter.manaGained.get(source) ?? 0) + gained)
-    if (!quiet && gained >= 1) this.text(this.player.pos, `+${int(gained)} mana`, '#5aa9ff', false)
+    this.meter.resourceGained.set(source, (this.meter.resourceGained.get(source) ?? 0) + gained)
+    if (!quiet && gained >= 1) this.text(this.player.pos, `+${int(gained)} ${this.kit.resource.toLowerCase()}`, '#5aa9ff', false)
   }
 
   private spend(n: number, source: string) {
     if (n <= 0) return
-    this.mana = Math.max(0, this.mana - n)
-    this.meter.manaSpent.set(source, (this.meter.manaSpent.get(source) ?? 0) + n)
+    this.resource = Math.max(0, this.resource - n)
+    this.meter.resourceSpent.set(source, (this.meter.resourceSpent.get(source) ?? 0) + n)
   }
 
   // ---------- Timers ----------
@@ -1182,8 +1220,13 @@ export class Arena {
     }
   }
 
+  /** `quiet` is for steady drains: no numbers, and no dodging them. */
   private damage(a: Ally, amount: number, source: string, quiet = false) {
     if (!a.alive || amount <= 0) return
+    if (a.isPlayer && !quiet && this.rng() * 100 < this.stats().dodge) {
+      this.text(a.pos, 'Dodge', '#9fe7ff', false)
+      return
+    }
     const zoneDr = Math.max(0, ...this.zones.filter((z) => dist(z.pos, a.pos) <= z.radius).map((z) => z.damageReduction))
     const dr = Math.min(90, zoneDr + (a.isPlayer ? this.stats().damageReduction : 0))
     let left = amount * (1 - dr / 100)

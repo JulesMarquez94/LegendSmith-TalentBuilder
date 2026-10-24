@@ -11,12 +11,13 @@ describe('base numbers', () => {
   const kit = healerKit(SLOTS)
 
   it('come from the staff and the level 60 base', () => {
-    expect(kit.character.stats).toMatchObject({ health: 2400, maxMana: 1000, manaRegen: 10, crit: 5, critDamage: 50 })
+    expect(kit.resource).toBe('Mana')
+    expect(kit.character.stats).toMatchObject({ health: 2400, maxResource: 1000, resourceRegen: 8, crit: 5, critDamage: 50 })
   })
 
   it('match each ability card', () => {
     const mend = abilityIn(kit, 'mend')
-    expect(mend).toMatchObject({ cost: 50, castTime: 1.5, range: 40, gcd: 1, charges: 1 })
+    expect(mend).toMatchObject({ cost: 100, castTime: 1.5, range: 40, gcd: 1, charges: 1, resource: 'mana' })
     expect(mend.effects[0]).toMatchObject({ amount: 1800, critChance: 5, critMultiplier: 1.5 })
     expect(mend.text).toContain('1,800')
 
@@ -71,12 +72,30 @@ describe('talents reach across trees by family', () => {
     expect(abilityIn(kit, 'lifetide').effects[0].amount).toBe(900)
   })
 
-  it('adds percentages together, and to granted effects', () => {
+  it("lifts a whole family from each tree's \"heals more\" talent", () => {
+    const kit = healerKit(['mend', 'chain-heal', 'bloom', 'miracle', null], { mend: { 'greater-mend': 3 } })
+    expect(abilityIn(kit, 'mend').effects[0].amount).toBeCloseTo(1800 * 1.24)
+    expect(abilityIn(kit, 'chain-heal').effects[0].amount).toBeCloseTo(1400 * 1.24)
+    expect(abilityIn(kit, 'bloom').effects[0].amount).toBeCloseTo(900 * 1.24)
+    expect(abilityIn(kit, 'miracle').effects[0].amount).toBeCloseTo(6000 * 1.24)
+  })
+
+  it('adds percentages together, and reaches granted effects by their own family', () => {
     const kit = healerKit(SLOTS, { mend: { 'greater-mend': 3, 'lingering-mend': 1 }, renew: { verdant: 3 } })
     const [heal, lingering] = abilityIn(kit, 'mend').effects
     expect(heal.amount).toBeCloseTo(1800 * 1.24)
     expect(lingering).toMatchObject({ type: 'hot', granted: 'Lingering Mend', ticks: 3 })
-    expect(lingering.amount).toBeCloseTo(180 * (1 + 0.24 + 0.18))
+    // Lingering Mend is a HoT: Verdant lifts it, Greater Mend (direct heals) doesn't.
+    expect(lingering.amount).toBeCloseTo(180 * 1.18)
+  })
+
+  it('trades cost for healing on spells only (Overdrive)', () => {
+    const kit = healerKit(['mend', 'conduit', null, 'miracle', null], { conduit: { overdrive: 1 } })
+    expect(abilityIn(kit, 'mend').cost).toBe(200)
+    expect(abilityIn(kit, 'mend').effects[0].amount).toBeCloseTo(1800 * 1.6)
+    // Conduit and Miracle cost nothing, so they aren't spells.
+    expect(abilityIn(kit, 'conduit').effects[0].amount).toBe(250)
+    expect(abilityIn(kit, 'miracle').effects[0].amount).toBe(6000)
   })
 
   it('reaches zones, costs, charges and cooldowns', () => {
@@ -88,8 +107,8 @@ describe('talents reach across trees by family', () => {
     expect(abilityIn(kit, 'healing-rain')).toMatchObject({ charges: 2, cooldown: 6 })
 
     const thrifty = healerKit(['mend', 'chain-heal', null, 'miracle', null], { mend: { 'efficient-prayers': 3 } })
-    expect(abilityIn(thrifty, 'chain-heal').cost).toBeCloseTo(70.4)
-    expect(abilityIn(thrifty, 'mend').cost).toBeCloseTo(44)
+    expect(abilityIn(thrifty, 'chain-heal').cost).toBeCloseTo(140.8)
+    expect(abilityIn(thrifty, 'mend').cost).toBeCloseTo(88)
     expect(abilityIn(thrifty, 'miracle').cost).toBe(0)
   })
 
@@ -104,7 +123,7 @@ describe('talents reach across trees by family', () => {
 
   it('collects stat talents into the character sheet', () => {
     const kit = healerKit(SLOTS, { 'lifewarden-staff': { 'deep-reserves': 2, meditation: 3 } })
-    expect(kit.character.stats.maxMana).toBe(1200)
-    expect(kit.character.lines.manaRegen).toMatchObject({ base: 10, talents: 6, total: 16 })
+    expect(kit.character.stats.maxResource).toBe(1200)
+    expect(kit.character.lines.resourceRegen).toMatchObject({ base: 8, talents: 3, total: 11 })
   })
 })

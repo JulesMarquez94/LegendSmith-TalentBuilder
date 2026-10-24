@@ -5,7 +5,7 @@ const sum = (values: Iterable<number>) => [...values].reduce((a, b) => a + b, 0)
 
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
 
-/** A healing meter like a WoW damage meter, plus where your mana went and came from. */
+/** A healing meter like a WoW damage meter, plus where your resource went and came from. */
 export function ArenaMeter({ arena }: { arena: Arena }) {
   const { meter } = arena
   const t = Math.max(1, arena.time)
@@ -13,8 +13,8 @@ export function ArenaMeter({ arena }: { arena: Arena }) {
   const healing = sum(rows.map((r) => r.healing))
   const overheal = sum(rows.map((r) => r.overheal))
   const top = rows[0]?.healing || 1
-  const spent = [...meter.manaSpent.entries()].sort((a, b) => b[1] - a[1])
-  const gained = [...meter.manaGained.entries()].sort((a, b) => b[1] - a[1])
+  const spent = [...meter.resourceSpent.entries()].sort((a, b) => b[1] - a[1])
+  const gained = [...meter.resourceGained.entries()].sort((a, b) => b[1] - a[1])
 
   return (
     <section className="meter" aria-label="Healing meter">
@@ -70,9 +70,11 @@ export function ArenaMeter({ arena }: { arena: Arena }) {
         </tbody>
       </table>
 
-      <div className="meter__mana">
+      <div className="meter__resource">
         <div>
-          <h3>Mana spent · {int(sum(meter.manaSpent.values()))}</h3>
+          <h3>
+            {arena.kit.resource} spent · {int(sum(meter.resourceSpent.values()))}
+          </h3>
           <ul>
             {spent.map(([name, n]) => (
               <li key={name}>
@@ -83,7 +85,9 @@ export function ArenaMeter({ arena }: { arena: Arena }) {
           </ul>
         </div>
         <div>
-          <h3>Mana gained · {int(sum(meter.manaGained.values()))}</h3>
+          <h3>
+            {arena.kit.resource} gained · {int(sum(meter.resourceGained.values()))}
+          </h3>
           <ul>
             {gained.map(([name, n]) => (
               <li key={name}>

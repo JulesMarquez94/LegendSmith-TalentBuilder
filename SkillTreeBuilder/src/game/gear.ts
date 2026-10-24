@@ -154,6 +154,38 @@ const HASTE_POTENCY: PairList = [
   ['critDamage', 'echo'],
 ]
 
+// Every pair with Critical or Haste, then the three that give the least of anything else.
+const COMMON_CRIT_HASTE: PairList = [
+  ['haste', 'crit'],
+  ['haste', 'critDamage'],
+  ['haste', 'potency'],
+  ['haste', 'echo'],
+  ['haste', 'minionPower'],
+  ['crit', 'critDamage'],
+  ['crit', 'potency'],
+  ['crit', 'echo'],
+  ['crit', 'minionPower'],
+  ['critDamage', 'potency'],
+  ['critDamage', 'echo'],
+  ['potency', 'echo'],
+]
+
+// Every pair with Potency or Haste, then the three that give the least of anything else.
+const COMMON_POTENCY_HASTE: PairList = [
+  ['haste', 'potency'],
+  ['haste', 'crit'],
+  ['haste', 'critDamage'],
+  ['haste', 'echo'],
+  ['haste', 'minionPower'],
+  ['crit', 'potency'],
+  ['critDamage', 'potency'],
+  ['potency', 'echo'],
+  ['potency', 'minionPower'],
+  ['crit', 'critDamage'],
+  ['crit', 'echo'],
+  ['critDamage', 'echo'],
+]
+
 const CRIT: PairList = [
   ['crit', 'critDamage'],
   ['haste', 'crit'],
@@ -198,7 +230,12 @@ export interface GearPreset {
 
 export const GEAR_PRESETS: readonly GearPreset[] = [
   { id: 'none', name: 'Nothing equipped', gear: {} },
-  { id: 'fresh', name: 'Fresh level 60 · commons, item level 60', gear: fill('common', 60, HASTE_POTENCY) },
+  { id: 'common-crit', name: 'Critical and Haste · common, item level 60', gear: fill('common', 60, COMMON_CRIT_HASTE) },
+  {
+    id: 'common-potency',
+    name: 'Potency and Haste · common, item level 60',
+    gear: fill('common', 60, COMMON_POTENCY_HASTE),
+  },
   { id: 'overview', name: "The overview's example set", gear: OVERVIEW },
   { id: 'rare-100', name: 'Haste and Potency · rare, item level 100', gear: fill('rare', 100, HASTE_POTENCY) },
   { id: 'epic-hp', name: 'Haste and Potency · epic, item level 120', gear: fill('epic', 120, HASTE_POTENCY) },

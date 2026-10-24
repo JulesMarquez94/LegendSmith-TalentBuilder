@@ -47,17 +47,23 @@ already in another slot swaps the two and keeps both builds.
 
 ## The healer kit
 
-The **Lifewarden Staff** uses mana: 1,000 to start, 10 back per second, and its main attack, Radiant
-Bolt, restores 20 per hit.
+The **Lifewarden Staff** uses mana: 1,000 to start, 8 back per second, and its main attack, Radiant
+Bolt, restores 16 per hit. Heals cost 80–200, so you weave attacks between heals.
+
+Abilities never hard-code mana: they cost the artifact's **resource**, and shared talent text says
+`@resource`, which shows as the held artifact's resource. Another healing weapon with its own resource
+can use the same heals and trees.
 
 | Slot | Choices |
 | --- | --- |
-| Heals (pick 3) | Mend (direct heal), Chain Heal (jumps, 6 sec cooldown), Healing Rain (zone), Renew (HoT), Bloom (spends mana to heal everyone your HoTs and zones touch), Conduit (passive: Radiant Bolt heals) |
+| Heals (pick 3) | Mend (direct heal), Chain Heal (jumps, 6 sec cooldown), Healing Rain (zone, never two on one ally), Renew (HoT), Bloom (pays per ally to heal everyone your HoTs and zones touch), Conduit (passive: Radiant Bolt heals) |
 | Ultimate | Miracle (instant heal on everyone), Sanctuary (big zone for 12 sec), Lifetide (strong HoT that decays) |
 | Mobility | Dash (2 charges), Teleport, Sprint |
 
-Talents aim at **families and tags**, not named abilities: "your HoTs heal 12% more" in Renew's tree
-also lifts Lifetide, Riptide and any other HoT you have slotted. A talent's tooltip lists what it
+Talents aim at **families and tags**, not named abilities. Every tree's "heals more" talent lifts a
+whole family: Mend's and Miracle's lift direct heals, Chain Heal's chain heals, Healing Rain's and
+Sanctuary's zones, Renew's and Lifetide's HoTs. Each ultimate also has a talent that cuts its cooldown
+when you crit with its family. A talent's tooltip lists what it
 reaches ("Affects: Renew, Lifetide"). The families are direct heal, HoT, zone, shield, damage, mana,
 movement and buff, plus `healing` on every heal, slot kinds (`heal`, `cooldown`…) and ability ids.
 
@@ -73,6 +79,15 @@ pair, so you can't wear two "of Peerlessness" at once. Click a slot to make a te
 - **Critical** and **Crit damage** set crit chance and size (crits land for 150% plus Crit damage).
 - **Potency** lengthens HoTs, zones, shields and buffs: duration × (1 + Potency).
 - **Echo** is a chance to cast an ability again for free. Movement never echoes.
+- **Dodge** is a chance to avoid a hit completely. Like Damage reduction it never comes from items; Dash
+  talents give it.
+
+The stat sheet shows Power and Health together at the top with the resource, then **Secondary**
+(Haste, Critical, Crit damage, Potency), **Defensive** (Damage reduction, Dodge) and **Extra** (Echo,
+Minion power, Speed and anything only talents give).
+
+Because no two worn trinkets can share a name, each stat pair can be worn once, so no stat sits on more
+than 5 of the 12 trinkets. The common "Critical and Haste" and "Potency and Haste" sets differ by 1%.
 
 **Ability numbers**, under the trees, shows every number on every slotted ability. Numbers flash green
 when they improve and red when they drop, with the base (nothing equipped or learned) in grey.

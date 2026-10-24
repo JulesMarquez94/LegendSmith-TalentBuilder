@@ -27,7 +27,7 @@ export const FAMILY_OF: Record<EffectType, Family> = {
   zone: 'zone',
   shield: 'shield',
   damage: 'damage',
-  mana: 'mana',
+  restore: 'resource',
   move: 'movement',
   buff: 'buff',
 }
@@ -88,6 +88,8 @@ export interface BuildInput {
 }
 
 export interface Kit {
+  /** The artifact's resource name ("Mana"). */
+  resource: string
   character: CharacterSheet
   /** Each slot's ability with live numbers; null when empty or the tree is display-only. */
   slots: readonly (ResolvedAbility | null)[]
@@ -148,10 +150,14 @@ function sum(mods: readonly ModMechanic[], key: ValueKey, tags: ReadonlySet<Tag>
 
 const scaled = (base: number, s: Sums) => (base + s.add) * (1 + s.pct / 100)
 
+/** Abilities that cost resource are spells; so are their effects, for talents like Overdrive. */
+const isSpell = (tree: TreeDef) => (tree.spec?.cost ?? 0) > 0
+
 function effectTags(tree: TreeDef, effect: EffectSpec): Set<Tag> {
   const family = FAMILY_OF[effect.type]
   const tags = new Set<Tag>([family, tree.id, tree.kind, ...(tree.spec?.tags ?? []), ...(effect.tags ?? [])])
   if (HEALING.has(family)) tags.add('healing')
+  if (isSpell(tree)) tags.add('spell')
   return tags
 }
 
@@ -199,7 +205,7 @@ function resolveEffectWith(
     instantTicks: Math.max(0, Math.round((effect.instantTicks ?? 0) + get('instantTicks').add)),
     follow: (effect.follow ?? 0) + get('follow').add > 0 ? 1 : 0,
     damageReduction: Math.min(90, (effect.damageReduction ?? 0) + get('damageReduction').add),
-    mana: Math.max(0, scaled(effect.mana ?? 0, get('mana'))),
+    restore: Math.max(0, scaled(effect.restore ?? 0, get('restore'))),
     distance: Math.max(0, scaled(effect.distance ?? 0, get('distance'))),
     speed: Math.max(0, scaled(speedBase, get('speed'))),
     extraCost: Math.max(0, scaled(effect.extraCost ?? 0, get('extraCost'))),
@@ -221,6 +227,7 @@ function resolveAbilityWith(
   stats: CharStats,
   mods: readonly ModMechanic[],
   grants: readonly Sourced<Extract<Mechanic, { kind: 'grant' }>>[],
+  resource: string,
 ): ResolvedAbility | null {
   const spec = tree.spec
   if (!spec) return null
@@ -231,6 +238,7 @@ function resolveAbilityWith(
   const families = effects.map(({ effect }) => FAMILY_OF[effect.type])
   const tags = new Set<Tag>([tree.id, tree.kind, ...(spec.tags ?? []), ...families])
   if (families.some((f) => HEALING.has(f))) tags.add('healing')
+  if (isSpell(tree)) tags.add('spell')
   const get = (key: ValueKey) => sum(mods, key, tags)
   const haste = 1 + stats.haste / 100
   const baseGcd = spec.gcd ?? 1
@@ -240,6 +248,7 @@ function resolveAbilityWith(
     treeId: tree.id,
     name: tree.ability.name,
     color: tree.color ?? DEFAULT_COLOR,
+    resource: resource.toLowerCase(),
     kind: tree.kind,
     tags,
     cost: Math.max(0, scaled(spec.cost ?? 0, get('cost'))),
@@ -271,10 +280,13 @@ export function buildKit(input: BuildInput): Kit {
 
   const resolve: Kit['resolve'] = (treeId, extra = [], stats = character.stats) => {
     const tree = treeById.get(treeId)
-    return tree ? resolveAbilityWith(tree, stats, extra.length ? [...mods, ...extra] : mods, grants) : null
+    return tree
+      ? resolveAbilityWith(tree, stats, extra.length ? [...mods, ...extra] : mods, grants, input.artifact.resource)
+      : null
   }
 
   return {
+    resource: input.artifact.resource,
     character,
     slots: input.trees.map((tree) => (tree ? resolve(tree.id) : null)),
     procs,
@@ -319,12 +331,23 @@ export function reach(mechanics: readonly Mechanic[], kit: Kit): string[] {
       if (abilityLevel ? matches(match, a.tags) : a.effects.some((e) => matches(match, e.tags))) names.add(a.name)
     }
   }
+  const named = (id: string) => {
+    const target = abilities.find((a) => a.treeId === id)
+    if (target) names.add(target.name)
+  }
   for (const m of mechanics) {
     if (m.kind === 'mod') hits(m.match, ABILITY_KEYS.has(m.key))
-    else if (m.kind === 'grant') {
-      const target = abilities.find((a) => a.treeId === m.to)
-      if (target) names.add(target.name)
-    } else if (m.kind === 'proc') hits(m.proc.match, m.proc.on === 'cast')
+    else if (m.kind === 'stat') names.add('your character')
+    else if (m.kind === 'grant') named(m.to)
+    else {
+      hits(m.proc.match, m.proc.on === 'cast')
+      // What the proc then does counts too: a buff's changes, a cooldown cut, an ability it fires.
+      for (const action of m.proc.actions) {
+        if (action.do === 'buff') for (const mod of action.buff.mods ?? []) hits(mod.match, ABILITY_KEYS.has(mod.key))
+        else if (action.do === 'cooldown') hits(action.match, true)
+        else if (action.do === 'fire') named(action.ability)
+      }
+    }
   }
   return [...names]
 }

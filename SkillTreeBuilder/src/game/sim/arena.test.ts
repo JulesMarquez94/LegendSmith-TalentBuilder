@@ -27,22 +27,22 @@ describe('mana', () => {
   it('drains as you cast and comes back slowly', () => {
     const arena = arenaWith(['mend', null, null, null, null])
     cast(arena, 1)
-    expect(arena.mana).toBeCloseTo(950, 0)
+    expect(arena.resource).toBeCloseTo(900, 0)
     run(arena, 2)
-    expect(arena.mana).toBeCloseTo(970, 0)
+    expect(arena.resource).toBeCloseTo(916, 0)
   })
 
   it('is restored by Radiant Bolt', () => {
     const arena = arenaWith([null, null, null, null, null])
-    arena.mana = 500
+    arena.resource = 500
     cast(arena, 0)
-    expect(arena.mana).toBeCloseTo(520.5, 0)
-    expect(arena.meter.manaGained.get('Radiant Bolt')).toBe(20)
+    expect(arena.resource).toBeCloseTo(516.4, 1)
+    expect(arena.meter.resourceGained.get('Radiant Bolt')).toBe(16)
   })
 
   it("stops a cast you can't afford", () => {
     const arena = arenaWith(['mend', null, null, null, null])
-    arena.mana = 10
+    arena.resource = 10
     cast(arena, 1)
     expect(arena.cast).toBeNull()
     expect(arena.notice?.text).toBe('Not enough mana')
@@ -90,11 +90,11 @@ describe('heals', () => {
     expect(arena.notice?.text).toBe('Nobody has your HoTs or stands in your zones')
     cast(arena, 1)
     run(arena, 1)
-    const before = arena.mana
+    const before = arena.resource
     cast(arena, 2)
     expect(hits(arena, 'Bloom')).toBe(1)
-    // 30 for the cast and 15 for the one ally, less the step's regeneration.
-    expect(before - arena.mana).toBeCloseTo(30 + 15 - 0.5, 1)
+    // 60 for the cast and 30 for the one ally, less the step's regeneration.
+    expect(before - arena.resource).toBeCloseTo(60 + 30 - 0.4, 1)
   })
 
   it("make Conduit heal when Radiant Bolt hits, as a passive", () => {
@@ -172,9 +172,9 @@ describe('talent procs', () => {
       cast(arena, 1)
       run(arena, 1.5)
     }
-    const before = arena.mana
+    const before = arena.resource
     cast(arena, 1)
-    expect(arena.mana).toBeGreaterThanOrEqual(before)
+    expect(arena.resource).toBeGreaterThanOrEqual(before)
   })
 
   it('leave Renew behind Lifetide (Ebb and Flow), even unslotted', () => {
@@ -190,7 +190,52 @@ describe('talent procs', () => {
     const arena = new Arena(kit, QUIET, { seed: 1 })
     cast(arena, 1)
     expect(arena.allies.filter((a) => a.hots.length > 0)).toHaveLength(2)
-    expect(arena.mana).toBeCloseTo(960, 0)
+    expect(arena.resource).toBeCloseTo(920, 0)
+  })
+})
+
+describe('the new mechanics', () => {
+  it('never puts two Healing Rains on the same ally', () => {
+    const arena = arenaWith(['healing-rain', null, null, null, null], { 'healing-rain': { 'twin-storms': 1 } })
+    cast(arena, 1)
+    run(arena, 1)
+    cast(arena, 1)
+    const [first, second] = arena.zones
+    expect(Math.hypot(first.pos.x - second.pos.x, first.pos.y - second.pos.y)).toBeGreaterThan(first.radius)
+  })
+
+  it('makes Healing Rain last longer on crits, up to the cap (Gathering Storm)', () => {
+    const base = healerKit(['healing-rain', null, null, null, null], { 'healing-rain': { 'gathering-storm': 3 } })
+    const always = (a: (typeof base.slots)[number]) => a && { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 100 })) }
+    const arena = new Arena({ ...base, slots: base.slots.map(always) }, QUIET, { seed: 1 })
+    cast(arena, 1)
+    const placed = arena.time
+    run(arena, 9)
+    // Each crit adds 0.5 sec; at rank 3 it stops at 30% longer than its 10 sec.
+    expect(arena.zones[0].endsAt - placed).toBeCloseTo(13, 1)
+  })
+
+  it('stacks Latent Charge on each bolt and spends it on the next direct heal', () => {
+    const arena = arenaWith(['mend', 'conduit', null, null, null], { conduit: { 'strong-current': 1, 'latent-charge': 2 } })
+    for (let i = 0; i < 3; i++) {
+      cast(arena, 0)
+      run(arena, 1)
+    }
+    expect(arena.buffs.find((b) => b.id === 'latent-charge')?.stacks).toBe(3)
+    // 10% per stack, on top of Strong Current's 4%.
+    expect(arena.current(1)!.effects[0].amount).toBeCloseTo(1800 * (1 + 0.04 + 0.3))
+    cast(arena, 1)
+    expect(arena.buffs.some((b) => b.id === 'latent-charge')).toBe(false)
+  })
+
+  it('lets you dodge a hit completely', () => {
+    const pulse: Scenario = { ...QUIET, events: [{ kind: 'pulse', name: 'Test pulse', every: 1, amount: 500, first: 0.5 }] }
+    const base = healerKit([null, null, null, null, null])
+    const kit: Kit = { ...base, character: { ...base.character, stats: { ...base.character.stats, dodge: 100 } } }
+    const arena = new Arena(kit, pulse, { seed: 1 })
+    run(arena, 3)
+    expect(arena.player.hp).toBe(1200)
+    expect(ally(arena, 'Tank').hp).toBeLessThan(15000)
   })
 })
 
@@ -208,7 +253,7 @@ describe('the dungeon fight', () => {
     const arena = new Arena(healerKit(['mend', 'renew', 'healing-rain', 'miracle', 'dash']), SCENARIOS[1], { seed: 3 })
     for (let t = 0; t < 200 && !arena.ended; t += DT) {
       for (const slot of [4, 3, 2, 1]) arena.press(slot)
-      if (arena.mana < 200) arena.press(0)
+      if (arena.resource < 200) arena.press(0)
       arena.step(DT)
     }
     expect(arena.ended).not.toBeNull()

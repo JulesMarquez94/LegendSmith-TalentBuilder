@@ -48,10 +48,10 @@ export function PartyFrames({ arena }: { arena: Arena }) {
   )
 }
 
-/** Your health, mana, cast bar and buffs. */
+/** Your health, resource (mana for the staff), cast bar and buffs. */
 export function PlayerBars({ arena }: { arena: Arena }) {
   const p = arena.player
-  const max = arena.maxMana
+  const max = arena.maxResource
   const cast = arena.cast
   return (
     <div className="you">
@@ -62,10 +62,10 @@ export function PlayerBars({ arena }: { arena: Arena }) {
         </span>
       </div>
       {max > 0 && (
-        <div className="bar you__bar you__mana">
-          <div className="bar__fill" style={{ width: `${(arena.mana / max) * 100}%` }} />
+        <div className="bar you__bar you__resource">
+          <div className="bar__fill" style={{ width: `${(arena.resource / max) * 100}%` }} />
           <span className="bar__text">
-            Mana {int(arena.mana)} / {int(max)} · +{sec(arena.manaRegen())}/sec
+            {arena.kit.resource} {int(arena.resource)} / {int(max)} · +{sec(arena.resourceRegen())}/sec
             {arena.reservoir >= 1 && ` · Reservoir ${int(arena.reservoir)}`}
           </span>
         </div>
@@ -89,7 +89,8 @@ export function PlayerBars({ arena }: { arena: Arena }) {
       <div className="you__buffs">
         {arena.buffs.map((b) => (
           <span key={b.id} className="buff">
-            {b.name} <small>{sec(Math.max(0, b.endsAt - arena.time))}</small>
+            {b.name}
+            {b.stacks > 1 && ` ×${b.stacks}`} <small>{sec(Math.max(0, b.endsAt - arena.time))}</small>
           </span>
         ))}
       </div>
@@ -97,7 +98,7 @@ export function PlayerBars({ arena }: { arena: Arena }) {
   )
 }
 
-/** The six slot buttons, with cooldown sweeps, charges and mana costs. Click works like the key. */
+/** The six slot buttons, with cooldown sweeps, charges and costs. Click works like the key. */
 export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readonly (TreeDef | null)[]; onUse: (slot: number) => void }) {
   const tipId = useId()
   const [hover, hoverOn] = useHoverTarget<number>()
@@ -119,7 +120,7 @@ export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readon
         const waiting = cd && cd.charges < 1 && cd.rechargeAt !== null ? (cd.rechargeAt - arena.time) / cd.duration : 0
         const gcd = base && base.gcd > 0 && arena.time < arena.gcdUntil ? (arena.gcdUntil - arena.time) / (arena.gcdUntil - arena.gcdStart) : 0
         const sweep = Math.max(waiting, gcd)
-        const noMana = a !== null && arena.mana + 1e-6 < a.cost
+        const short = a !== null && arena.resource + 1e-6 < a.cost
         const left = cd && cd.charges < 1 && cd.rechargeAt !== null ? cd.rechargeAt - arena.time : 0
         return (
           <button
@@ -129,7 +130,7 @@ export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readon
               'action',
               !a && 'action--inert',
               a?.passive && 'action--passive',
-              noMana && 'action--oom',
+              short && 'action--oom',
               arena.cast?.slot === i && 'action--casting',
             ]
               .filter(Boolean)

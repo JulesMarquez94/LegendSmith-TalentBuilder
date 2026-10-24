@@ -5,7 +5,7 @@ import type { SlotKind } from '../talents/types.ts'
  * named ability only, so a talent that boosts heal-over-time effects boosts every HoT in the kit,
  * whichever tree it sits in.
  */
-export type Family = 'direct-heal' | 'hot' | 'zone' | 'shield' | 'damage' | 'mana' | 'movement' | 'buff'
+export type Family = 'direct-heal' | 'hot' | 'zone' | 'shield' | 'damage' | 'resource' | 'movement' | 'buff'
 
 /**
  * What a talent can aim at:
@@ -13,6 +13,7 @@ export type Family = 'direct-heal' | 'hot' | 'zone' | 'shield' | 'damage' | 'man
  * - a slot kind ('artifact', 'heal', 'cooldown', 'mobility');
  * - an ability id ('mend', 'chain-heal');
  * - an extra tag an ability or effect declares ('main-attack', 'chain');
+ * - 'spell' on abilities (and their effects) that cost resource;
  * - '*' for everything.
  */
 export type Tag = string
@@ -31,15 +32,21 @@ export type CharStat =
   | 'echo'
   | 'minionPower'
   | 'damageReduction'
+  /** % chance to avoid a hit completely. */
+  | 'dodge'
   | 'speed'
-  | 'maxMana'
-  | 'manaRegen'
-  /** % of overhealing stored, then given back as mana by the next main attack. */
-  | 'overhealToMana'
-  /** % stronger mana regeneration while below 30% mana. */
-  | 'lowManaRegen'
-  /** Extra mana per second while you stand in one of your zones. */
-  | 'zoneManaRegen'
+  /**
+   * The artifact's resource (mana for the staff). Abilities only say "cost" and "resource", so
+   * another healing weapon with its own resource can use the same heals.
+   */
+  | 'maxResource'
+  | 'resourceRegen'
+  /** % of overhealing stored, then given back as resource by the next main attack. */
+  | 'overhealToResource'
+  /** % stronger resource regeneration while below 30% of the maximum. */
+  | 'lowResourceRegen'
+  /** Extra resource per second while you stand in one of your zones. */
+  | 'zoneResourceRegen'
 
 export type CharStats = Record<CharStat, number>
 
@@ -61,7 +68,7 @@ export type EffectKey =
   | 'instantTicks'
   | 'follow'
   | 'damageReduction'
-  | 'mana'
+  | 'restore'
   | 'distance'
   | 'speed'
   | 'extraCost'
@@ -78,7 +85,7 @@ export const ABILITY_KEYS: ReadonlySet<ValueKey> = new Set<ValueKey>([
   'echo',
 ])
 
-export type EffectType = 'heal' | 'chain' | 'bloom' | 'hot' | 'zone' | 'shield' | 'damage' | 'mana' | 'move' | 'buff'
+export type EffectType = 'heal' | 'chain' | 'bloom' | 'hot' | 'zone' | 'shield' | 'damage' | 'restore' | 'move' | 'buff'
 
 /**
  * Who an effect lands on. Smart targeting, as in the pillars: heals go to the lowest-health ally
@@ -87,7 +94,7 @@ export type EffectType = 'heal' | 'chain' | 'bloom' | 'hot' | 'zone' | 'shield' 
 export type TargetRule =
   /** Lowest-health ally in range (you included). */
   | 'lowest'
-  /** Lowest-health ally in range that doesn't already have this effect from you. */
+  /** Lowest-health ally in range that doesn't already have this effect from you (for zones: isn't standing in one). */
   | 'lowest-missing'
   /** Lowest-health ally in range other than whoever the triggering heal just hit. */
   | 'next-lowest'
@@ -107,12 +114,14 @@ export interface BuffSpec {
   id: string
   name: string
   duration: number
-  /** Character stats while it lasts: speed %, damage reduction %, mana per second… */
+  /** Character stats while it lasts: speed %, damage reduction %, resource per second… */
   stats?: Partial<CharStats>
   /** Ability and effect changes while it lasts. */
   mods?: ModMechanic[]
   /** Used up by the next cast of an ability that matches. */
   consumeOn?: Match
+  /** Getting it again adds a stack, up to this many; its stats and mods count once per stack. */
+  maxStacks?: number
 }
 
 /** One piece of what an ability does. Only the fields its type uses matter. */
@@ -141,11 +150,11 @@ export interface EffectSpec {
   follow?: number
   /** % less damage taken by allies inside a zone. */
   damageReduction?: number
-  /** Mana restored. */
-  mana?: number
+  /** Resource given back. */
+  restore?: number
   distance?: number
   mode?: 'dash' | 'teleport'
-  /** Bloom's mana per ally healed. */
+  /** Bloom's extra cost per ally healed. */
   extraCost?: number
   /** For buff effects. Its `stats.speed` is the effect's `speed` value. */
   buff?: BuffSpec
@@ -162,6 +171,8 @@ export interface Condition {
   targetHas?: Match
   /** Target stands in one of your zones. */
   inZone?: boolean
+  /** Target has one of your HoTs or stands in one of your zones. */
+  affected?: boolean
   /** Target is you. */
   targetSelf?: boolean
   /** The heal overhealed. */
@@ -188,13 +199,23 @@ export interface ModMechanic {
 export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire'
 
 export type Action =
-  | { do: 'mana'; amount: number }
-  /** Gives back this % of the triggering cast's mana cost (once per cast). */
+  | { do: 'restore'; amount: number }
+  /** Gives back this % of the triggering cast's cost (once per cast). */
   | { do: 'refund'; pct: number }
   /** Applies an effect. With `ofEvent`, its amount is that % of the event's healing or overhealing. */
   | { do: 'apply'; effect: EffectSpec; ofEvent?: { pct: number; of: 'amount' | 'overheal' } }
-  /** Adds seconds to your HoTs and zones that match, on the event's target, everyone, or allies near you. */
-  | { do: 'extend'; match: Match; seconds: number; scope: 'event' | 'all' | 'near'; radius?: number }
+  /**
+   * Adds seconds to your HoTs and zones that match: on the event's target, everyone, allies near you,
+   * or ('source') the HoT or zone whose heal triggered it, never past `capPct`% longer than it started.
+   */
+  | {
+      do: 'extend'
+      match: Match
+      seconds: number
+      scope: 'event' | 'all' | 'near' | 'source'
+      radius?: number
+      capPct?: number
+    }
   /** Takes seconds off matching abilities' cooldowns. Infinity resets them. */
   | { do: 'cooldown'; match: Match; seconds: number }
   | { do: 'buff'; buff: BuffSpec }
@@ -281,7 +302,7 @@ export interface ResolvedEffect {
   instantTicks: number
   follow: number
   damageReduction: number
-  mana: number
+  restore: number
   distance: number
   speed: number
   extraCost: number
@@ -296,6 +317,8 @@ export interface ResolvedAbility {
   treeId: string
   name: string
   color: string
+  /** The artifact's resource, lower case ("mana"), for card text. */
+  resource: string
   kind: SlotKind
   tags: ReadonlySet<Tag>
   cost: number

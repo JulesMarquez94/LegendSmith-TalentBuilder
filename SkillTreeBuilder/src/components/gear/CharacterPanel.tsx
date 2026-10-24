@@ -2,7 +2,7 @@ import { useId, useState, type CSSProperties, type HTMLAttributes } from 'react'
 import { int, statValue } from '../../game/format.ts'
 import { GEAR_PRESETS, RARITY_INFO, TRINKET_SLOTS, trinketName, type Gear, type TrinketSlot } from '../../game/gear.ts'
 import type { CharacterSheet } from '../../game/resolve.ts'
-import { SHEET_ORDER, STAT_INFO } from '../../game/stats.ts'
+import { SHEET_SECTIONS, STAT_INFO, TALENT_ONLY, withResource } from '../../game/stats.ts'
 import type { CharStat } from '../../game/types.ts'
 import type { ArtifactDef } from '../../talents/types.ts'
 import { ArtIcon } from '../ArtIcon.tsx'
@@ -20,10 +20,10 @@ interface Props {
 
 type Hovered = { kind: 'slot'; slot: TrinketSlot } | { kind: 'stat'; stat: CharStat }
 
-/** Stats only talents give; listed once a talent gives them. */
-const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>(['overhealToMana', 'lowManaRegen', 'zoneManaRegen'])
-
-/** The character third of the overview's character screen: 12 trinkets around the vitals, then the stats. */
+/**
+ * The character third of the overview's character screen: 12 trinkets around Power, Health and the
+ * resource, then the other stats in sections (secondary, defensive, extra).
+ */
 export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
   const tipId = useId()
   const [hover, hoverOn] = useHoverTarget<Hovered>()
@@ -53,7 +53,7 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
     )
   }
 
-  const shownStats = SHEET_ORDER.filter((s) => !TALENT_ONLY.has(s) || stats[s] !== 0)
+  const label = (stat: CharStat) => withResource(STAT_INFO[stat].label, artifact.resource)
 
   return (
     <aside className="char" data-tooltip-side aria-label="Character">
@@ -70,17 +70,19 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
       <div className="char__gear">
         <div className="char__col">{left.map(slotButton)}</div>
         <div className="char__vitals">
-          <Vital label="Health" value={int(stats.health)} color="#8fe3a0" {...hoverOn({ kind: 'stat', stat: 'health' })} />
-          {stats.maxMana > 0 && (
+          <div className="char__main">
+            <Vital label="Power" value={`+${statValue('power', stats.power)}`} color="#ffffff" {...hoverOn({ kind: 'stat', stat: 'power' })} />
+            <Vital label="Health" value={int(stats.health)} color="#8fe3a0" {...hoverOn({ kind: 'stat', stat: 'health' })} />
+          </div>
+          {stats.maxResource > 0 && (
             <Vital
               label={artifact.resource}
-              value={int(stats.maxMana)}
-              sub={`+${statValue('manaRegen', stats.manaRegen)}`}
+              value={int(stats.maxResource)}
+              sub={`+${statValue('resourceRegen', stats.resourceRegen)}`}
               color="#5aa9ff"
-              {...hoverOn({ kind: 'stat', stat: 'maxMana' })}
+              {...hoverOn({ kind: 'stat', stat: 'maxResource' })}
             />
           )}
-          <Vital label="Power" value={`+${statValue('power', stats.power)}`} color="#ffffff" {...hoverOn({ kind: 'stat', stat: 'power' })} />
           <p className="char__hint">Click a slot to make or change a trinket.</p>
         </div>
         <div className="char__col">{right.map(slotButton)}</div>
@@ -106,14 +108,21 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
         </label>
       </div>
 
-      <dl className="stats">
-        {shownStats.map((stat) => (
-          <div key={stat} className="stats__row" tabIndex={0} {...hoverOn({ kind: 'stat', stat })}>
-            <dt style={{ color: STAT_INFO[stat].color }}>{STAT_INFO[stat].label}</dt>
-            <dd>{statValue(stat, stats[stat])}</dd>
-          </div>
-        ))}
-      </dl>
+      {SHEET_SECTIONS.map((section) => (
+        <section key={section.title} className="stats" aria-label={section.title}>
+          <h3 className="stats__title">{section.title}</h3>
+          <dl className="stats__list">
+            {section.stats
+              .filter((stat) => !TALENT_ONLY.has(stat) || stats[stat] !== 0)
+              .map((stat) => (
+                <div key={stat} className="stats__row" tabIndex={0} {...hoverOn({ kind: 'stat', stat })}>
+                  <dt style={{ color: STAT_INFO[stat].color }}>{label(stat)}</dt>
+                  <dd>{statValue(stat, stats[stat])}</dd>
+                </div>
+              ))}
+          </dl>
+        </section>
+      ))}
 
       {hover && (
         <Tooltip id={tipId} anchor={hover.el}>
@@ -127,7 +136,7 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
               </div>
             )
           ) : (
-            <StatTip stat={hover.target.stat} line={lines[hover.target.stat]} />
+            <StatTip stat={hover.target.stat} line={lines[hover.target.stat]} resource={artifact.resource} />
           )}
         </Tooltip>
       )}
@@ -156,7 +165,7 @@ function Vital({ label, value, sub, color, ...hover }: VitalProps) {
   )
 }
 
-function StatTip({ stat, line }: { stat: CharStat; line: CharacterSheet['lines'][CharStat] }) {
+function StatTip({ stat, line, resource }: { stat: CharStat; line: CharacterSheet['lines'][CharStat]; resource: string }) {
   const info = STAT_INFO[stat]
   const part = (label: string, n: number) => (
     <div className="item__line">
@@ -166,8 +175,8 @@ function StatTip({ stat, line }: { stat: CharStat; line: CharacterSheet['lines']
   )
   return (
     <div className="item" style={{ '--rc': info.color } as CSSProperties}>
-      <div className="item__name">{info.label}</div>
-      <div className="item__req">{info.help}</div>
+      <div className="item__name">{withResource(info.label, resource)}</div>
+      <div className="item__req">{withResource(info.help, resource)}</div>
       <div className="item__parts">
         {part('Base', line.base)}
         {line.gear !== 0 && part('Trinkets', line.gear)}

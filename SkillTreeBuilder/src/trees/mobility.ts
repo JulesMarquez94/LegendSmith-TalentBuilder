@@ -7,12 +7,13 @@ import {
   grant,
   heal,
   hot,
-  mana,
   more,
   plus,
   proc,
+  restore,
   selfBuff,
   shield,
+  stat,
   talent,
   zone,
 } from './authoring.ts'
@@ -71,9 +72,18 @@ export const dash: TreeDef = {
       name: 'Second Wind',
       row: 0,
       col: 3,
-      per: [15, 30],
-      text: 'Dash restores {} mana.',
-      does: (v) => [proc('cast', 'dash', [mana(v)])],
+      per: [12, 24],
+      text: 'Dash gives you back {} @resource.',
+      does: (v) => [proc('cast', 'dash', [restore(v)])],
+    }),
+    talent({
+      id: 'light-footed',
+      name: 'Light Footed',
+      row: 1,
+      col: 0,
+      per: [2, 4],
+      text: 'You have +{}% dodge: that chance to avoid any hit completely.',
+      does: (v) => [stat('dodge', v)],
     }),
     talent({
       id: 'triple-dash',
@@ -127,11 +137,9 @@ export const dash: TreeDef = {
       row: 3,
       col: 0,
       requires: 'momentum',
-      per: [15, 30],
-      text: 'After Dash, you take {}% less damage for 2 sec.',
-      does: (v) => [
-        proc('cast', 'dash', [buff({ id: 'evasion', name: 'Evasion', duration: 2, stats: { damageReduction: v } })]),
-      ],
+      per: [25, 50],
+      text: 'After Dash, you have +{}% dodge for 2 sec.',
+      does: (v) => [proc('cast', 'dash', [buff({ id: 'evasion', name: 'Evasion', duration: 2, stats: { dodge: v } })])],
     }),
     talent({
       id: 'fleetfoot',
@@ -190,9 +198,9 @@ export const teleport: TreeDef = {
       name: 'Arcane Recovery',
       row: 1,
       col: 0,
-      per: [40, 80],
-      text: 'Teleport restores {} mana.',
-      does: (v) => [proc('cast', 'teleport', [mana(v)])],
+      per: [30, 60],
+      text: 'Teleport gives you back {} @resource.',
+      does: (v) => [proc('cast', 'teleport', [restore(v)])],
     }),
     talent({
       id: 'double-blink',
@@ -227,7 +235,7 @@ export const teleport: TreeDef = {
       row: 2,
       col: 3,
       per: [50, 100],
-      text: 'After Teleport, your next direct heal within 6 sec costs {}% less mana.',
+      text: 'After Teleport, your next direct heal within 6 sec costs {}% less.',
       does: (v) => [
         proc('cast', 'teleport', [
           buff({
@@ -316,11 +324,11 @@ export const sprint: TreeDef = {
       name: 'Second Breath',
       row: 1,
       col: 0,
-      per: [5, 10],
-      text: 'While sprinting, you regenerate {} more mana per sec.',
+      per: [4, 8],
+      text: 'While sprinting, you regenerate {} more @resource per sec.',
       does: (v) => [
         proc('cast', 'sprint', [
-          apply(selfBuff({ id: 'second-breath', name: 'Second Breath', duration: 4, stats: { manaRegen: v } })),
+          apply(selfBuff({ id: 'second-breath', name: 'Second Breath', duration: 4, stats: { resourceRegen: v } })),
         ]),
       ],
     }),

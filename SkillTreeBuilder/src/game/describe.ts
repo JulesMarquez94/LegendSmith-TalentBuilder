@@ -32,6 +32,7 @@ export function describeCondition(when: Condition): string {
   if (when.targetBelow !== undefined) parts.push(`below ${when.targetBelow}% health`)
   if (when.targetHas !== undefined) parts.push('with your HoT')
   if (when.inZone) parts.push('in your zone')
+  if (when.affected) parts.push('with your HoT or in your zone')
   if (when.targetSelf) parts.push('on you')
   return parts.join(', ')
 }
@@ -40,7 +41,10 @@ const amount = (n: number) => int(n)
 const seconds = (n: number) => `${sec(n)} sec`
 const percent = (n: number) => `${pct(n)}%`
 
-function effectLines(e: ResolvedEffect, prefix: string): NumberLine[] {
+const capital = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
+
+/** `resource` is the artifact's resource in lower case ("mana"). */
+function effectLines(e: ResolvedEffect, prefix: string, resource: string): NumberLine[] {
   const key = (k: string) => `${prefix}${e.granted ?? e.index}:${k}`
   const name = e.name ?? e.granted
   const out: NumberLine[] = []
@@ -72,7 +76,7 @@ function effectLines(e: ResolvedEffect, prefix: string): NumberLine[] {
       break
     case 'bloom':
       out.push({ key: key('amount'), label: 'Per ally', value: e.amount, format: amount, better: 'up' })
-      out.push({ key: key('extra'), label: 'Mana per ally', value: e.extraCost, format: amount, better: 'down' })
+      out.push({ key: key('extra'), label: `${capital(resource)} per ally`, value: e.extraCost, format: amount, better: 'down' })
       break
     case 'hot':
     case 'zone':
@@ -119,8 +123,14 @@ function effectLines(e: ResolvedEffect, prefix: string): NumberLine[] {
     case 'damage':
       out.push({ key: key('amount'), label: name ?? 'Damage', value: e.amount, format: amount, better: 'up' })
       break
-    case 'mana':
-      out.push({ key: key('mana'), label: 'Mana back', value: e.mana, format: (n) => `+${int(n)}`, better: 'up' })
+    case 'restore':
+      out.push({
+        key: key('restore'),
+        label: `${capital(resource)} back`,
+        value: e.restore,
+        format: (n) => `+${int(n)}`,
+        better: 'up',
+      })
       break
     case 'move':
       out.push({ key: key('distance'), label: 'Distance', value: e.distance, format: (n) => `${yd(n)} yd`, better: 'up' })
@@ -156,7 +166,7 @@ function effectLines(e: ResolvedEffect, prefix: string): NumberLine[] {
 /** Every number on an ability, with the live values: what the numbers panel and tooltips show. */
 export function abilityLines(a: ResolvedAbility): NumberLine[] {
   const out: NumberLine[] = []
-  if (a.cost > 0) out.push({ key: 'cost', label: 'Mana', value: a.cost, format: amount, better: 'down' })
+  if (a.cost > 0) out.push({ key: 'cost', label: capital(a.resource), value: a.cost, format: amount, better: 'down' })
   if (!a.passive) {
     out.push({
       key: 'cast',
@@ -178,16 +188,16 @@ export function abilityLines(a: ResolvedAbility): NumberLine[] {
     })
   }
   if (a.echo > 0) out.push({ key: 'echo', label: 'Echo', value: a.echo, format: percent, better: 'up', detail: 'chance to cast again' })
-  for (const e of a.effects) out.push(...effectLines(e, ''))
+  for (const e of a.effects) out.push(...effectLines(e, '', a.resource))
   return out
 }
 
-/** A short summary for the ability header: "50 mana · 1.5 sec cast · 6 sec cooldown". */
+/** A short summary for the ability header: "1.5 sec cast · 100 mana · 6 sec cooldown". */
 export function abilityMeta(a: ResolvedAbility): string {
   const parts: string[] = []
   if (a.passive) parts.push('Passive')
   else parts.push(a.castTime > 0 ? `${sec(a.castTime)} sec cast` : 'Instant')
-  if (a.cost > 0) parts.push(`${int(a.cost)} mana`)
+  if (a.cost > 0) parts.push(`${int(a.cost)} ${a.resource}`)
   if (a.cooldown > 0) parts.push(`${sec(a.cooldown)} sec ${a.charges > 1 ? `recharge · ${a.charges} charges` : 'cooldown'}`)
   if (a.range > 0) parts.push(`${yd(a.range)} yd`)
   return parts.join(' · ')

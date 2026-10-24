@@ -1,10 +1,11 @@
 import { int, sec, yd } from '../../game/format.ts'
 import { periodicTotal } from '../../game/resolve.ts'
 import type { TreeDef } from '../../talents/types.ts'
-import { apply, buff, cooldown, grant, heal, hot, mana, more, plus, proc, shield, stat, talent, zone } from '../authoring.ts'
+import { apply, buff, cooldown, grant, heal, hot, more, plus, proc, restore, shield, stat, talent, zone } from '../authoring.ts'
 
 // Healer ultimates for the big cooldown slot (Y / F). One instant burst, one zone, one decaying HoT,
-// so each one leans on a different family's talents in the other trees.
+// so each one leans on a different family's talents in the other trees, and each tree's "heals more"
+// talent lifts that whole family in return. Each also has a talent that shortens its cooldown as you play.
 
 const ultimate = { role: 'healer', kind: 'cooldown', columns: 4, pointsPerRow: 2 } as const
 
@@ -34,8 +35,8 @@ export const miracle: TreeDef = {
       row: 0,
       col: 0,
       per: [8, 16, 24],
-      text: 'Miracle heals {}% more.',
-      does: (v) => [more('amount', 'miracle', v)],
+      text: 'Your direct heals heal {}% more.',
+      does: (v) => [more('amount', 'direct-heal', v)],
     }),
     talent({
       id: 'swift-grace',
@@ -51,9 +52,9 @@ export const miracle: TreeDef = {
       name: 'Inspiration',
       row: 0,
       col: 3,
-      per: [100, 200],
-      text: 'Miracle restores {} mana.',
-      does: (v) => [proc('cast', 'miracle', [mana(v)])],
+      per: [80, 160],
+      text: 'Miracle gives you back {} @resource.',
+      does: (v) => [proc('cast', 'miracle', [restore(v)])],
     }),
     talent({
       id: 'afterglow',
@@ -79,6 +80,15 @@ export const miracle: TreeDef = {
           { when: { overheal: true } },
         ),
       ],
+    }),
+    talent({
+      id: 'answered-prayers',
+      name: 'Answered Prayers',
+      row: 1,
+      col: 3,
+      per: [0.5, 1],
+      text: "Each critical heal from your direct heals takes {} sec off Miracle's cooldown.",
+      does: (v) => [proc('crit', 'direct-heal', [cooldown('miracle', v)])],
     }),
     talent({
       id: 'second-miracle',
@@ -112,7 +122,7 @@ export const miracle: TreeDef = {
       row: 3,
       col: 2,
       per: [20, 40, 60],
-      text: 'For 8 sec after Miracle, your heals cost {}% less mana.',
+      text: 'For 8 sec after Miracle, your heals cost {}% less.',
       does: (v) => [
         proc('cast', 'miracle', [
           buff({ id: 'rapture', name: 'Rapture', duration: 8, mods: [more('cost', 'healing', -v)] }),
@@ -138,11 +148,11 @@ export const sanctuary: TreeDef = {
   spec: {
     cooldown: 150,
     range: 40,
-    effects: [zone(600, 12, 1, 15)],
+    effects: [zone(600, 12, 1, 15, 'lowest-missing')],
     text: (a) => {
       const e = a.effects[0]
       return (
-        `Creates a ${yd(e.radius)} yd sanctuary around the lowest-health ally within ${yd(a.range)} yd for ` +
+        `Creates a ${yd(e.radius)} yd sanctuary around the lowest-health ally within ${yd(a.range)} yd who isn't in one, for ` +
         `${sec(e.duration)} sec. Everyone inside is healed for ${int(e.amount)} every ${sec(e.interval)} sec` +
         (e.growth ? `, ${e.growth}% more with each tick.` : '.') +
         (e.follow ? ' It follows that ally.' : '')
@@ -156,8 +166,8 @@ export const sanctuary: TreeDef = {
       row: 0,
       col: 0,
       per: [8, 16, 24],
-      text: 'Sanctuary heals {}% more.',
-      does: (v) => [more('amount', 'sanctuary', v)],
+      text: 'Your zones heal {}% more.',
+      does: (v) => [more('amount', 'zone', v)],
     }),
     talent({
       id: 'vast-sanctuary',
@@ -201,9 +211,18 @@ export const sanctuary: TreeDef = {
       name: 'Sacred Clarity',
       row: 1,
       col: 3,
-      per: [5, 10],
-      text: 'While you stand in one of your zones, you regenerate {} more mana per sec.',
-      does: (v) => [stat('zoneManaRegen', v)],
+      per: [4, 8],
+      text: 'While you stand in one of your zones, you regenerate {} more @resource per sec.',
+      does: (v) => [stat('zoneResourceRegen', v)],
+    }),
+    talent({
+      id: 'hallowed-echo',
+      name: 'Hallowed Echo',
+      row: 1,
+      col: 2,
+      per: [0.5, 1],
+      text: "Each critical heal from your zones takes {} sec off Sanctuary's cooldown.",
+      does: (v) => [proc('crit', 'zone', [cooldown('sanctuary', v)])],
     }),
     talent({
       id: 'crescendo',
@@ -276,8 +295,8 @@ export const lifetide: TreeDef = {
       row: 0,
       col: 0,
       per: [8, 16, 24],
-      text: 'Lifetide heals {}% more.',
-      does: (v) => [more('amount', 'lifetide', v)],
+      text: 'Your heal-over-time effects heal {}% more.',
+      does: (v) => [more('amount', 'hot', v)],
     }),
     talent({
       id: 'slow-ebb',
@@ -324,9 +343,9 @@ export const lifetide: TreeDef = {
       name: 'Bounty',
       row: 1,
       col: 3,
-      per: [2, 4, 6],
-      text: 'Each Lifetide tick on you restores {} mana.',
-      does: (v) => [proc('heal', 'lifetide', [mana(v)], { when: { targetSelf: true } })],
+      per: [2, 3, 4],
+      text: 'Each Lifetide tick on you gives you back {} @resource.',
+      does: (v) => [proc('heal', 'lifetide', [restore(v)], { when: { targetSelf: true } })],
     }),
     talent({
       id: 'moonpull',
@@ -349,6 +368,15 @@ export const lifetide: TreeDef = {
           when: { overheal: true },
         }),
       ],
+    }),
+    talent({
+      id: 'undertow',
+      name: 'Undertow',
+      row: 3,
+      col: 3,
+      per: [0.3, 0.6],
+      text: "Each critical heal from your heal-over-time effects takes {} sec off Lifetide's cooldown.",
+      does: (v) => [proc('crit', 'hot', [cooldown('lifetide', v)])],
     }),
     talent({
       id: 'ebb-and-flow',

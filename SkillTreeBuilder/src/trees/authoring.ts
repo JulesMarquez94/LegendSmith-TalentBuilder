@@ -25,6 +25,7 @@ interface TalentInput {
   requires?: string
   /** One value per rank. "{}" in the text shows them as "{6/12/18}". Leave out for a one-rank talent. */
   per?: readonly number[]
+  /** "@resource" shows the artifact's resource ("mana"), so shared abilities fit any healing weapon. */
   text: string
   /** What the talent does with its value at a rank. */
   does: (value: number) => Mechanic[]
@@ -66,7 +67,8 @@ export const buff = (spec: BuffSpec): Action => ({ do: 'buff', buff: spec })
 export const apply = (effect: EffectSpec, ofEvent?: { pct: number; of: 'amount' | 'overheal' }): Action =>
   ofEvent ? { do: 'apply', effect, ofEvent } : { do: 'apply', effect }
 
-export const mana = (amount: number): Action => ({ do: 'mana', amount })
+/** Gives back resource (mana for the staff). */
+export const restore = (amount: number): Action => ({ do: 'restore', amount })
 
 export const cooldown = (match: Match, seconds: number): Action => ({ do: 'cooldown', match, seconds })
 

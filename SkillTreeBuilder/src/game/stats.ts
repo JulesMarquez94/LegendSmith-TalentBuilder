@@ -11,12 +11,13 @@ export const BASE_STATS: CharStats = {
   echo: 0,
   minionPower: 0,
   damageReduction: 0,
+  dodge: 0,
   speed: 0,
-  maxMana: 0,
-  manaRegen: 0,
-  overhealToMana: 0,
-  lowManaRegen: 0,
-  zoneManaRegen: 0,
+  maxResource: 0,
+  resourceRegen: 0,
+  overhealToResource: 0,
+  lowResourceRegen: 0,
+  zoneResourceRegen: 0,
 }
 
 /** Run speed in yards per second before Speed bonuses (WoW's 7). */
@@ -26,11 +27,12 @@ export const RUN_SPEED = 7
 export const MIN_GCD = 0.5
 
 export interface StatInfo {
+  /** "@Resource" stands for the artifact's resource name ("Mana"), "@resource" for it in lower case. */
   label: string
   /** Colour from the overview's stat palette, so a stat reads the same everywhere. */
   color: string
   unit: '%' | 'flat' | 'per-sec'
-  /** One line for the stat's tooltip. */
+  /** One line for the stat's tooltip; "@resource" works here too. */
   help: string
 }
 
@@ -74,46 +76,60 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     unit: '%',
     help: 'Less damage taken. Never on items: only abilities, talents and buffs.',
   },
+  dodge: {
+    label: 'Dodge',
+    color: '#9fe7ff',
+    unit: '%',
+    help: 'Chance to avoid a hit completely. Every hit rolls on its own.',
+  },
   speed: {
     label: 'Speed',
     color: '#c6d0ff',
     unit: '%',
     help: `Faster movement. ${RUN_SPEED} yd per sec at 0%. Never on items.`,
   },
-  maxMana: { label: 'Mana', color: '#5aa9ff', unit: 'flat', help: 'Most mana you can hold. Set by the staff and talents.' },
-  manaRegen: { label: 'Mana regen', color: '#5aa9ff', unit: 'per-sec', help: 'Mana per second, always on.' },
-  overhealToMana: {
+  maxResource: {
+    label: '@Resource',
+    color: '#5aa9ff',
+    unit: 'flat',
+    help: 'Most @resource you can hold. Set by the artifact and talents.',
+  },
+  resourceRegen: {
+    label: '@Resource regen',
+    color: '#5aa9ff',
+    unit: 'per-sec',
+    help: '@Resource per second, always on.',
+  },
+  overhealToResource: {
     label: 'Reservoir',
     color: '#5aa9ff',
     unit: '%',
-    help: 'Share of overhealing stored and given back as mana by your next main attack (100 at most).',
+    help: 'Share of overhealing stored and given back as @resource by your next main attack (80 at most).',
   },
-  lowManaRegen: {
-    label: 'Low-mana regen',
+  lowResourceRegen: {
+    label: 'Low-@resource regen',
     color: '#5aa9ff',
     unit: '%',
-    help: 'Stronger mana regeneration while below 30% mana.',
+    help: 'Stronger @resource regeneration while below 30% of your maximum.',
   },
-  zoneManaRegen: {
-    label: 'Zone mana regen',
+  zoneResourceRegen: {
+    label: 'Zone @resource regen',
     color: '#5aa9ff',
     unit: 'per-sec',
-    help: 'Extra mana per second while you stand in one of your zones.',
+    help: 'Extra @resource per second while you stand in one of your zones.',
   },
 }
 
-/** The stat sheet's order. Stats at 0 that only talents give are hidden by the sheet. */
-export const SHEET_ORDER: readonly CharStat[] = [
-  'power',
-  'haste',
-  'crit',
-  'critDamage',
-  'potency',
-  'echo',
-  'minionPower',
-  'damageReduction',
-  'speed',
-  'overhealToMana',
-  'lowManaRegen',
-  'zoneManaRegen',
+/** Fills "@Resource" with the artifact's resource name ("Mana") and "@resource" with it in lower case. */
+export const withResource = (text: string, resource: string) =>
+  text.replaceAll('@Resource', resource).replaceAll('@resource', resource.toLowerCase())
+
+/** The stat sheet, in sections. The top block shows Power, Health and the resource. */
+export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[] }[] = [
+  { title: 'Secondary', stats: ['haste', 'crit', 'critDamage', 'potency'] },
+  { title: 'Defensive', stats: ['damageReduction', 'dodge'] },
+  { title: 'Extra', stats: ['echo', 'minionPower', 'speed', 'overhealToResource', 'lowResourceRegen', 'zoneResourceRegen'] },
 ]
+
+/** Shown only once a talent gives them. */
+export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>(['overhealToResource', 'lowResourceRegen', 'zoneResourceRegen'])
