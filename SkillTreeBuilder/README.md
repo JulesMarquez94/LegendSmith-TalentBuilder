@@ -99,6 +99,13 @@ steps of 2 combo points on the daggers), and their talents aim only at themselve
 damage over time, direct damage, area damage, zones, finishers. The Plague tree keeps its art and
 layout from the deck, with its X values filled in.
 
+The **Ashwood Longbow** shoots from 40 yd. Focus starts empty, up to 100, and only shooting fills it:
+each Swift Arrow gives 10 (hold the key to keep shooting). Focus counts in **tens**: an artifact can set
+a `unit`, and every ability's cost and gain is multiplied by it, so Harvest's cost of 2 is 20 focus
+and Backstab's 2 is 20 focus back, while the same abilities cost 2 imps on the book. For that to hold,
+shared trees may only change costs and gains by a %, never a flat amount (the data test checks). The
+bow's own tree adds plain focus: more per arrow, more to hold, focus on crits, and procs when you spend.
+
 ## Group buffs
 
 Every character slots one group buff for their role. It's passive: you and your group get its stats,

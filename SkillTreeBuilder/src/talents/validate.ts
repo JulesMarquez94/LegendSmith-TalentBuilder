@@ -1,4 +1,4 @@
-import type { Action, BuffSpec, CharStat, Condition, Match, Mechanic } from '../game/types.ts'
+import type { Action, BuffSpec, CharStat, Condition, Match, Mechanic, ModMechanic, ValueKey } from '../game/types.ts'
 import { rankValueCounts } from './description.ts'
 import type { Loadout } from './loadout.ts'
 import { fits, slotKinds } from './slots.ts'
@@ -107,6 +107,16 @@ function givenStats(m: Mechanic): CharStat[] {
   return m.proc.actions.flatMap((a) => (a.do === 'buff' ? of(a.buff) : a.do === 'apply' ? of(a.effect.buff) : []))
 }
 
+/** Numbers in a weapon's own resource: flat changes to them mean different things on every weapon. */
+const RESOURCE_KEYS: readonly ValueKey[] = ['cost', 'restore', 'extraCost']
+
+/** A mechanic's mods, its buffs' included. */
+function modsOf(m: Mechanic): ModMechanic[] {
+  if (m.kind === 'mod') return [m]
+  if (m.kind !== 'proc') return []
+  return m.proc.actions.flatMap((a) => (a.do === 'buff' ? (a.buff.mods ?? []) : []))
+}
+
 /** Stats in a weapon's own numbers: an imp, a combo point and a point of mana are worth very different things. */
 const WEAPON_STATS: readonly CharStat[] = ['maxResource', 'resourceRegen', 'overhealToResource', 'minionPower', 'comboBonus']
 
@@ -138,6 +148,8 @@ function weaponProblems(tree: TreeDef, trees: readonly TreeDef[]): string[] {
       (m) => m.kind === 'proc' && m.proc.actions.some((a) => a.do === 'restore' && (a.amount ?? 0) !== 0),
     )
     if (flat) problems.push(`${t.name} (${tree.ability.name}) gives back a flat amount of resource, not a share of the maximum`)
+    const flatCost = mechanics.flatMap(modsOf).some((m) => RESOURCE_KEYS.includes(m.key) && (m.add ?? 0) !== 0)
+    if (flatCost) problems.push(`${t.name} (${tree.ability.name}) changes a cost or a gain by a flat amount, not a %`)
     const steps = mechanics.some((m) => m.kind === 'proc' && m.proc.when?.paidAtLeast !== undefined)
     if (steps) problems.push(`${t.name} (${tree.ability.name}) counts combo steps, which only combo weapons take`)
   }

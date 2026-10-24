@@ -84,6 +84,12 @@ export interface ArtifactDef {
   /** How much resource a fight starts with. Default: full. */
   resourceStart?: number
   /**
+   * How much of its resource one point of an ability's cost or gain is. Abilities are written in points
+   * (Harvest costs 2, Backstab gives 2); focus counts in tens, so on the bow Harvest costs 20 focus and
+   * Backstab gives 20. Default 1: an imp, a combo point, a point of mana.
+   */
+  unit?: number
+  /**
    * Combo points: every ability that costs something takes as many steps of its cost as you can pay
    * (a cost of 2 spends 4 or 6) and grows with each step. The abilities themselves don't change.
    */

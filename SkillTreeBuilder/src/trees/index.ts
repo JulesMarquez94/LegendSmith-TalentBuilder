@@ -1,6 +1,7 @@
 import type { Loadout, PointRules } from '../talents/loadout.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
 import { GROUP_BUFFS } from './buffs.ts'
+import { ashwoodLongbow } from './bow.ts'
 import { backstab, eviscerate, fanOfKnives, rupture, twinDaggers } from './daggers.ts'
 import { fervor } from './fervor.ts'
 import { bloom, chainHeal, conduit, healingRain, mend, renew } from './healer/heals.ts'
@@ -19,7 +20,7 @@ import { armyOfTheDead, bloodFrenzy, boneSpear, raiseGhoul, shadowStep, soulSiph
 export const POINT_RULES: PointRules = { total: 60, perTree: 12 }
 
 /** Every artifact that can be held. Add new ones here. */
-export const ARTIFACTS: readonly ArtifactDef[] = [lifewardenStaff, tomeOfSummoning, twinDaggers]
+export const ARTIFACTS: readonly ArtifactDef[] = [lifewardenStaff, tomeOfSummoning, twinDaggers, ashwoodLongbow]
 
 /** Every tree that can be slotted, artifact trees included. Add new trees here. */
 export const TREES: readonly TreeDef[] = [
@@ -70,4 +71,4 @@ export const STARTING_LOADOUT: Loadout = {
   ranks: {},
 }
 
-export { tomeOfSummoning, twinDaggers }
+export { ashwoodLongbow, tomeOfSummoning, twinDaggers }

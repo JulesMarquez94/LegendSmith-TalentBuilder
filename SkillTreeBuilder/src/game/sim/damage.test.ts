@@ -178,6 +178,31 @@ describe('the daggers', () => {
   })
 })
 
+describe('the bow', () => {
+  const bow = artifact('ashwood-longbow')
+
+  it('starts with no focus and fills it by shooting', () => {
+    const arena = new Arena(noCrits(kitFor(bow, [null, null, null, null, null, null])), DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 40 }
+    expect(arena.resource).toBe(0)
+    expect(arena.maxResource).toBe(100)
+    cast(arena, 0)
+    expect(arena.resource).toBe(10)
+    expect(damageOf(arena, 'Swift Arrow')).toMatchObject({ hits: 1, damage: 220 })
+  })
+
+  it('counts costs and gains in tens of focus', () => {
+    const kit = kitFor(bow, ['harvest', 'backstab', 'festering-rot', null, null, null])
+    expect(kit.slots[1]!.cost).toBe(20)
+    expect(kit.slots[2]!.effects.find((e) => e.type === 'restore')?.restore).toBe(20)
+    expect(kit.slots[3]!.cost).toBe(10)
+    expect(kit.slots[1]!.text).toContain('Costs 20 focus')
+    // Talents in the bow's own tree add plain focus on top.
+    const steady = kitFor(bow, [null, null, null, null, null, null], { 'ashwood-longbow': { 'steady-aim': 2 } })
+    expect(steady.slots[0]!.effects.find((e) => e.type === 'restore')?.restore).toBe(14)
+  })
+})
+
 describe('group buffs and shared ultimates', () => {
   it('give the whole group their stats, you included', () => {
     const kit = kitFor(artifact('lifewarden-staff'), [null, null, null, null, null, 'vitality-aura'])

@@ -221,6 +221,7 @@ function resolveEffectWith(
   mods: readonly ModMechanic[],
   granted?: string,
   groupTalents: Partial<CharStats> = {},
+  unit = 1,
 ): ResolvedEffect {
   const family = FAMILY_OF[effect.type]
   const tags = effectTags(tree, effect)
@@ -259,10 +260,10 @@ function resolveEffectWith(
     instantTicks: Math.max(0, Math.round((effect.instantTicks ?? 0) + get('instantTicks').add)),
     follow: (effect.follow ?? 0) + get('follow').add > 0 ? 1 : 0,
     damageReduction: Math.min(90, (effect.damageReduction ?? 0) + get('damageReduction').add),
-    restore: Math.max(0, scaled(effect.restore ?? 0, get('restore'))),
+    restore: Math.max(0, scaled((effect.restore ?? 0) * unit, get('restore'))),
     distance: Math.max(0, scaled(effect.distance ?? 0, get('distance'))),
     speed: Math.max(0, scaled(speedBase, get('speed'))),
-    extraCost: Math.max(0, scaled(effect.extraCost ?? 0, get('extraCost'))),
+    extraCost: Math.max(0, scaled((effect.extraCost ?? 0) * unit, get('extraCost'))),
     stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
     mode: effect.mode,
     buff: effect.buff,
@@ -290,9 +291,8 @@ function resolveAbilityWith(
   stats: CharStats,
   mods: readonly ModMechanic[],
   grants: readonly Sourced<Extract<Mechanic, { kind: 'grant' }>>[],
-  resource: string,
+  weapon: ArtifactDef,
   groupTalents: Partial<CharStats> = {},
-  combo = false,
 ): ResolvedAbility | null {
   const spec = tree.spec
   if (!spec) return null
@@ -309,15 +309,17 @@ function resolveAbilityWith(
   const haste = 1 + stats.haste / 100
   const baseGcd = spec.gcd ?? 1
   const moves = families.includes('movement')
+  const unit = weapon.unit ?? 1
 
   const resolved: ResolvedAbility = {
     treeId: tree.id,
     name: tree.ability.name,
     color: tree.color ?? DEFAULT_COLOR,
-    resource: resource.toLowerCase(),
+    resource: weapon.resource.toLowerCase(),
     kind: tree.kind,
     tags,
-    cost: Math.max(0, scaled(spec.cost ?? 0, get('cost'))),
+    // Costs and gains are written in points; the weapon says how much of its resource a point is.
+    cost: Math.max(0, scaled((spec.cost ?? 0) * unit, get('cost'))),
     cycle: spec.cycle,
     castTime: Math.max(0, scaled(spec.castTime ?? 0, get('castTime'))) / haste,
     cooldown: spec.cooldown ? Math.max(0, scaled(spec.cooldown, get('cooldown'))) : 0,
@@ -328,10 +330,12 @@ function resolveAbilityWith(
     echo: spec.passive || moves ? 0 : Math.max(0, stats.echo + get('echo').add),
     passive: spec.passive,
     minion: spec.minion ? resolveEffectWith(tree, spec.minion, -1, stats, mods, 'minion') : undefined,
-    effects: effects.map(({ effect, granted }, i) => resolveEffectWith(tree, effect, i, stats, mods, granted, groupTalents)),
+    effects: effects.map(({ effect, granted }, i) =>
+      resolveEffectWith(tree, effect, i, stats, mods, granted, groupTalents, unit),
+    ),
     text: '',
   }
-  if (combo && resolved.cost > 0) {
+  if (weapon.combo && resolved.cost > 0) {
     resolved.combo = {
       maxSteps: Math.max(1, Math.floor(stats.maxResource / resolved.cost + 1e-6)),
       perStep: 1 + stats.comboBonus / 100,
@@ -376,7 +380,7 @@ export function buildKit(input: BuildInput): Kit {
     const tree = treeById.get(treeId)
     if (!tree) return null
     const all = extra.length ? [...mods, ...extra] : mods
-    return resolveAbilityWith(tree, stats, all, grants, input.artifact.resource, groupTalents(treeId), input.artifact.combo)
+    return resolveAbilityWith(tree, stats, all, grants, input.artifact, groupTalents(treeId))
   }
 
   const slots = input.trees.map((tree) => (tree ? resolve(tree.id) : null))
@@ -392,7 +396,7 @@ export function buildKit(input: BuildInput): Kit {
     mechanics,
     resolve,
     resolveEffect: (tree, effect, extra = [], stats = character.stats) =>
-      resolveEffectWith(tree, effect, -1, stats, extra.length ? [...mods, ...extra] : mods, effect.name ?? 'proc'),
+      resolveEffectWith(tree, effect, -1, stats, extra.length ? [...mods, ...extra] : mods, effect.name ?? 'proc', {}, input.artifact.unit),
   }
 }
 
