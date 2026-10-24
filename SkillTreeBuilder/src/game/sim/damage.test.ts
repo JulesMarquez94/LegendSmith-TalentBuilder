@@ -161,13 +161,23 @@ describe('the daggers', () => {
     expect(arena.stats().haste).toBe(10)
   })
 
-  it('cost a plain 2 on a weapon without combo points', () => {
-    const arena = new Arena(noCrits(kitFor(book, ['eviscerate', null, null, null, null, null])), DUMMIES, { seed: 1 })
-    arena.player.pos = { x: 30, y: 16 }
+  it('pay a plain cost on a weapon without combo points', () => {
+    const arena = new Arena(noCrits(kitFor(book, ['doom-bolt', null, null, null, null, null])), DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
     arena.resource = 6
     cast(arena, 1)
-    expect(arena.resource).toBe(4)
-    expect(damageOf(arena, 'Eviscerate')).toMatchObject({ hits: 1, damage: 600 })
+    expect(arena.resource).toBe(3)
+    expect(damageOf(arena, 'Doom Bolt')).toMatchObject({ hits: 1, damage: 2000 })
+  })
+
+  it('pay for a spell in steps too (Doom Bolt costs 3: two steps at 6 combo points)', () => {
+    const kit = noCrits(kitFor(daggers, ['doom-bolt', null, null, null, null, null]))
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 6
+    cast(arena, 1)
+    expect(arena.resource).toBe(0)
+    expect(damageOf(arena, 'Doom Bolt')).toMatchObject({ hits: 1, damage: 4000 })
   })
 
   it('need you in melee range', () => {
@@ -191,12 +201,10 @@ describe('the bow', () => {
     expect(damageOf(arena, 'Swift Arrow')).toMatchObject({ hits: 1, damage: 220 })
   })
 
-  it('has its own abilities, which cost each weapon its own resource', () => {
-    const onBow = kitFor(bow, ['aimed-shot', 'multi-shot', 'rain-of-arrows', null, null, null])
-    const onBook = kitFor(book, ['aimed-shot', 'multi-shot', 'rain-of-arrows', null, null, null])
+  it('has its own shots, and pays for shared spells in focus', () => {
+    const onBow = kitFor(bow, ['aimed-shot', 'multi-shot', 'doom-bolt', null, null, null])
     expect(onBow.slots.slice(1, 4).map((a) => a!.cost)).toEqual([30, 20, 30])
-    expect(onBook.slots.slice(1, 4).map((a) => a!.cost)).toEqual([3, 2, 3])
-    expect(onBook.slots[2]!.text).toContain('Costs 2 imps')
+    expect(kitFor(book, ['doom-bolt', null, null, null, null, null]).slots[1]!.text).toContain('Costs 3 imps')
 
     const arena = new Arena(noCrits(onBow), DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 40 }

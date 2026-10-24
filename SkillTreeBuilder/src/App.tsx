@@ -11,7 +11,7 @@ import type { Gear } from './game/gear.ts'
 import { buildKit } from './game/resolve.ts'
 import { save, savedGear, savedLoadout } from './saved.ts'
 import { pointsLeftFor, ranksIn, totalSpent } from './talents/loadout.ts'
-import { fits, slotKinds } from './talents/slots.ts'
+import { canMake, fitsKind, NEEDS_LABEL, slotKinds } from './talents/slots.ts'
 import type { TreeDef } from './talents/types.ts'
 import { useLoadout } from './talents/useLoadout.ts'
 import { validateCatalog, validateTree } from './talents/validate.ts'
@@ -61,7 +61,7 @@ export default function App() {
         at: a.id === artifact.id ? 0 : -1,
       }))
     }
-    const fitting = TREES.filter((tree) => fits(tree, kinds[slot], artifact)).map((tree: TreeDef) => {
+    const fitting = TREES.filter((tree) => fitsKind(tree, kinds[slot], artifact)).map((tree: TreeDef) => {
       const live = tree.spec ? kit.resolve(tree.id) : null
       const maker = ARTIFACTS.find((a) => a.id === tree.madeFor)
       return {
@@ -75,11 +75,13 @@ export default function App() {
         playtest: tree.playtest,
         displayOnly: !tree.spec,
         madeFor: maker && { name: maker.name, color: maker.color, yours: maker.id === artifact.id },
+        locked: canMake(tree, artifact) ? undefined : `Needs ${NEEDS_LABEL[tree.needs!]}`,
         at: loadout.slots.indexOf(tree.id),
       }
     })
-    // Every ability of the role fits; the ones made for the weapon you hold come first.
-    return fitting.sort((a, b) => Number(b.madeFor?.yours ?? false) - Number(a.madeFor?.yours ?? false))
+    // Made for your weapon first, then everything else it can use, then strikes it can't make.
+    const rank = (o: PickerOption) => (o.locked ? 2 : o.madeFor?.yours ? 0 : 1)
+    return fitting.sort((a, b) => rank(a) - rank(b))
   }
 
   return (
@@ -168,7 +170,7 @@ export default function App() {
             picking === 0
               ? 'Choose the weapon you hold. It sets your role and what fits the other slots; abilities that no longer fit come out.'
               : `Choose a ${KIND_LABEL[kinds[picking]].toLowerCase()} ability. Its talent tree goes into the slot. ` +
-                'Any of them works with your weapon; the ones made for it come first.'
+                'Spells work with any weapon; weapon strikes and shots need a weapon that can make them.'
           }
           options={options(picking)}
           slotFilled={loadout.slots[picking] !== null}

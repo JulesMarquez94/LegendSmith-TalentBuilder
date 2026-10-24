@@ -1,5 +1,6 @@
 import { GEAR_STATS, isValidPair, RARITIES, TRINKET_SLOTS, type Gear, type Trinket } from './game/gear.ts'
 import type { Loadout } from './talents/loadout.ts'
+import { setArtifact } from './talents/slots.ts'
 import { validateCatalog } from './talents/validate.ts'
 import { ARTIFACTS, STARTING_LOADOUT, TREES } from './trees/index.ts'
 
@@ -24,11 +25,18 @@ function read(): Partial<Saved> {
 export function savedLoadout(): Loadout {
   const { loadout: stored } = read()
   // Builds saved before the group buff and outdoor slots had six slots: add the two empty ones.
-  const loadout =
+  const padded =
     stored && Array.isArray(stored.slots) && stored.slots.length < STARTING_LOADOUT.slots.length
       ? { ...stored, slots: [...stored.slots, ...Array(STARTING_LOADOUT.slots.length - stored.slots.length).fill(null)] }
       : stored
-  if (!loadout || validateCatalog(TREES, ARTIFACTS, loadout).length > 0) return STARTING_LOADOUT
+  if (!padded || !Array.isArray(padded.slots)) return STARTING_LOADOUT
+  // An ability the weapon can no longer slot (a strike it can't make) comes out; the rest of the build stays.
+  const held = ARTIFACTS.find((a) => a.id === padded.artifact)
+  const loadout =
+    held && padded.slots[0] === (held.tree?.id ?? null)
+      ? { ...padded, slots: setArtifact({ ...padded, ranks: padded.ranks ?? {} }, held, TREES).slots }
+      : padded
+  if (validateCatalog(TREES, ARTIFACTS, loadout).length > 0) return STARTING_LOADOUT
   // Keep only ranks for talents that still exist, within their max rank.
   const ranks = Object.fromEntries(
     Object.entries(loadout.ranks ?? {}).flatMap(([treeId, treeRanks]) => {

@@ -22,12 +22,31 @@ describe('the artifact', () => {
     expect(setArtifact(l, lifewardenStaff, TREES).slots[0]).toBe('lifewarden-staff')
   })
 
-  it('fits any ability of the role on any weapon, and shares role-free ultimates', () => {
+  it("drops strikes the new weapon can't make, and keeps its spells", () => {
+    const daggers = {
+      artifact: 'twin-daggers',
+      slots: ['twin-daggers', 'backstab', 'harvest', 'doom-bolt', null, 'dash', null, null],
+      ranks: { backstab: { 'ready-blade': 1 }, harvest: { 'keen-scythe': 1 } },
+    }
+    expect(setArtifact(daggers, ashwoodLongbow, TREES)).toEqual({
+      artifact: 'ashwood-longbow',
+      slots: ['ashwood-longbow', null, 'harvest', 'doom-bolt', null, 'dash', null, null],
+      ranks: { harvest: { 'keen-scythe': 1 } },
+    })
+  })
+
+  it('fits spells on any weapon of the role, but strikes and shots only on weapons that make them', () => {
+    // Spells: anyone of the role.
     expect(fits(tree('plague'), 'damage', tomeOfSummoning)).toBe(true)
-    expect(fits(tree('eviscerate'), 'damage', tomeOfSummoning)).toBe(true)
     expect(fits(tree('harvest'), 'damage', twinDaggers)).toBe(true)
-    expect(fits(tree('multi-shot'), 'damage', tomeOfSummoning)).toBe(true)
-    expect(fits(tree('fan-of-knives'), 'damage', ashwoodLongbow)).toBe(true)
+    expect(fits(tree('plague'), 'damage', ashwoodLongbow)).toBe(true)
+    expect(fits(tree('doom-bolt'), 'damage', twinDaggers)).toBe(true)
+    // Weapon strikes and shots: only weapons that can make them.
+    expect(fits(tree('backstab'), 'damage', twinDaggers)).toBe(true)
+    expect(fits(tree('eviscerate'), 'damage', tomeOfSummoning)).toBe(false)
+    expect(fits(tree('fan-of-knives'), 'damage', ashwoodLongbow)).toBe(false)
+    expect(fits(tree('multi-shot'), 'damage', tomeOfSummoning)).toBe(false)
+    expect(fits(tree('multi-shot'), 'damage', ashwoodLongbow)).toBe(true)
     expect(fits(tree('mend'), 'damage', tomeOfSummoning)).toBe(false)
     expect(fits(tree('fervor'), 'cooldown', lifewardenStaff)).toBe(true)
     expect(fits(tree('fervor'), 'cooldown', tomeOfSummoning)).toBe(true)

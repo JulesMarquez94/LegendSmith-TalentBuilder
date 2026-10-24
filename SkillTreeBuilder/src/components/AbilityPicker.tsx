@@ -15,6 +15,8 @@ export interface PickerOption {
   displayOnly?: boolean
   /** The weapon it was made with, for a label; `yours` when that's the weapon you hold. */
   madeFor?: { name: string; color: string; yours: boolean }
+  /** Why your weapon can't slot it ("Needs a blade"); shown, but not pickable. */
+  locked?: string
   /** The slot it's in now (0-based), or -1. */
   at: number
 }
@@ -66,7 +68,12 @@ export function AbilityPicker({ slotIndex, title, subtitle, options, slotFilled,
             const here = option.at === slotIndex
             return (
               <li key={option.id}>
-                <button type="button" className="picker__option" disabled={here} onClick={() => choose(option.id)}>
+                <button
+                  type="button"
+                  className={option.locked ? 'picker__option picker__option--locked' : 'picker__option'}
+                  disabled={here || option.locked !== undefined}
+                  onClick={() => choose(option.id)}
+                >
                   <ArtIcon
                     folder={option.artFolder}
                     icon={option.icon}
@@ -86,6 +93,7 @@ export function AbilityPicker({ slotIndex, title, subtitle, options, slotFilled,
                           {option.madeFor.name}
                         </span>
                       )}
+                      {option.locked && <span className="tag tag--locked">{option.locked}</span>}
                       {option.playtest && <span className="tag">Playtest</span>}
                       {option.displayOnly && <span className="tag">Display only</span>}
                       {here && <span className="picker__note">In this slot</span>}

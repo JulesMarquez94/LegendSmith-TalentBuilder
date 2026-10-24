@@ -155,6 +155,7 @@ export const lifewardenStaff: ArtifactDef = {
   role: 'healer',
   roleKind: 'heal',
   resource: 'Mana',
+  traits: ['staff'],
   stats: { maxResource: 1000, resourceRegen: 8 },
   description:
     'Healer. Mana starts full, drains as you cast and regenerates slowly. Radiant Bolt, the main attack, restores it.',

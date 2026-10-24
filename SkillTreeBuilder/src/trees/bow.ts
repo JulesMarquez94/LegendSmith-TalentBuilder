@@ -181,6 +181,7 @@ export const ashwoodLongbow: ArtifactDef = {
   resource: 'Focus',
   resourceStart: 0,
   unit: 10,
+  traits: ['bow'],
   stats: { maxResource: 100, resourceRegen: 0 },
   description: 'Damage, from range. Focus starts empty: every arrow you shoot gives 10, and your abilities spend it.',
   tree,

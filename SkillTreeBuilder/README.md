@@ -93,13 +93,22 @@ lasts longer instead). The action bar shows how many steps the next press takes 
 own tree is about that: more combo points to hold (Bandolier), more from each step (Compounding), and
 procs on spending 2 or 3 steps at once (Adrenaline, Sleight of Hand, Restless Hands, Encore).
 
-**Every damage ability fits every damage weapon.** The book's spells, the daggers' abilities and the
-bow's shots can be mixed on any of them: they cost whatever the weapon holds (Eviscerate costs 2 imps on the book, and pays in
-steps of 2 combo points on the daggers), and their talents aim only at themselves or at families:
-damage over time, direct damage, area damage, zones, finishers. An ability can be **made for** a
-weapon (`madeFor`: Fan of Knives for the daggers, Multi-Shot for the bow). That's only a label: the
-picker shows it and lists the ones made for your weapon first, but never hides the rest. The Plague
-tree keeps its art and layout from the deck, with its X values filled in.
+**Spells fit every weapon of their role.** Plague, Harvest, Raise Ghoul or Doom Bolt can be cast with
+the book, the daggers or the bow, and cost whatever the weapon holds (Doom Bolt: 3 imps, 30 focus, or
+steps of 3 combo points). The only exceptions are **weapon strikes and shots**, whose animation needs a
+certain weapon: an ability can set `needs` (a blade, daggers, a large weapon, a bow) and an artifact
+lists what it is in `traits`. Backstab, Eviscerate and Rupture need a blade, Fan of Knives daggers, the
+bow's shots a bow, and a future cleave would need a large weapon. The picker shows the ones your weapon
+can't make at the bottom, dimmed, with what they need. Talents aim only at their own ability or at
+families: damage over time, direct damage, area damage, zones, finishers.
+
+An ability can also be **made for** a weapon (`madeFor`: Harvest for the book). That's a label: the
+picker shows it and lists the ones made for your weapon first. The Plague tree keeps its art and
+layout from the deck, with its X values filled in.
+
+**Doom Bolt** is the big single-target spell: a 2.5 sec cast for 2,000 damage on a 15 sec cooldown.
+Its tree adds damage, crit and charges, and ties it to damage over time (DoT crits shorten its
+cooldown, it hits harder per DoT on the target, and it powers up your DoTs for 8 sec).
 
 The **Ashwood Longbow** shoots from 40 yd. Focus starts empty, up to 100, and only shooting fills it:
 each Swift Arrow gives 10 (hold the key to keep shooting). Focus counts in **tens**: an artifact can set

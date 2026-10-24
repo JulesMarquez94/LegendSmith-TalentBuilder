@@ -802,6 +802,16 @@ img {
   border-color: var(--gold);
 }
 
+.picker__option--locked:disabled {
+  border-color: transparent;
+  opacity: 0.5;
+}
+
+.tag--locked {
+  color: #ff9a9a;
+  border-color: rgba(255, 120, 120, 0.5);
+}
+
 .picker__icon {
   flex: none;
   width: 48px;

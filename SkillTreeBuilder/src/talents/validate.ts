@@ -1,7 +1,7 @@
 import type { Action, BuffSpec, CharStat, Condition, Match, Mechanic, ModMechanic, ValueKey } from '../game/types.ts'
 import { rankValueCounts } from './description.ts'
 import type { Loadout } from './loadout.ts'
-import { fits, slotKinds } from './slots.ts'
+import { canMake, fits, NEEDS_LABEL, slotKinds } from './slots.ts'
 import type { ArtifactDef, TreeDef } from './types.ts'
 
 /** Catches tree-data mistakes (typos in ids, overlapping cells, missing art) and lists them in plain words. */
@@ -190,6 +190,10 @@ export function validateCatalog(
       const maker = artifacts.find((a) => a.id === tree.madeFor)
       if (!maker) problems.push(`${tree.ability.name} is made for "${tree.madeFor}", which isn't an artifact`)
       else if (tree.role && maker.role !== tree.role) problems.push(`${tree.ability.name} is made for ${maker.name}, a ${maker.role} weapon`)
+      else if (!canMake(tree, maker)) problems.push(`${tree.ability.name} is made for ${maker.name}, which can't make it`)
+    }
+    if (tree.needs !== undefined && !artifacts.some((a) => canMake(tree, a))) {
+      problems.push(`${tree.ability.name} needs ${NEEDS_LABEL[tree.needs]}, and no artifact is one yet`)
     }
     problems.push(...weaponProblems(tree, trees))
   }
@@ -207,7 +211,9 @@ export function validateCatalog(
     if (id === null || i === 0) return
     const tree = trees.find((t) => t.id === id)
     if (tree === undefined) problems.push(`Starting slot ${i + 1} holds "${id}", which isn't a tree`)
-    else if (!fits(tree, slots[i], artifact)) {
+    else if (fits({ ...tree, needs: undefined }, slots[i], artifact) && !canMake(tree, artifact)) {
+      problems.push(`Starting slot ${i + 1} holds ${tree.ability.name}, which needs ${NEEDS_LABEL[tree.needs!]}`)
+    } else if (!fits(tree, slots[i], artifact)) {
       const what = tree.role && tree.kind !== slots[i] ? tree.kind : [tree.role, tree.kind].filter(Boolean).join(' ')
       problems.push(`Starting slot ${i + 1} is a ${slots[i]} slot, but ${tree.ability.name} is ${what}`)
     }

@@ -3,6 +3,7 @@ import type { ArtifactDef, TreeDef } from '../talents/types.ts'
 import { GROUP_BUFFS } from './buffs.ts'
 import { aimedShot, multiShot, poisonArrow, rainOfArrows } from './archery.ts'
 import { ashwoodLongbow } from './bow.ts'
+import { doomBolt } from './doom.ts'
 import { backstab, eviscerate, fanOfKnives, rupture, twinDaggers } from './daggers.ts'
 import { fervor } from './fervor.ts'
 import { bloom, chainHeal, conduit, healingRain, mend, renew } from './healer/heals.ts'
@@ -48,6 +49,8 @@ export const TREES: readonly TreeDef[] = [
   soulSiphon,
   bloodFrenzy,
   armyOfTheDead,
+  // Spells any damage weapon can cast
+  doomBolt,
   // Daggers
   eviscerate,
   rupture,

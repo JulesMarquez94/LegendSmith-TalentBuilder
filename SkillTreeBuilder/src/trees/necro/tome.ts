@@ -155,6 +155,7 @@ export const tomeOfSummoning: ArtifactDef = {
   roleKind: 'damage',
   resource: 'Imps',
   resourceStart: 0,
+  traits: ['book'],
   stats: { maxResource: 15, resourceRegen: 0 },
   description: 'Damage. Summon imps that attack your target, then sacrifice them to pay for your spells.',
   tree,

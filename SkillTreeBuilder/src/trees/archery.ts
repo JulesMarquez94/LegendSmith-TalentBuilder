@@ -17,14 +17,15 @@ import {
   talent,
 } from './authoring.ts'
 
-// Damage abilities made with the bow in mind. Like every ability they fit any damage weapon and cost
-// whatever it holds (30 focus on the bow, 3 imps on the book), so their talents aim only at themselves
-// or at families (direct damage, area damage, DoTs, zones) and give resource back as a share.
+// The bow's shots. They shoot arrows, so they need a bow; any bow can make them. Costs are in points
+// (Aimed Shot's 3 is 30 focus), and their talents aim only at themselves or at families (direct
+// damage, area damage, DoTs, zones) and give resource back as a share.
 
 const archery = {
   role: 'damage',
   kind: 'damage',
   madeFor: 'ashwood-longbow',
+  needs: 'bow',
   columns: 4,
   pointsPerRow: 2,
 } as const

@@ -21,9 +21,10 @@ import {
 // The rogue's artifact and its abilities. Combo points start empty: Quick Strike (the main attack),
 // Backstab and Fan of Knives build them. Combo points pay in steps: an ability that costs 2 spends 4
 // or 6 if you have them, and grows with every step (see `combo` on the artifact). That's the daggers'
-// rule, not the abilities': Eviscerate on the summoning book just costs 2 imps. So the abilities'
-// talents aim only at themselves or at families and tags (direct damage, DoTs, area damage,
-// finishers), and only the daggers' own tree talks about steps and combo points.
+// rule, not the abilities'. The abilities are weapon strikes, so they need a blade (Fan of Knives,
+// daggers to throw); any blade weapon can make them. Their talents aim only at themselves or at
+// families and tags (direct damage, DoTs, area damage, finishers), and only the daggers' own tree
+// talks about steps and combo points.
 
 // ---------- Twin Daggers: the artifact and its main attack, Quick Strike ----------
 
@@ -218,6 +219,7 @@ export const twinDaggers: ArtifactDef = {
   resource: 'Combo points',
   resourceStart: 0,
   combo: true,
+  traits: ['blade', 'dagger'],
   stats: { maxResource: 6, resourceRegen: 0 },
   description:
     'Damage. Strikes build combo points; every ability that costs some spends as many steps of its cost as you have, ' +
@@ -227,10 +229,12 @@ export const twinDaggers: ArtifactDef = {
 
 // ---------- The abilities: three of these go in the damage slots ----------
 
+// Weapon strikes: any weapon with a blade can make them, not other weapons.
 const daggers = {
   role: 'damage',
   kind: 'damage',
   madeFor: 'twin-daggers',
+  needs: 'blade',
   columns: 4,
   pointsPerRow: 2,
 } as const
@@ -496,6 +500,8 @@ export const rupture: TreeDef = {
 
 export const fanOfKnives: TreeDef = {
   ...daggers,
+  // You throw the knives, so it takes daggers rather than any blade.
+  needs: 'dagger',
   id: 'fan-of-knives',
   color: '#b9c4d0',
   ability: {

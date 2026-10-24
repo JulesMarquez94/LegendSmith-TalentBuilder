@@ -12,6 +12,12 @@ export type SlotKind = 'artifact' | AbilityKind | 'outdoor'
  */
 export type Role = 'damage' | 'healer' | 'tank'
 
+/**
+ * What a weapon physically is, for abilities whose animation or story needs it: a blade stabs and
+ * slices, daggers can be thrown, a large weapon sweeps and cleaves, a bow shoots arrows.
+ */
+export type WeaponTrait = 'blade' | 'dagger' | 'large' | 'bow' | 'staff' | 'book'
+
 /** An ability card, like the deck's ability slides. */
 export interface AbilityCard {
   name: string
@@ -57,10 +63,16 @@ export interface TreeDef {
   /** Made-up content for playtesting; tagged in the builder. */
   playtest?: boolean
   /**
-   * The artifact it was made with (Fan of Knives: the daggers), shown as a label in the picker and
-   * listed first while you hold that weapon. Never a limit: any weapon of its role can slot it.
+   * The artifact it was made with (Harvest: the summoning book), shown as a label in the picker and
+   * listed first while you hold that weapon. Not a limit by itself: see `needs`.
    */
   madeFor?: string
+  /**
+   * Only for weapon strikes and shots, whose animation needs a certain weapon: Backstab needs a blade,
+   * Fan of Knives daggers, a cleave a large weapon, arrows a bow. Spells leave it out, so every weapon
+   * of the role can cast them (Plague, Raise Ghoul, Doom Bolt).
+   */
+  needs?: WeaponTrait
   /** Sub-folder of LegendSmith/Art with this tree's PNGs. Leave out to use placeholder art. */
   artFolder?: string
   background?: string
@@ -84,6 +96,8 @@ export interface ArtifactDef {
   roleKind: AbilityKind
   /** Shown on the artifact card and in the picker. */
   description: string
+  /** What it is, for abilities that need a certain weapon (`needs`). */
+  traits: readonly WeaponTrait[]
   /** Its resource, e.g. "Mana", "Imps", "Combo points". */
   resource: string
   /** How much resource a fight starts with. Default: full. */
