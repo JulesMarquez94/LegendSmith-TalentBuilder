@@ -1429,10 +1429,11 @@ export class Arena {
     }
   }
 
-  /** Where an imp hovers: circling you. */
+  /** Where an imp hovers: circling you, on a wider circle the more you have. */
   impPos(imp: Imp): Vec {
     const a = imp.angle + this.time * 0.8
-    return { x: this.player.pos.x + Math.cos(a) * 2.4, y: this.player.pos.y + Math.sin(a) * 2.4 }
+    const r = 2.2 + 0.12 * this.imps.length
+    return { x: this.player.pos.x + Math.cos(a) * r, y: this.player.pos.y + Math.sin(a) * r }
   }
 
   private updateImps() {

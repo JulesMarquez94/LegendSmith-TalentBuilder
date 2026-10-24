@@ -73,13 +73,13 @@ DoT, minion, resource, movement, buff and aura, plus `healing` on every heal, `d
 
 ## The damage weapons
 
-The **Tome of Summoning** has imps for a resource, up to 6. Its main attack, Summon Imp, adds one, every
+The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, Summon Imp, adds one, every
 imp attacks your target on its own, and its spells are paid for by **sacrificing imps**. Minion power
 raises all your damage for each imp you command.
 
 | Slot | Choices |
 | --- | --- |
-| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (a zone that makes everyone inside sick), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
+| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (no cooldown, only imps; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (a zone that makes everyone inside sick), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
 | Ultimate | Fervor (you and your group gain 30% haste for 20 sec) |
 
 The **Twin Daggers** build combo points (up to 6) with Quick Strike: hold the key to keep striking.

@@ -49,7 +49,7 @@ export function PartyFrames({ arena }: { arena: Arena }) {
 }
 
 /** A resource you count rather than pool (imps, combo points): shown as pips. */
-const isCounted = (arena: Arena) => arena.maxResource <= 10 && arena.kit.character.stats.resourceRegen === 0
+const isCounted = (arena: Arena) => arena.maxResource <= 20 && arena.kit.character.stats.resourceRegen === 0
 
 /** Your health, resource (mana, imps, combo points), cast bar and buffs. */
 export function PlayerBars({ arena }: { arena: Arena }) {
@@ -65,7 +65,10 @@ export function PlayerBars({ arena }: { arena: Arena }) {
         </span>
       </div>
       {max > 0 && isCounted(arena) && (
-        <div className="pips" aria-label={`${arena.kit.resource} ${Math.floor(arena.resource)} of ${max}`}>
+        <div
+          className={max > 10 ? 'pips pips--many' : 'pips'}
+          aria-label={`${arena.kit.resource} ${Math.floor(arena.resource)} of ${max}`}
+        >
           <span className="pips__label">{arena.kit.resource}</span>
           {Array.from({ length: max }, (_, i) => (
             <i key={i} className={i < Math.floor(arena.resource + 1e-6) ? 'pip pip--on' : 'pip'} />

@@ -77,6 +77,25 @@ describe('the summoning book', () => {
     expect(damageOf(arena, 'Harvest')).toMatchObject({ hits: 1, damage: 440 })
   })
 
+  it('lets you command up to 15 imps', () => {
+    const arena = new Arena(kitFor(book, [null, null, null, null, null, null]), DUMMIES, { seed: 1 })
+    for (let i = 0; i < 16; i++) cast(arena, 0)
+    expect(arena.imps).toHaveLength(15)
+    expect(arena.notice?.text).toBe('You command as many imps as you can')
+  })
+
+  it('has no cooldown on Harvest: only imps limit it', () => {
+    const arena = new Arena(kitFor(book, ['plague', 'harvest', null, null, null, null]), DUMMIES, { seed: 1 })
+    for (let i = 0; i < 4; i++) cast(arena, 0)
+    cast(arena, 1)
+    run(arena, 1)
+    cast(arena, 2)
+    run(arena, 1)
+    cast(arena, 2)
+    expect(arena.meter.casts.get('Harvest')).toBe(2)
+    expect(arena.imps).toHaveLength(0)
+  })
+
   it('keeps every Festering Rot stack on its own timer', () => {
     const arena = new Arena(noCrits(kitFor(book, ['festering-rot', null, null, null, null, null])), DUMMIES, { seed: 1 })
     for (let i = 0; i < 3; i++) cast(arena, 0)

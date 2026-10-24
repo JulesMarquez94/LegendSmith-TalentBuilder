@@ -2,7 +2,6 @@ import { int, sec, yd } from '../../game/format.ts'
 import type { TreeDef } from '../../talents/types.ts'
 import {
   apply,
-  cooldown,
   damage,
   dot,
   hostileZone,
@@ -11,6 +10,7 @@ import {
   proc,
   restore,
   spread,
+  stat,
   talent,
 } from '../authoring.ts'
 
@@ -37,12 +37,11 @@ export const harvest: TreeDef = {
     name: 'Harvest',
     castTime: 'Instant',
     range: '40 range',
-    cooldown: '8 sec cooldown',
     description: 'Sacrifice imps: every enemy with your damage-over-time effects takes damage for each one on it.',
   },
   spec: {
+    // No cooldown: imps are the only limit on how often you Harvest.
     cost: 2,
-    cooldown: 8,
     range: 40,
     effects: [damage(220, 'afflicted', { perEffect: 'dot' })],
     text: (a) =>
@@ -68,13 +67,13 @@ export const harvest: TreeDef = {
       does: () => [plus('cost', 'harvest', -1)],
     }),
     talent({
-      id: 'quick-reap',
-      name: 'Quick Reap',
+      id: 'grim-bond',
+      name: 'Grim Bond',
       row: 0,
       col: 3,
       per: [1, 2],
-      text: "Harvest's cooldown is {} sec shorter.",
-      does: (v) => [plus('cooldown', 'harvest', -v)],
+      text: 'You deal {}% more damage for each imp you command (Minion power).',
+      does: (v) => [stat('minionPower', v)],
     }),
     talent({
       id: 'ripe-pickings',
@@ -115,13 +114,13 @@ export const harvest: TreeDef = {
       does: () => [proc('hit', { all: ['harvest', 'direct-damage'] }, [{ do: 'pulse', match: 'dot', seconds: 2 }])],
     }),
     talent({
-      id: 'endless-harvest',
-      name: 'Endless Harvest',
+      id: 'second-harvest',
+      name: 'Second Harvest',
       row: 2,
       col: 3,
       per: [15, 30],
-      text: 'Harvest has a {}% chance not to go on cooldown.',
-      does: (v) => [proc('cast', 'harvest', [cooldown('harvest', Infinity)], { chance: v })],
+      text: 'Harvest has a {}% chance to reap again right away, for free.',
+      does: (v) => [proc('cast', 'harvest', [{ do: 'recast' }], { chance: v })],
     }),
     talent({
       id: 'final-reaping',
