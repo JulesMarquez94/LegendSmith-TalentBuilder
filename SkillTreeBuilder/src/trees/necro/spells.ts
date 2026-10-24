@@ -22,6 +22,7 @@ import {
 const book = {
   role: 'damage',
   kind: 'damage',
+  madeFor: 'tome-of-summoning',
   columns: 4,
   pointsPerRow: 2,
 } as const

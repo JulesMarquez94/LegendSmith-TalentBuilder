@@ -93,11 +93,13 @@ lasts longer instead). The action bar shows how many steps the next press takes 
 own tree is about that: more combo points to hold (Bandolier), more from each step (Compounding), and
 procs on spending 2 or 3 steps at once (Adrenaline, Sleight of Hand, Restless Hands, Encore).
 
-**Every damage ability fits every damage weapon.** The book's spells and the daggers' abilities can be
-mixed on either: they cost whatever the weapon holds (Eviscerate costs 2 imps on the book, and pays in
+**Every damage ability fits every damage weapon.** The book's spells, the daggers' abilities and the
+bow's shots can be mixed on any of them: they cost whatever the weapon holds (Eviscerate costs 2 imps on the book, and pays in
 steps of 2 combo points on the daggers), and their talents aim only at themselves or at families:
-damage over time, direct damage, area damage, zones, finishers. The Plague tree keeps its art and
-layout from the deck, with its X values filled in.
+damage over time, direct damage, area damage, zones, finishers. An ability can be **made for** a
+weapon (`madeFor`: Fan of Knives for the daggers, Multi-Shot for the bow). That's only a label: the
+picker shows it and lists the ones made for your weapon first, but never hides the rest. The Plague
+tree keeps its art and layout from the deck, with its X values filled in.
 
 The **Ashwood Longbow** shoots from 40 yd. Focus starts empty, up to 100, and only shooting fills it:
 each Swift Arrow gives 10 (hold the key to keep shooting). Focus counts in **tens**: an artifact can set
@@ -105,6 +107,13 @@ a `unit`, and every ability's cost and gain is multiplied by it, so Harvest's co
 and Backstab's 2 is 20 focus back, while the same abilities cost 2 imps on the book. For that to hold,
 shared trees may only change costs and gains by a %, never a flat amount (the data test checks). The
 bow's own tree adds plain focus: more per arrow, more to hold, focus on crits, and procs when you spend.
+
+| Made for the bow | |
+| --- | --- |
+| Aimed Shot | 2 sec cast, heavy single-target shot (30 focus) |
+| Multi-Shot | hits the target and every enemy within 8 yd (20 focus) |
+| Poison Arrow | a 15 sec damage over time (10 focus) |
+| Rain of Arrows | a dense 6 sec damaging zone, 20 sec cooldown (30 focus) |
 
 ## Group buffs
 

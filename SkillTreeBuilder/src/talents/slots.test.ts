@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { lifewardenStaff } from '../trees/healer/staff.ts'
-import { STARTING_LOADOUT, tomeOfSummoning, TREES, twinDaggers } from '../trees/index.ts'
+import { ashwoodLongbow, STARTING_LOADOUT, tomeOfSummoning, TREES, twinDaggers } from '../trees/index.ts'
 import { fits, setArtifact, slotKinds } from './slots.ts'
 
 const tree = (id: string) => TREES.find((t) => t.id === id)!
@@ -26,6 +26,8 @@ describe('the artifact', () => {
     expect(fits(tree('plague'), 'damage', tomeOfSummoning)).toBe(true)
     expect(fits(tree('eviscerate'), 'damage', tomeOfSummoning)).toBe(true)
     expect(fits(tree('harvest'), 'damage', twinDaggers)).toBe(true)
+    expect(fits(tree('multi-shot'), 'damage', tomeOfSummoning)).toBe(true)
+    expect(fits(tree('fan-of-knives'), 'damage', ashwoodLongbow)).toBe(true)
     expect(fits(tree('mend'), 'damage', tomeOfSummoning)).toBe(false)
     expect(fits(tree('fervor'), 'cooldown', lifewardenStaff)).toBe(true)
     expect(fits(tree('fervor'), 'cooldown', tomeOfSummoning)).toBe(true)

@@ -13,6 +13,8 @@ export interface PickerOption {
   description: string
   playtest?: boolean
   displayOnly?: boolean
+  /** The weapon it was made with, for a label; `yours` when that's the weapon you hold. */
+  madeFor?: { name: string; color: string; yours: boolean }
   /** The slot it's in now (0-based), or -1. */
   at: number
 }
@@ -75,6 +77,15 @@ export function AbilityPicker({ slotIndex, title, subtitle, options, slotFilled,
                   <span className="picker__text">
                     <span className="picker__name">
                       {option.name}
+                      {option.madeFor && (
+                        <span
+                          className="tag tag--weapon"
+                          style={{ color: option.madeFor.color, borderColor: option.madeFor.color }}
+                          title={`Made for the ${option.madeFor.name}. Any weapon of its role can use it.`}
+                        >
+                          {option.madeFor.name}
+                        </span>
+                      )}
                       {option.playtest && <span className="tag">Playtest</span>}
                       {option.displayOnly && <span className="tag">Display only</span>}
                       {here && <span className="picker__note">In this slot</span>}

@@ -186,6 +186,11 @@ export function validateCatalog(
         }
       }
     }
+    if (tree.madeFor !== undefined) {
+      const maker = artifacts.find((a) => a.id === tree.madeFor)
+      if (!maker) problems.push(`${tree.ability.name} is made for "${tree.madeFor}", which isn't an artifact`)
+      else if (tree.role && maker.role !== tree.role) problems.push(`${tree.ability.name} is made for ${maker.name}, a ${maker.role} weapon`)
+    }
     problems.push(...weaponProblems(tree, trees))
   }
   for (const artifact of artifacts) {

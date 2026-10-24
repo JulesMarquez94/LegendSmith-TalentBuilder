@@ -1,6 +1,7 @@
 import type { Loadout, PointRules } from '../talents/loadout.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
 import { GROUP_BUFFS } from './buffs.ts'
+import { aimedShot, multiShot, poisonArrow, rainOfArrows } from './archery.ts'
 import { ashwoodLongbow } from './bow.ts'
 import { backstab, eviscerate, fanOfKnives, rupture, twinDaggers } from './daggers.ts'
 import { fervor } from './fervor.ts'
@@ -52,6 +53,11 @@ export const TREES: readonly TreeDef[] = [
   rupture,
   fanOfKnives,
   backstab,
+  // Bow
+  aimedShot,
+  multiShot,
+  poisonArrow,
+  rainOfArrows,
   // Ultimates for every role
   fervor,
   // Mobility, for every role

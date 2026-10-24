@@ -191,6 +191,22 @@ describe('the bow', () => {
     expect(damageOf(arena, 'Swift Arrow')).toMatchObject({ hits: 1, damage: 220 })
   })
 
+  it('has its own abilities, which cost each weapon its own resource', () => {
+    const onBow = kitFor(bow, ['aimed-shot', 'multi-shot', 'rain-of-arrows', null, null, null])
+    const onBook = kitFor(book, ['aimed-shot', 'multi-shot', 'rain-of-arrows', null, null, null])
+    expect(onBow.slots.slice(1, 4).map((a) => a!.cost)).toEqual([30, 20, 30])
+    expect(onBook.slots.slice(1, 4).map((a) => a!.cost)).toEqual([3, 2, 3])
+    expect(onBook.slots[2]!.text).toContain('Costs 2 imps')
+
+    const arena = new Arena(noCrits(onBow), DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 40 }
+    arena.resource = 50
+    cast(arena, 2)
+    // Multi-Shot hits the big dummy and the small ones around it.
+    expect(damageOf(arena, 'Multi-Shot')?.hits).toBeGreaterThanOrEqual(3)
+    expect(arena.resource).toBe(30)
+  })
+
   it('counts costs and gains in tens of focus', () => {
     const kit = kitFor(bow, ['harvest', 'backstab', 'festering-rot', null, null, null])
     expect(kit.slots[1]!.cost).toBe(20)

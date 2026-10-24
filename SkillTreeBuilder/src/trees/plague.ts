@@ -16,6 +16,7 @@ export const plague: TreeDef = {
   id: 'plague',
   kind: 'damage',
   role: 'damage',
+  madeFor: 'tome-of-summoning',
   artFolder: 'Plague',
   background: 'Plague-Background',
   color: '#7ccf3a',

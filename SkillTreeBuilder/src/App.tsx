@@ -61,8 +61,9 @@ export default function App() {
         at: a.id === artifact.id ? 0 : -1,
       }))
     }
-    return TREES.filter((tree) => fits(tree, kinds[slot], artifact)).map((tree: TreeDef) => {
+    const fitting = TREES.filter((tree) => fits(tree, kinds[slot], artifact)).map((tree: TreeDef) => {
       const live = tree.spec ? kit.resolve(tree.id) : null
+      const maker = ARTIFACTS.find((a) => a.id === tree.madeFor)
       return {
         id: tree.id,
         name: tree.ability.name,
@@ -73,9 +74,12 @@ export default function App() {
         description: live?.text ?? tree.ability.description,
         playtest: tree.playtest,
         displayOnly: !tree.spec,
+        madeFor: maker && { name: maker.name, color: maker.color, yours: maker.id === artifact.id },
         at: loadout.slots.indexOf(tree.id),
       }
     })
+    // Every ability of the role fits; the ones made for the weapon you hold come first.
+    return fitting.sort((a, b) => Number(b.madeFor?.yours ?? false) - Number(a.madeFor?.yours ?? false))
   }
 
   return (
@@ -163,7 +167,8 @@ export default function App() {
           subtitle={
             picking === 0
               ? 'Choose the weapon you hold. It sets your role and what fits the other slots; abilities that no longer fit come out.'
-              : `Choose a ${KIND_LABEL[kinds[picking]].toLowerCase()} ability. Its talent tree goes into the slot.`
+              : `Choose a ${KIND_LABEL[kinds[picking]].toLowerCase()} ability. Its talent tree goes into the slot. ` +
+                'Any of them works with your weapon; the ones made for it come first.'
           }
           options={options(picking)}
           slotFilled={loadout.slots[picking] !== null}

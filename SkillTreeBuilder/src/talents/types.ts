@@ -56,6 +56,11 @@ export interface TreeDef {
   effects?: AbilityCard[]
   /** Made-up content for playtesting; tagged in the builder. */
   playtest?: boolean
+  /**
+   * The artifact it was made with (Fan of Knives: the daggers), shown as a label in the picker and
+   * listed first while you hold that weapon. Never a limit: any weapon of its role can slot it.
+   */
+  madeFor?: string
   /** Sub-folder of LegendSmith/Art with this tree's PNGs. Leave out to use placeholder art. */
   artFolder?: string
   background?: string

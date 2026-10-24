@@ -230,6 +230,7 @@ export const twinDaggers: ArtifactDef = {
 const daggers = {
   role: 'damage',
   kind: 'damage',
+  madeFor: 'twin-daggers',
   columns: 4,
   pointsPerRow: 2,
 } as const
