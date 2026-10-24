@@ -13,6 +13,15 @@ npm run dev
 
 Then open http://localhost:5173. The page remembers your build and gear in this browser.
 
+## Publish it on GitHub Pages
+
+`.github/workflows/talent-builder-pages.yml` tests and builds the builder, then deploys it to GitHub
+Pages whenever `main` changes it or its art. The site is at `https://<user>.github.io/<repo>/`.
+
+Once, in the repository's **Settings → Pages**, set **Source** to **GitHub Actions**. To deploy without
+a push, run the workflow from the **Actions** tab. On a free GitHub plan, Pages only works for public
+repositories.
+
 ## Slots
 
 | Slot | Holds | Keyboard |
