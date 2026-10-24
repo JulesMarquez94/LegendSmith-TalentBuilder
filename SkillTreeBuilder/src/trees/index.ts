@@ -70,4 +70,4 @@ export const STARTING_LOADOUT: Loadout = {
   ranks: {},
 }
 
-export { tomeOfSummoning }
+export { tomeOfSummoning, twinDaggers }

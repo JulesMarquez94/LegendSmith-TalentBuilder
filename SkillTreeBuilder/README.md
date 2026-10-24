@@ -55,39 +55,46 @@ Bolt, restores 16 per hit. Heals cost 80–200, so you weave attacks between hea
 
 Abilities never hard-code mana: they cost the artifact's **resource**, and shared talent text says
 `@resource`, which shows as the held artifact's resource. Another healing weapon with its own resource
-can use the same heals and trees.
+can use the same heals and trees. Shared talents give resource back as a **share of your maximum**
+(Rainmaker: 0.3% per tick) or of what the cast cost, never as a flat amount of mana, so they mean the
+same on any weapon. Only an artifact's own tree may talk in its own units (mana, imps, combo points).
 
 | Slot | Choices |
 | --- | --- |
-| Heals (pick 3) | Mend (direct heal), Chain Heal (jumps, 6 sec cooldown), Healing Rain (zone, never two on one ally), Renew (HoT), Bloom (pays per ally to heal everyone your HoTs and zones touch), Conduit (passive: Radiant Bolt heals) |
+| Heals (pick 3) | Mend (direct heal), Chain Heal (jumps, 6 sec cooldown), Healing Rain (zone, never two on one ally), Renew (HoT), Bloom (pays per ally to heal everyone your HoTs and zones touch), Conduit (passive: your main attack heals) |
 | Ultimate | Miracle (instant heal on everyone), Sanctuary (big zone for 12 sec), Lifetide (strong HoT that decays) |
 | Mobility | Dash (2 charges), Teleport, Sprint |
 
-Talents aim at **families and tags**, not named abilities. Every tree's "heals more" talent lifts a
+Talents aim at **families and tags**, never at another ability: a talent may name its own ability
+("Healing Rain's crits…") or a family ("your heal-over-time effects…"), and a data test fails if one
+names another ability or leans on one weapon (minions, flat resource). Every tree's "heals more" talent lifts a
 whole family: Mend's and Miracle's lift direct heals, Chain Heal's chain heals, Healing Rain's and
 Sanctuary's zones, Renew's and Lifetide's HoTs. Each ultimate also has a talent that cuts its cooldown
 when you crit with its family. A talent's tooltip lists what it
 reaches ("Affects: Renew, Lifetide"). The families are direct heal, HoT, zone, shield, direct damage,
 DoT, minion, resource, movement, buff and aura, plus `healing` on every heal, `damage` on every hit,
-`aoe` on area damage, slot kinds (`heal`, `cooldown`…) and ability ids.
+`aoe` on area damage, slot kinds (`heal`, `cooldown`…) and the ability's own id.
 
 ## The damage weapons
 
 The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, Summon Imp, adds one, every
 imp attacks your target on its own, and its spells are paid for by **sacrificing imps**. Minion power
-raises all your damage for each imp you command.
+(from the Tome's own tree) raises all your damage for each imp you command.
 
 | Slot | Choices |
 | --- | --- |
-| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (no cooldown, only imps; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (a zone that makes everyone inside sick), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
+| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (no cooldown, only its cost; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (a zone that makes everyone inside sick), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
 | Ultimate | Fervor (you and your group gain 30% haste for 20 sec) |
 
 The **Twin Daggers** build combo points (up to 6) with Quick Strike: hold the key to keep striking.
 Finishers (Eviscerate, Rupture) spend all your points and grow with each one; Fan of Knives and
 Backstab build them.
 
-Their talents aim at families too: damage over time, direct damage, area damage, zones, minions,
-finishers. The Plague tree keeps its art and layout from the deck, with its X values filled in.
+**Every damage ability fits every damage weapon.** The book's spells and the daggers' abilities can be
+mixed on either: they cost whatever the weapon holds (Eviscerate on the book spends all your imps,
+Harvest on the daggers costs combo points), and their talents aim only at themselves or at families:
+damage over time, direct damage, area damage, zones, finishers. The Plague tree keeps its art and
+layout from the deck, with its X values filled in.
 
 ## Group buffs
 

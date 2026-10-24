@@ -16,7 +16,6 @@ export const plague: TreeDef = {
   id: 'plague',
   kind: 'damage',
   role: 'damage',
-  artifacts: ['tome-of-summoning'],
   artFolder: 'Plague',
   background: 'Plague-Background',
   color: '#7ccf3a',
@@ -54,7 +53,7 @@ export const plague: TreeDef = {
     },
   ],
   spec: {
-    // Free: the one spell of the book that doesn't sacrifice an imp.
+    // Free on any weapon: the one spell of the book that costs nothing.
     range: 40,
     cycle: true,
     effects: [

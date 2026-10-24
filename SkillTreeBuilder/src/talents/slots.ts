@@ -25,8 +25,7 @@ export const fits = (tree: TreeDef, kind: SlotKind, artifact: ArtifactDef) =>
   tree.kind === kind &&
   kind !== 'artifact' &&
   kind !== 'outdoor' &&
-  (tree.role === undefined || tree.role === artifact.role) &&
-  (tree.artifacts === undefined || tree.artifacts.includes(artifact.id))
+  (tree.role === undefined || tree.role === artifact.role)
 
 /**
  * Holds a different artifact. Its tree (if it has one) goes in slot 1, abilities that no longer

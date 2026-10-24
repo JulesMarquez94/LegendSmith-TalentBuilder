@@ -1,31 +1,30 @@
-import { int, sec, yd } from '../../game/format.ts'
+import { counted, int, sec, yd } from '../../game/format.ts'
 import type { TreeDef } from '../../talents/types.ts'
 import {
   apply,
+  cooldown,
   damage,
   dot,
   hostileZone,
   more,
   plus,
   proc,
-  restore,
+  refund,
   spread,
-  stat,
   talent,
 } from '../authoring.ts'
 
-// The summoning book's spells. All but Plague are paid for by sacrificing imps. Talents aim at
-// families (DoTs, direct damage, area damage, zones), so a point in one tree helps the others.
+// Damage spells made with the summoning book in mind. They fit any damage weapon and cost whatever it
+// holds (imps on the book, combo points on the daggers), so their talents never lean on one weapon:
+// they aim at their own ability or at families (DoTs, direct damage, area damage, zones), never at
+// another ability or at imps, and give resource back as a share of what the cast cost.
 
 const book = {
   role: 'damage',
   kind: 'damage',
-  artifacts: ['tome-of-summoning'],
   columns: 4,
   pointsPerRow: 2,
 } as const
-
-const imps = (n: number) => `${n} imp${n === 1 ? '' : 's'}`
 
 // ---------- Harvest: damage per DoT on every afflicted enemy ----------
 
@@ -37,16 +36,16 @@ export const harvest: TreeDef = {
     name: 'Harvest',
     castTime: 'Instant',
     range: '40 range',
-    description: 'Sacrifice imps: every enemy with your damage-over-time effects takes damage for each one on it.',
+    description: 'Every enemy with your damage-over-time effects takes damage for each one on it.',
   },
   spec: {
-    // No cooldown: imps are the only limit on how often you Harvest.
+    // No cooldown: its cost is the only limit on how often you Harvest.
     cost: 2,
     range: 40,
     effects: [damage(220, 'afflicted', { perEffect: 'dot' })],
     text: (a) =>
-      `Sacrifice ${imps(a.cost)}: every enemy within ${yd(a.range)} yd takes ${int(a.effects[0].amount)} damage for ` +
-      `each of your damage-over-time effects on it. Three DoTs, three times the damage.`,
+      `Every enemy within ${yd(a.range)} yd takes ${int(a.effects[0].amount)} damage for each of your ` +
+      `damage-over-time effects on it. Three DoTs, three times the damage. Costs ${counted(a.cost, a.resource)}.`,
   },
   talents: [
     talent({
@@ -63,17 +62,17 @@ export const harvest: TreeDef = {
       name: "Reaper's Due",
       row: 0,
       col: 1,
-      text: 'Harvest sacrifices 1 fewer imp.',
-      does: () => [plus('cost', 'harvest', -1)],
+      text: 'Harvest costs 50% less.',
+      does: () => [more('cost', 'harvest', -50)],
     }),
     talent({
-      id: 'grim-bond',
-      name: 'Grim Bond',
+      id: 'keen-scythe',
+      name: 'Keen Scythe',
       row: 0,
       col: 3,
-      per: [1, 2],
-      text: 'You deal {}% more damage for each imp you command (Minion power).',
-      does: (v) => [stat('minionPower', v)],
+      per: [3, 6],
+      text: 'Your direct damage has +{}% critical chance.',
+      does: (v) => [plus('critChance', 'direct-damage', v)],
     }),
     talent({
       id: 'ripe-pickings',
@@ -91,8 +90,8 @@ export const harvest: TreeDef = {
       row: 1,
       col: 2,
       per: [10, 20],
-      text: 'Each enemy Harvest hits has a {}% chance to give you an imp back.',
-      does: (v) => [proc('hit', { all: ['harvest', 'direct-damage'] }, [restore(1)], { chance: v })],
+      text: 'Each enemy Harvest hits has a {}% chance to give back half its cost (once per cast).',
+      does: (v) => [proc('hit', { all: ['harvest', 'direct-damage'] }, [refund(50)], { chance: v })],
     }),
     talent({
       id: 'lingering-rot',
@@ -153,7 +152,7 @@ export const festeringRot: TreeDef = {
     name: 'Festering Rot',
     castTime: 'Instant',
     range: '40 range',
-    description: 'Sacrifice an imp to add a stack of rot to your target. Every stack keeps its own timer, and there is no limit.',
+    description: 'Add a stack of rot to your target. Every stack keeps its own timer, and there is no limit.',
   },
   spec: {
     cost: 1,
@@ -162,9 +161,10 @@ export const festeringRot: TreeDef = {
     text: (a) => {
       const e = a.effects[0]
       return (
-        `Sacrifice ${imps(a.cost)} to add ${e.stacks > 1 ? `${e.stacks} stacks` : 'a stack'} of Festering Rot to the enemy ` +
+        `Adds ${e.stacks > 1 ? `${e.stacks} stacks` : 'a stack'} of Festering Rot to the enemy ` +
         `nearest your crosshair within ${yd(a.range)} yd. Each stack deals ${int(e.amount)} damage every ` +
-        `${sec(e.interval)} sec for ${sec(e.duration)} sec on its own timer, so stacks roll off one by one and never all refresh.`
+        `${sec(e.interval)} sec for ${sec(e.duration)} sec on its own timer, so stacks roll off one by one and never all ` +
+        `refresh. Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },
@@ -211,8 +211,8 @@ export const festeringRot: TreeDef = {
       row: 1,
       col: 2,
       per: [20, 40],
-      text: 'Festering Rot has a {}% chance to give its imp back.',
-      does: (v) => [proc('cast', 'festering-rot', [restore(1)], { chance: v })],
+      text: 'Festering Rot has a {}% chance to give back its cost.',
+      does: (v) => [proc('cast', 'festering-rot', [refund(100)], { chance: v })],
     }),
     talent({
       id: 'spreading-rot',
@@ -238,8 +238,8 @@ export const festeringRot: TreeDef = {
       row: 3,
       col: 0,
       requires: 'spreading-rot',
-      text: "Your imps' attacks have a 10% chance to add a stack of Festering Rot to their target.",
-      does: () => [proc('hit', 'minion', [{ do: 'fire', ability: 'festering-rot', at: 'event' }], { chance: 10 })],
+      text: 'Your area damage has a 10% chance to add a stack of Festering Rot to each enemy it hits.',
+      does: () => [proc('hit', 'aoe', [{ do: 'fire', ability: 'festering-rot', at: 'event' }], { chance: 10 })],
     }),
     talent({
       id: 'necrosis',
@@ -265,7 +265,7 @@ export const miasma: TreeDef = {
     castTime: 'Instant',
     range: '40 range',
     cooldown: '15 sec cooldown',
-    description: 'Sacrifice imps to fill the ground around an enemy with a cloud that makes everyone inside sick.',
+    description: 'Fill the ground around an enemy with a cloud that makes everyone inside sick.',
   },
   spec: {
     cost: 2,
@@ -281,9 +281,9 @@ export const miasma: TreeDef = {
       const e = a.effects[0]
       const sick = e.inflicts!
       return (
-        `Sacrifice ${imps(a.cost)} to fill a ${yd(e.radius)} yd area around the enemy nearest your crosshair with ` +
+        `Fills a ${yd(e.radius)} yd area around the enemy nearest your crosshair with ` +
         `Miasma for ${sec(e.duration)} sec. Every enemy inside is Sick: ${int(sick.amount)} damage every ` +
-        `${sec(sick.interval)} sec, lasting ${sec(sick.duration)} sec after it leaves.`
+        `${sec(sick.interval)} sec, lasting ${sec(sick.duration)} sec after it leaves. Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },
@@ -334,13 +334,13 @@ export const miasma: TreeDef = {
       does: (v) => [plus('cooldown', 'miasma', -v)],
     }),
     talent({
-      id: 'feeding-fog',
-      name: 'Feeding Fog',
+      id: 'restless-fog',
+      name: 'Restless Fog',
       row: 1,
       col: 3,
-      per: [5, 10],
-      text: 'Each Miasma tick has a {}% chance to give you an imp.',
-      does: (v) => [proc('tick', 'miasma', [restore(1)], { chance: v })],
+      per: [10, 20],
+      text: "Each Miasma tick has a {}% chance to take 1 sec off Miasma's cooldown.",
+      does: (v) => [proc('tick', 'miasma', [cooldown('miasma', 1)], { chance: v })],
     }),
     talent({
       id: 'lasting-sickness',
@@ -390,7 +390,7 @@ export const necroticExplosion: TreeDef = {
     name: 'Necrotic Explosion',
     castTime: '1.5 sec cast',
     range: '40 range',
-    description: 'Sacrifice an imp to blow up the ground under an enemy, hitting everything around it.',
+    description: 'Blow up the ground under an enemy, hitting everything around it.',
   },
   spec: {
     cost: 1,
@@ -400,8 +400,8 @@ export const necroticExplosion: TreeDef = {
     text: (a) => {
       const e = a.effects[0]
       return (
-        `Sacrifice ${imps(a.cost)} to blow up the enemy nearest your crosshair within ${yd(a.range)} yd, dealing ` +
-        `${int(e.amount)} damage to it and every enemy within ${yd(e.radius)} yd of it.`
+        `Blows up the enemy nearest your crosshair within ${yd(a.range)} yd, dealing ${int(e.amount)} damage to it ` +
+        `and every enemy within ${yd(e.radius)} yd of it. Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },
@@ -465,13 +465,13 @@ export const necroticExplosion: TreeDef = {
       ],
     }),
     talent({
-      id: 'imp-fuel',
-      name: 'Imp Fuel',
+      id: 'spare-fuel',
+      name: 'Spare Fuel',
       row: 2,
       col: 3,
       per: [20, 40],
-      text: 'Necrotic Explosion has a {}% chance to give its imp back.',
-      does: (v) => [proc('cast', 'necrotic-explosion', [restore(1)], { chance: v })],
+      text: 'Necrotic Explosion has a {}% chance to give back its cost.',
+      does: (v) => [proc('cast', 'necrotic-explosion', [refund(100)], { chance: v })],
     }),
     talent({
       id: 'chain-reaction',
@@ -512,7 +512,7 @@ export const ashfall: TreeDef = {
     castTime: 'Instant',
     range: '40 range',
     cooldown: '10 sec cooldown',
-    description: 'Sacrifice an imp to rain burning ash around an enemy, hurting everyone under it.',
+    description: 'Rain burning ash around an enemy, hurting everyone under it.',
   },
   spec: {
     cost: 1,
@@ -522,8 +522,8 @@ export const ashfall: TreeDef = {
     text: (a) => {
       const e = a.effects[0]
       return (
-        `Sacrifice ${imps(a.cost)} to rain ash in a ${yd(e.radius)} yd area around the enemy nearest your crosshair ` +
-        `for ${sec(e.duration)} sec. Every enemy inside takes ${int(e.amount)} damage every ${sec(e.interval)} sec.`
+        `Rains ash in a ${yd(e.radius)} yd area around the enemy nearest your crosshair for ${sec(e.duration)} sec. ` +
+        `Every enemy inside takes ${int(e.amount)} damage every ${sec(e.interval)} sec. Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },
@@ -583,13 +583,13 @@ export const ashfall: TreeDef = {
       does: (v) => [plus('critChance', { all: ['zone', 'damage'] }, v)],
     }),
     talent({
-      id: 'ember-harvest',
-      name: 'Ember Harvest',
+      id: 'rekindle',
+      name: 'Rekindle',
       row: 2,
       col: 3,
-      per: [5, 10],
-      text: 'Each Ashfall tick has a {}% chance to give you an imp.',
-      does: (v) => [proc('tick', 'ashfall', [restore(1)], { chance: v })],
+      per: [10, 20],
+      text: "Each Ashfall tick has a {}% chance to take 1 sec off Ashfall's cooldown.",
+      does: (v) => [proc('tick', 'ashfall', [cooldown('ashfall', 1)], { chance: v })],
     }),
     talent({
       id: 'firestorm',

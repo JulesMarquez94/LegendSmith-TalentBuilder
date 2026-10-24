@@ -1,4 +1,4 @@
-import type { Mechanic } from '../game/types.ts'
+import type { Action, BuffSpec, CharStat, Condition, Match, Mechanic } from '../game/types.ts'
 import { rankValueCounts } from './description.ts'
 import type { Loadout } from './loadout.ts'
 import { fits, slotKinds } from './slots.ts'
@@ -56,6 +56,91 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
   return problems
 }
 
+const tagsOf = (match: Match | undefined): string[] =>
+  match === undefined ? [] : typeof match === 'string' ? [match] : 'all' in match ? [...match.all] : [...match]
+
+const conditionTags = (c: Condition | undefined): string[] =>
+  c ? [...tagsOf(c.targetHas), ...tagsOf(c.each), ...tagsOf(c.stacksOf)] : []
+
+const buffTags = (b: BuffSpec | undefined): string[] =>
+  b ? [...tagsOf(b.consumeOn), ...(b.mods ?? []).flatMap(aimedTags)] : []
+
+function actionTags(a: Action): string[] {
+  switch (a.do) {
+    case 'extend':
+    case 'cooldown':
+    case 'pulse':
+    case 'spread':
+      return tagsOf(a.match)
+    case 'buff':
+      return buffTags(a.buff)
+    case 'apply':
+      return [...tagsOf(a.effect.perEffect), ...buffTags(a.effect.buff)]
+    case 'fire':
+      return [a.ability]
+    default:
+      return []
+  }
+}
+
+/** Every tag a mechanic aims at: what it changes, what it listens for, and what its conditions and actions look at. */
+function aimedTags(m: Mechanic): string[] {
+  switch (m.kind) {
+    case 'mod':
+      return [...tagsOf(m.match), ...conditionTags(m.when)]
+    case 'grant':
+      return [m.to, ...buffTags(m.effect.buff)]
+    case 'proc':
+      return [...tagsOf(m.proc.match), ...conditionTags(m.proc.when), ...m.proc.actions.flatMap(actionTags)]
+    default:
+      return []
+  }
+}
+
+/** The stats a mechanic gives, its buffs' included. */
+function givenStats(m: Mechanic): CharStat[] {
+  const of = (b: BuffSpec | undefined) => Object.keys(b?.stats ?? {}) as CharStat[]
+  if (m.kind === 'stat' || m.kind === 'group') return [m.stat]
+  if (m.kind === 'grant') return of(m.effect.buff)
+  if (m.kind !== 'proc') return []
+  return m.proc.actions.flatMap((a) => (a.do === 'buff' ? of(a.buff) : a.do === 'apply' ? of(a.effect.buff) : []))
+}
+
+/** Stats in a weapon's own numbers: an imp, a combo point and a point of mana are worth very different things. */
+const WEAPON_STATS: readonly CharStat[] = ['maxResource', 'resourceRegen', 'overhealToResource', 'minionPower']
+
+/**
+ * Abilities go on any weapon of their role, so their talents can't lean on one: they aim at their own
+ * ability or at families and tags (DoTs, area damage, direct heals), never at another ability, and give
+ * resource as a share of the maximum, never as a flat amount of mana or imps. Artifact trees may.
+ */
+function weaponProblems(tree: TreeDef, trees: readonly TreeDef[]): string[] {
+  const problems: string[] = []
+  const abilities = new Map(trees.map((t) => [t.id, t.ability.name]))
+  const ownMinion = tree.spec?.minion !== undefined
+  for (const t of tree.talents) {
+    const mechanics = t.effects?.(t.maxRank) ?? []
+    for (const tag of new Set(mechanics.flatMap(aimedTags))) {
+      const other = tag === tree.id ? undefined : abilities.get(tag)
+      if (other) problems.push(`${t.name} (${tree.ability.name}) aims at ${other}: talents aim at their own ability or at families`)
+      if (tree.kind !== 'artifact' && tag === 'minion' && !ownMinion) {
+        problems.push(`${t.name} (${tree.ability.name}) aims at minions, but not every weapon has them`)
+      }
+    }
+    if (tree.kind === 'artifact') continue
+    for (const stat of new Set(mechanics.flatMap(givenStats))) {
+      if (WEAPON_STATS.includes(stat) && !(stat === 'minionPower' && ownMinion)) {
+        problems.push(`${t.name} (${tree.ability.name}) gives ${stat}, which only means something on one weapon`)
+      }
+    }
+    const flat = mechanics.some(
+      (m) => m.kind === 'proc' && m.proc.actions.some((a) => a.do === 'restore' && (a.amount ?? 0) !== 0),
+    )
+    if (flat) problems.push(`${t.name} (${tree.ability.name}) gives back a flat amount of resource, not a share of the maximum`)
+  }
+  return problems
+}
+
 /** Abilities a mechanic names by id: grants add to them, `fire` casts them. */
 function namedAbilities(m: Mechanic): string[] {
   if (m.kind === 'grant') return [m.to]
@@ -86,6 +171,7 @@ export function validateCatalog(
         }
       }
     }
+    problems.push(...weaponProblems(tree, trees))
   }
   for (const artifact of artifacts) {
     if (artifact.tree && artifact.tree.kind !== 'artifact') problems.push(`${artifact.name}'s tree must be an artifact tree`)

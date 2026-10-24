@@ -70,8 +70,14 @@ export const buff = (spec: BuffSpec): Action => ({ do: 'buff', buff: spec })
 export const apply = (effect: EffectSpec, ofEvent?: { pct: number; of: 'amount' | 'overheal' }): Action =>
   ofEvent ? { do: 'apply', effect, ofEvent } : { do: 'apply', effect }
 
-/** Gives back resource (mana for the staff). */
+/** Gives back a flat amount of resource. Only for a weapon's own tree (mana, an imp, a combo point). */
 export const restore = (amount: number): Action => ({ do: 'restore', amount })
+
+/** Gives back a % of your maximum resource: for shared trees, so it means the same on any weapon. */
+export const restoreShare = (pctMax: number): Action => ({ do: 'restore', pctMax })
+
+/** Gives back a % of what the triggering cast cost (once per cast). */
+export const refund = (pct: number): Action => ({ do: 'refund', pct })
 
 export const cooldown = (match: Match, seconds: number): Action => ({ do: 'cooldown', match, seconds })
 

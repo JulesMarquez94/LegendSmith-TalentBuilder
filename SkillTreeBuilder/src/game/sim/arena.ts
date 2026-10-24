@@ -536,7 +536,8 @@ export class Arena {
   resourceRegen(): number {
     const s = this.stats()
     const low = this.resource < this.maxResource * 0.3 ? 1 + s.lowResourceRegen / 100 : 1
-    return s.resourceRegen * low + (this.inZone(this.player) ? s.zoneResourceRegen : 0)
+    const share = s.resourceRegenPct + (this.inZone(this.player) ? s.zoneResourceRegen : 0)
+    return s.resourceRegen * low + (share * this.maxResource) / 100
   }
 
   // ---------- Input ----------
@@ -1078,7 +1079,7 @@ export class Arena {
     const ctx = this.childContext(ev, null)
     switch (action.do) {
       case 'restore':
-        this.gainResource(action.amount, name)
+        this.gainResource((action.amount ?? 0) + ((action.pctMax ?? 0) * this.maxResource) / 100, name)
         break
       case 'refund':
         if (ev.ctx.cost > 0 && !this.refunded.has(ev.ctx.castId)) {

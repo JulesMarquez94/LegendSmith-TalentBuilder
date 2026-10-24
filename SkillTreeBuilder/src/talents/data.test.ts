@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { hasArt } from '../art.ts'
 import { ARTIFACTS, POINT_RULES, STARTING_LOADOUT, TREES } from '../trees/index.ts'
+import { more, proc, restore, talent } from '../trees/authoring.ts'
+import { harvest } from '../trees/necro/spells.ts'
 import { plague } from '../trees/plague.ts'
 import type { TreeDef } from './types.ts'
 import { validateCatalog, validateTree } from './validate.ts'
@@ -18,6 +20,31 @@ describe('tree data', () => {
     for (const tree of TREES) {
       expect(tree.talents.reduce((sum, t) => sum + t.maxRank, 0)).toBeGreaterThan(POINT_RULES.perTree)
     }
+  })
+
+  it('keeps ability talents off other abilities and off any one weapon', () => {
+    const greedy: TreeDef = {
+      ...harvest,
+      talents: [
+        talent({
+          id: 'soul-link',
+          name: 'Soul Link',
+          row: 0,
+          col: 0,
+          text: 'Harvest casts Plague and gives you an imp. Your imps deal 5% more damage.',
+          does: () => [
+            proc('cast', 'harvest', [restore(1), { do: 'fire', ability: 'plague' }]),
+            more('amount', 'minion', 5),
+          ],
+        }),
+      ],
+    }
+    const trees = TREES.map((t) => (t === harvest ? greedy : t))
+    expect(validateCatalog(trees, ARTIFACTS, STARTING_LOADOUT)).toEqual([
+      'Soul Link (Harvest) aims at Plague: talents aim at their own ability or at families',
+      'Soul Link (Harvest) aims at minions, but not every weapon has them',
+      'Soul Link (Harvest) gives back a flat amount of resource, not a share of the maximum',
+    ])
   })
 
   it('reports broken data in plain words', () => {

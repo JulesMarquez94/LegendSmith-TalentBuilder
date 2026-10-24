@@ -178,11 +178,11 @@ describe('talent procs', () => {
     expect(arena.resource).toBeGreaterThanOrEqual(before)
   })
 
-  it('leave Renew behind Lifetide (Ebb and Flow), even unslotted', () => {
+  it('wash over every ally once more when Lifetide ends (Ebb and Flow)', () => {
     const arena = arenaWith([null, null, null, 'lifetide', null], { lifetide: { moonpull: 1, 'slow-ebb': 2, 'ebb-and-flow': 3 } })
     cast(arena, 4)
     run(arena, 10.2)
-    expect(arena.allies.every((a) => a.hots.some((h) => h.key.startsWith('renew')))).toBe(true)
+    expect(hits(arena, 'Ebb and Flow')).toBe(arena.allies.length)
   })
 
   it('cast the whole ability again on Echo, for free', () => {

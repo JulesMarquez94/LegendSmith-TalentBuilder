@@ -159,9 +159,9 @@ export const mendingGrace: TreeDef = {
       name: 'Quiet Breath',
       row: 0,
       col: 3,
-      per: [1, 2],
-      text: 'You regenerate {} more @resource per sec.',
-      does: (v) => [stat('resourceRegen', v)],
+      per: [0.1, 0.2],
+      text: 'You regenerate {}% of your maximum @resource more per sec.',
+      does: (v) => [stat('resourceRegenPct', v)],
     }),
     talent({
       id: 'sturdy-kin',
@@ -454,8 +454,8 @@ export const sharpenedWill: TreeDef = {
       row: 1,
       col: 0,
       per: [5, 10],
-      text: 'Your minions deal {}% more damage.',
-      does: (v) => [more('amount', 'minion', v)],
+      text: 'Your direct damage deals {}% more.',
+      does: (v) => [more('amount', 'direct-damage', v)],
     }),
     talent({
       id: 'honed-intent',

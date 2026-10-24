@@ -1,7 +1,7 @@
 import { int, sec, yd } from '../../game/format.ts'
 import { periodicTotal } from '../../game/resolve.ts'
 import type { TreeDef } from '../../talents/types.ts'
-import { apply, buff, cooldown, grant, heal, hot, more, plus, proc, restore, shield, stat, talent, zone } from '../authoring.ts'
+import { apply, buff, cooldown, grant, heal, hot, more, plus, proc, restoreShare, shield, stat, talent, zone } from '../authoring.ts'
 
 // Healer ultimates for the big cooldown slot (Y / F). One instant burst, one zone, one decaying HoT,
 // so each one leans on a different family's talents in the other trees, and each tree's "heals more"
@@ -52,9 +52,9 @@ export const miracle: TreeDef = {
       name: 'Inspiration',
       row: 0,
       col: 3,
-      per: [80, 160],
-      text: 'Miracle gives you back {} @resource.',
-      does: (v) => [proc('cast', 'miracle', [restore(v)])],
+      per: [8, 16],
+      text: 'Miracle gives you back {}% of your maximum @resource.',
+      does: (v) => [proc('cast', 'miracle', [restoreShare(v)])],
     }),
     talent({
       id: 'afterglow',
@@ -211,8 +211,8 @@ export const sanctuary: TreeDef = {
       name: 'Sacred Clarity',
       row: 1,
       col: 3,
-      per: [4, 8],
-      text: 'While you stand in one of your zones, you regenerate {} more @resource per sec.',
+      per: [0.4, 0.8],
+      text: 'While you stand in one of your zones, you regenerate {}% of your maximum @resource more per sec.',
       does: (v) => [stat('zoneResourceRegen', v)],
     }),
     talent({
@@ -343,9 +343,9 @@ export const lifetide: TreeDef = {
       name: 'Bounty',
       row: 1,
       col: 3,
-      per: [2, 3, 4],
-      text: 'Each Lifetide tick on you gives you back {} @resource.',
-      does: (v) => [proc('heal', 'lifetide', [restore(v)], { when: { targetSelf: true } })],
+      per: [0.2, 0.3, 0.4],
+      text: 'Each Lifetide tick on you gives you back {}% of your maximum @resource.',
+      does: (v) => [proc('heal', 'lifetide', [restoreShare(v)], { when: { targetSelf: true } })],
     }),
     talent({
       id: 'moonpull',
@@ -384,9 +384,9 @@ export const lifetide: TreeDef = {
       row: 3,
       col: 1,
       requires: 'moonpull',
-      per: [33, 66, 100],
-      text: "When Lifetide ends on an ally, there's a {}% chance it leaves Renew on them, slotted or not.",
-      does: (v) => [proc('expire', 'lifetide', [{ do: 'fire', ability: 'renew', at: 'event' }], { chance: v })],
+      per: [3, 6, 9],
+      text: 'When Lifetide ends on an ally, it washes over them once more, healing {} sec worth at once.',
+      does: (v) => [proc('expire', 'lifetide', [{ do: 'burst', seconds: v }])],
     }),
   ],
 }

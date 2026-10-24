@@ -51,8 +51,6 @@ export interface TreeDef {
   kind: SlotKind
   /** Role, cooldown and buff trees fit only artifacts of this role. Leave out to fit any (mobility, Fervor). */
   role?: Role
-  /** Only these artifacts can slot it, when its costs or mechanics need that weapon (imps, combo points). */
-  artifacts?: readonly string[]
   ability: AbilityCard
   /** Abilities it applies, listed on its card — e.g. Plague's Pox, Blight and Malady. */
   effects?: AbilityCard[]

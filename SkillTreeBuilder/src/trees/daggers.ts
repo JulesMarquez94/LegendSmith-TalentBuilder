@@ -1,15 +1,29 @@
-import { int, sec, yd } from '../game/format.ts'
+import { counted, int, sec, single, yd } from '../game/format.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
-import { apply, buff, cooldown, damage, dot, grant, more, plus, proc, restore, spread, stat, talent } from './authoring.ts'
+import {
+  apply,
+  buff,
+  cooldown,
+  damage,
+  dot,
+  grant,
+  more,
+  plus,
+  proc,
+  refund,
+  restore,
+  restoreShare,
+  spread,
+  stat,
+  talent,
+} from './authoring.ts'
 
 // The rogue's artifact and its abilities. Combo points start empty: Quick Strike (the main attack),
 // Backstab and Fan of Knives build them, and the finishers, Eviscerate and Rupture, spend them all
-// and hit harder for each point spent. Talents aim at families and tags (direct damage, DoTs, area
-// damage, finishers), so a point in one tree also helps every other ability that fits. Only the
-// daggers can slot these trees, so their text says "combo point" outright, like the staff says "mana".
-
-/** "1 combo point", "2 combo points". */
-const points = (n: number) => `${int(n)} combo point${Math.round(n) === 1 ? '' : 's'}`
+// and hit harder for each point spent. The abilities fit any damage weapon and build or spend whatever
+// it holds (imps on the summoning book), so their talents aim only at themselves or at families and
+// tags (direct damage, DoTs, area damage, finishers), and give resource back as a share of your
+// maximum or of what a cast cost, never as combo points by name. The artifact's own tree may.
 
 // ---------- Twin Daggers: the artifact and its main attack, Quick Strike ----------
 
@@ -36,7 +50,7 @@ const tree: TreeDef = {
     effects: [damage(260), { type: 'restore', restore: 1 }],
     text: (a) =>
       `Strike the enemy nearest your crosshair within ${yd(a.range)} yd for ${int(a.effects[0].amount)} damage. ` +
-      `Gives ${points(a.effects[1].restore)}.`,
+      `Gives ${counted(a.effects[1].restore, a.resource)}.`,
   },
 
   talents: [
@@ -173,7 +187,6 @@ export const twinDaggers: ArtifactDef = {
 const daggers = {
   role: 'damage',
   kind: 'damage',
-  artifacts: ['twin-daggers'],
   columns: 4,
   pointsPerRow: 2,
 } as const
@@ -188,7 +201,7 @@ export const eviscerate: TreeDef = {
     name: 'Eviscerate',
     castTime: 'Instant',
     range: '5 range',
-    description: 'Finisher. Spend all your combo points to strike the enemy nearest your crosshair, harder for each point.',
+    description: 'Finisher. Spend all your resource to strike the enemy nearest your crosshair, harder for each point.',
   },
   spec: {
     tags: ['finisher'],
@@ -202,7 +215,7 @@ export const eviscerate: TreeDef = {
       const splash = e.radius > 0 ? ` Every enemy within ${yd(e.radius)} yd of it is hit too.` : ''
       return (
         `Finisher. Strikes the enemy nearest your crosshair within ${yd(a.range)} yd for ${int(e.amount)} damage ` +
-        `per combo point spent.${splash} Spends all your combo points.`
+        `per ${single(a.resource)} spent.${splash} Spends all your ${a.resource}.`
       )
     },
   },
@@ -241,8 +254,8 @@ export const eviscerate: TreeDef = {
       col: 0,
       requires: 'brutal-finish',
       per: [15, 30],
-      text: 'Your finishers have a {}% chance to give you 2 combo points back.',
-      does: (v) => [proc('cast', 'finisher', [restore(2)], { chance: v })],
+      text: 'Your finishers have a {}% chance to give back half the @resource they spent.',
+      does: (v) => [proc('cast', 'finisher', [refund(50)], { chance: v })],
     }),
     talent({
       id: 'cleaving-finish',
@@ -303,8 +316,8 @@ export const eviscerate: TreeDef = {
       row: 3,
       col: 2,
       requires: 'cleaving-finish',
-      text: 'Each critical strike from Eviscerate gives you 1 combo point.',
-      does: () => [proc('crit', { all: ['eviscerate', 'direct-damage'] }, [restore(1)])],
+      text: 'When Eviscerate critically strikes, it gives back 25% of the @resource it spent.',
+      does: () => [proc('crit', { all: ['eviscerate', 'direct-damage'] }, [refund(25)])],
     }),
   ],
 }
@@ -319,7 +332,7 @@ export const rupture: TreeDef = {
     name: 'Rupture',
     castTime: 'Instant',
     range: '5 range',
-    description: 'Finisher. Spend all your combo points to make the enemy nearest your crosshair bleed, longer for each point.',
+    description: 'Finisher. Spend all your resource to make the enemy nearest your crosshair bleed, longer for each point.',
   },
   spec: {
     tags: ['finisher'],
@@ -331,7 +344,7 @@ export const rupture: TreeDef = {
       const e = a.effects[0]
       return (
         `Finisher. Makes the enemy nearest your crosshair within ${yd(a.range)} yd bleed for ${int(e.amount)} damage ` +
-        `every ${sec(e.interval)} sec, for ${sec(e.duration)} sec per combo point spent. Spends all your combo points.`
+        `every ${sec(e.interval)} sec, for ${sec(e.duration)} sec per ${single(a.resource)} spent. Spends all your ${a.resource}.`
       )
     },
   },
@@ -369,7 +382,7 @@ export const rupture: TreeDef = {
       row: 1,
       col: 0,
       requires: 'open-veins',
-      text: 'Rupture also hits its target for 80 damage per combo point spent.',
+      text: 'Rupture also hits its target for 80 damage for each point it spent.',
       does: () => [grant('rupture', damage(80, 'same', { perPoint: 'amount', name: 'Jagged Cut' }))],
     }),
     talent({
@@ -389,9 +402,9 @@ export const rupture: TreeDef = {
       name: 'Blood Tithe',
       row: 1,
       col: 3,
-      per: [5, 10],
-      text: 'Each tick of your damage-over-time effects has a {}% chance to give you 1 combo point.',
-      does: (v) => [proc('hit', 'dot', [restore(1)], { chance: v })],
+      per: [0.75, 1.5],
+      text: 'Each tick of your damage-over-time effects gives you back {}% of your maximum @resource.',
+      does: (v) => [proc('hit', 'dot', [restoreShare(v)])],
     }),
     talent({
       id: 'weeping-wounds',
@@ -446,7 +459,7 @@ export const fanOfKnives: TreeDef = {
     name: 'Fan of Knives',
     castTime: 'Instant',
     range: '8 yd around you',
-    description: 'Throw knives in every direction, hitting every enemy around you and gaining a combo point.',
+    description: 'Throw knives in every direction, hitting every enemy around you and building resource.',
   },
   spec: {
     effects: [damage(180, 'self', { radius: 8 }), { type: 'restore', restore: 1 }],
@@ -454,7 +467,7 @@ export const fanOfKnives: TreeDef = {
       const e = a.effects[0]
       return (
         `Throws knives all around you, hitting every enemy within ${yd(e.radius)} yd for ${int(e.amount)} damage. ` +
-        `Gives ${points(a.effects[1].restore)}.`
+        `Gives ${counted(a.effects[1].restore, a.resource)}.`
       )
     },
   },
@@ -509,9 +522,9 @@ export const fanOfKnives: TreeDef = {
       name: 'Reaping Blades',
       row: 1,
       col: 3,
-      per: [10, 20],
-      text: 'Each enemy your area damage hits has a {}% chance to give you 1 combo point.',
-      does: (v) => [proc('hit', 'aoe', [restore(1)], { chance: v })],
+      per: [1.5, 3],
+      text: 'Each enemy Fan of Knives hits gives you back {}% of your maximum @resource.',
+      does: (v) => [proc('hit', { all: ['fan-of-knives', 'direct-damage'] }, [restoreShare(v)])],
     }),
     talent({
       id: 'scattered-blood',
@@ -580,7 +593,7 @@ export const backstab: TreeDef = {
     castTime: 'Instant',
     range: '5 range',
     cooldown: '6 sec cooldown',
-    description: 'Drive a dagger into the enemy nearest your crosshair for heavy damage, gaining 2 combo points.',
+    description: 'Drive a dagger into the enemy nearest your crosshair for heavy damage, building resource.',
   },
   spec: {
     cooldown: 6,
@@ -588,7 +601,7 @@ export const backstab: TreeDef = {
     effects: [damage(480), { type: 'restore', restore: 2 }],
     text: (a) =>
       `Strikes the enemy nearest your crosshair within ${yd(a.range)} yd for ${int(a.effects[0].amount)} damage. ` +
-      `Gives ${points(a.effects[1].restore)}.`,
+      `Gives ${counted(a.effects[1].restore, a.resource)}.`,
   },
   talents: [
     talent({
@@ -641,8 +654,8 @@ export const backstab: TreeDef = {
       name: 'Pressure Point',
       row: 1,
       col: 3,
-      text: 'When Backstab critically strikes, it gives 1 more combo point.',
-      does: () => [proc('crit', { all: ['backstab', 'direct-damage'] }, [restore(1)])],
+      text: 'When Backstab critically strikes, it gives you back 15% of your maximum @resource.',
+      does: () => [proc('crit', { all: ['backstab', 'direct-damage'] }, [restoreShare(15)])],
     }),
     talent({
       id: 'bloodscent',
@@ -691,7 +704,7 @@ export const backstab: TreeDef = {
       col: 1,
       requires: 'twin-shadows',
       per: [10, 20],
-      text: "When Quick Strike critically strikes, there's a {}% chance Backstab's cooldown resets.",
+      text: "When your main attack critically strikes, there's a {}% chance Backstab's cooldown resets.",
       does: (v) => [proc('crit', 'main-attack', [cooldown('backstab', Infinity)], { chance: v })],
     }),
   ],

@@ -60,11 +60,13 @@ export type CharStat =
    */
   | 'maxResource'
   | 'resourceRegen'
+  /** Extra regeneration as a % of your maximum resource per second, so it means the same on any weapon. */
+  | 'resourceRegenPct'
   /** % of overhealing stored, then given back as resource by the next main attack. */
   | 'overhealToResource'
   /** % stronger resource regeneration while below 30% of the maximum. */
   | 'lowResourceRegen'
-  /** Extra resource per second while you stand in one of your zones. */
+  /** Extra regeneration, as a % of your maximum resource per second, while you stand in one of your zones. */
   | 'zoneResourceRegen'
 
 export type CharStats = Record<CharStat, number>
@@ -263,7 +265,11 @@ export interface ModMechanic {
 export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire'
 
 export type Action =
-  | { do: 'restore'; amount: number }
+  /**
+   * Gives back resource: a flat `amount` (a weapon's own tree: mana, an imp, a combo point) or
+   * `pctMax`, a % of your maximum, for shared trees that must mean the same on any weapon.
+   */
+  | { do: 'restore'; amount?: number; pctMax?: number }
   /** Gives back this % of the triggering cast's cost (once per cast). */
   | { do: 'refund'; pct: number }
   /** Applies an effect. With `ofEvent`, its amount is that % of the event's healing or overhealing. */

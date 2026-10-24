@@ -1,7 +1,7 @@
 import { int, pct, sec, yd } from '../../game/format.ts'
 import { periodicTotal } from '../../game/resolve.ts'
 import type { TreeDef } from '../../talents/types.ts'
-import { apply, buff, cooldown, grant, heal, hot, more, plus, proc, restore, shield, talent, zone } from '../authoring.ts'
+import { apply, buff, cooldown, grant, heal, hot, more, plus, proc, restoreShare, shield, talent, zone } from '../authoring.ts'
 
 // The healer's role abilities: three of these six go in the right trigger and bumper slots.
 // Each tree's "heals more" talent aims at a family (direct heals, chain heals, zones, HoTs…), so a
@@ -410,9 +410,9 @@ export const healingRain: TreeDef = {
       name: 'Rainmaker',
       row: 3,
       col: 3,
-      per: [1, 2, 3],
-      text: 'Each Healing Rain tick gives you back {} @resource.',
-      does: (v) => [proc('tick', 'healing-rain', [restore(v)])],
+      per: [0.1, 0.2, 0.3],
+      text: 'Each Healing Rain tick gives you back {}% of your maximum @resource.',
+      does: (v) => [proc('tick', 'healing-rain', [restoreShare(v)])],
     }),
   ],
 }
@@ -569,9 +569,9 @@ export const bloom: TreeDef = {
       name: 'Thrifty Bloom',
       row: 0,
       col: 1,
-      per: [10, 20],
-      text: 'Bloom costs {} less @resource per ally.',
-      does: (v) => [plus('extraCost', 'bloom', -v)],
+      per: [33, 66],
+      text: "Bloom's extra cost for each ally healed is {}% lower.",
+      does: (v) => [more('extraCost', 'bloom', -v)],
     }),
     talent({
       id: 'quick-bloom',
@@ -650,7 +650,7 @@ export const bloom: TreeDef = {
   ],
 }
 
-// ---------- Conduit: passive, Radiant Bolt heals ----------
+// ---------- Conduit: passive, your main attack heals ----------
 
 export const conduit: TreeDef = {
   ...healer,
@@ -673,7 +673,7 @@ export const conduit: TreeDef = {
         e.bounces > 0
           ? ` It then jumps up to ${e.bounces} times to allies within ${yd(e.radius)} yd, ${pct(e.falloff)}% less each jump.`
           : ''
-      return `Passive. Whenever Radiant Bolt hits, ${who} within ${yd(a.range)} yd is healed for ${int(e.amount)}.${jumps}`
+      return `Passive. Whenever your main attack hits, ${who} within ${yd(a.range)} yd is healed for ${int(e.amount)}.${jumps}`
     },
   },
   talents: [
@@ -700,9 +700,9 @@ export const conduit: TreeDef = {
       name: 'Siphon',
       row: 0,
       col: 3,
-      per: [3, 6],
-      text: 'When Conduit heals an ally below 50% health, you get {} @resource back.',
-      does: (v) => [proc('heal', { all: ['conduit', 'direct-heal'] }, [restore(v)], { when: { targetBelow: 50 } })],
+      per: [0.3, 0.6],
+      text: 'When Conduit heals an ally below 50% health, you get {}% of your maximum @resource back.',
+      does: (v) => [proc('heal', { all: ['conduit', 'direct-heal'] }, [restoreShare(v)], { when: { targetBelow: 50 } })],
     }),
     talent({
       id: 'latent-charge',
@@ -712,7 +712,7 @@ export const conduit: TreeDef = {
       requires: 'strong-current',
       per: [5, 10],
       text:
-        'Each Radiant Bolt hit that fires Conduit gives you a stack of Latent Charge, up to 5. The next direct heal ' +
+        'Each main attack hit that fires Conduit gives you a stack of Latent Charge, up to 5. The next direct heal ' +
         'you cast uses them all and heals {}% more per stack.',
       does: (v) => [
         proc('hit', 'main-attack', [
@@ -742,7 +742,7 @@ export const conduit: TreeDef = {
       row: 2,
       col: 1,
       per: [0.1, 0.2],
-      text: "Radiant Bolt's global cooldown is {} sec shorter.",
+      text: "Your main attack's global cooldown is {} sec shorter.",
       does: (v) => [plus('gcd', 'main-attack', -v)],
     }),
     talent({
@@ -789,7 +789,7 @@ export const conduit: TreeDef = {
       row: 3,
       col: 2,
       per: [10, 20, 30],
-      text: 'Radiant Bolt has a {}% chance to fire Conduit twice.',
+      text: 'Your main attack has a {}% chance to fire Conduit twice.',
       does: (v) => [proc('hit', 'main-attack', [{ do: 'fire', ability: 'conduit' }], { chance: v })],
     }),
   ],

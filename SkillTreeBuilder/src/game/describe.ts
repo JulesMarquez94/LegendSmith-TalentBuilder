@@ -1,4 +1,4 @@
-import { int, pct, sec, statValue, yd } from './format.ts'
+import { counted, int, pct, sec, statValue, yd } from './format.ts'
 import { chainTotal, periodicTotal } from './resolve.ts'
 import { STAT_INFO } from './stats.ts'
 import type { CharStat, Condition, ResolvedAbility, ResolvedEffect } from './types.ts'
@@ -47,9 +47,6 @@ const seconds = (n: number) => `${sec(n)} sec`
 const percent = (n: number) => `${pct(n)}%`
 
 const capital = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
-
-/** "1 imp", "2 imps", "100 mana". */
-const counted = (n: number, resource: string) => `${int(n)} ${n === 1 ? resource.replace(/s$/, '') : resource}`
 
 /** `resource` is the artifact's resource in lower case ("mana"). */
 function effectLines(e: ResolvedEffect, prefix: string, resource: string): NumberLine[] {

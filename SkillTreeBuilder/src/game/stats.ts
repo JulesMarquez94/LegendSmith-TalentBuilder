@@ -17,6 +17,7 @@ export const BASE_STATS: CharStats = {
   speed: 0,
   maxResource: 0,
   resourceRegen: 0,
+  resourceRegenPct: 0,
   overhealToResource: 0,
   lowResourceRegen: 0,
   zoneResourceRegen: 0,
@@ -114,6 +115,12 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     unit: 'per-sec',
     help: '@Resource per second, always on.',
   },
+  resourceRegenPct: {
+    label: '@Resource regen bonus',
+    color: '#5aa9ff',
+    unit: '%',
+    help: 'More @resource per second, as a share of your maximum.',
+  },
   overhealToResource: {
     label: 'Reservoir',
     color: '#5aa9ff',
@@ -129,8 +136,8 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
   zoneResourceRegen: {
     label: 'Zone @resource regen',
     color: '#5aa9ff',
-    unit: 'per-sec',
-    help: 'Extra @resource per second while you stand in one of your zones.',
+    unit: '%',
+    help: 'Extra @resource per second while you stand in one of your zones, as a share of your maximum.',
   },
 }
 
@@ -142,7 +149,10 @@ export const withResource = (text: string, resource: string) =>
 export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[] }[] = [
   { title: 'Secondary', stats: ['haste', 'crit', 'critDamage', 'potency'] },
   { title: 'Defensive', stats: ['damageReduction', 'dodge', 'healthPct', 'healingTaken'] },
-  { title: 'Extra', stats: ['echo', 'minionPower', 'speed', 'overhealToResource', 'lowResourceRegen', 'zoneResourceRegen'] },
+  {
+    title: 'Extra',
+    stats: ['echo', 'minionPower', 'speed', 'resourceRegenPct', 'overhealToResource', 'lowResourceRegen', 'zoneResourceRegen'],
+  },
 ]
 
 /** Shown only once a talent or group buff gives them. */
@@ -150,6 +160,7 @@ export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>([
   'overhealToResource',
   'lowResourceRegen',
   'zoneResourceRegen',
+  'resourceRegenPct',
   'healthPct',
   'healingTaken',
 ])
