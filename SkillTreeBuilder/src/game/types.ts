@@ -5,14 +5,29 @@ import type { SlotKind } from '../talents/types.ts'
  * named ability only, so a talent that boosts heal-over-time effects boosts every HoT in the kit,
  * whichever tree it sits in.
  */
-export type Family = 'direct-heal' | 'hot' | 'zone' | 'shield' | 'damage' | 'resource' | 'movement' | 'buff'
+export type Family =
+  | 'direct-heal'
+  | 'hot'
+  | 'zone'
+  | 'shield'
+  | 'direct-damage'
+  | 'dot'
+  /** Damage your minions deal (the pillars' Construct). */
+  | 'minion'
+  | 'resource'
+  | 'movement'
+  | 'buff'
+  /** A group buff: stats for you and your group while it's slotted. */
+  | 'aura'
 
 /**
  * What a talent can aim at:
- * - a family ('hot', 'zone', 'direct-heal'…), plus 'healing' on every heal, HoT and zone;
- * - a slot kind ('artifact', 'heal', 'cooldown', 'mobility');
- * - an ability id ('mend', 'chain-heal');
- * - an extra tag an ability or effect declares ('main-attack', 'chain');
+ * - a family ('hot', 'zone', 'direct-heal', 'dot'…);
+ * - 'healing' on every heal, HoT and healing zone; 'damage' on every hit, DoT, minion attack and
+ *   damaging zone; 'aoe' on damage that hits an area;
+ * - a slot kind ('artifact', 'heal', 'damage', 'cooldown', 'mobility', 'buff');
+ * - an ability id ('mend', 'plague');
+ * - an extra tag an ability or effect declares ('main-attack', 'chain', 'finisher');
  * - 'spell' on abilities (and their effects) that cost resource;
  * - '*' for everything.
  */
@@ -21,9 +36,11 @@ export type Tag = string
 /** Any one of these tags, or `{ all }` for every one of them. */
 export type Match = Tag | readonly Tag[] | { readonly all: readonly Tag[] }
 
-/** Character stats. Gear gives the first group; talents and buffs can change any of them. */
+/** Character stats. Gear gives the first group; talents, group buffs and buffs can change any of them. */
 export type CharStat =
   | 'health'
+  /** % more maximum health (group buffs). */
+  | 'healthPct'
   | 'power'
   | 'haste'
   | 'crit'
@@ -34,10 +51,12 @@ export type CharStat =
   | 'damageReduction'
   /** % chance to avoid a hit completely. */
   | 'dodge'
+  /** % more healing received. */
+  | 'healingTaken'
   | 'speed'
   /**
-   * The artifact's resource (mana for the staff). Abilities only say "cost" and "resource", so
-   * another healing weapon with its own resource can use the same heals.
+   * The artifact's resource: mana for the staff, imps for the book, combo points for the daggers.
+   * Abilities only say "cost" and "resource", so any weapon of a role can use them.
    */
   | 'maxResource'
   | 'resourceRegen'
@@ -72,6 +91,8 @@ export type EffectKey =
   | 'distance'
   | 'speed'
   | 'extraCost'
+  /** Stacks a DoT adds per application. */
+  | 'stacks'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -85,11 +106,29 @@ export const ABILITY_KEYS: ReadonlySet<ValueKey> = new Set<ValueKey>([
   'echo',
 ])
 
-export type EffectType = 'heal' | 'chain' | 'bloom' | 'hot' | 'zone' | 'shield' | 'damage' | 'restore' | 'move' | 'buff'
+export type EffectType =
+  | 'heal'
+  | 'chain'
+  | 'bloom'
+  | 'hot'
+  | 'zone'
+  | 'shield'
+  /** Direct damage to your target; with a radius, to every enemy that close to it. */
+  | 'damage'
+  /** Damage over time on enemies. */
+  | 'dot'
+  /** One minion's attack. */
+  | 'minion'
+  | 'restore'
+  | 'move'
+  | 'buff'
+  /** A group buff's stats, for you and your group. */
+  | 'aura'
 
 /**
  * Who an effect lands on. Smart targeting, as in the pillars: heals go to the lowest-health ally
- * in range, zones are placed on that ally, and there is no click targeting.
+ * in range, zones are placed on that ally, damage goes to the enemy nearest your crosshair, and
+ * there is no click targeting.
  */
 export type TargetRule =
   /** Lowest-health ally in range (you included). */
@@ -109,6 +148,10 @@ export type TargetRule =
   | 'path'
   /** Where you stood before you moved (zones). */
   | 'origin'
+  /** The enemy nearest your crosshair, in range. */
+  | 'target'
+  /** Every enemy in range that has one of your DoTs or stands in one of your zones. */
+  | 'afflicted'
 
 export interface BuffSpec {
   id: string
@@ -122,20 +165,22 @@ export interface BuffSpec {
   consumeOn?: Match
   /** Getting it again adds a stack, up to this many; its stats and mods count once per stack. */
   maxStacks?: number
+  /** Your whole group gets its stats, not only you (Fervor's haste). */
+  group?: boolean
 }
 
 /** One piece of what an ability does. Only the fields its type uses matter. */
 export interface EffectSpec {
   type: EffectType
-  /** Shown in tooltips and the healing meter when it isn't the ability's own name. */
+  /** Shown in tooltips and the meters when it isn't the ability's own name. */
   name?: string
   target?: TargetRule
-  /** Heal, damage or shield per hit — per tick for HoTs and zones. */
+  /** Heal, damage or shield per hit — per tick for HoTs, DoTs and zones. */
   amount?: number
   duration?: number
-  /** Seconds between ticks for HoTs and zones. */
+  /** Seconds between ticks for HoTs, DoTs and zones, or between a minion's attacks. */
   interval?: number
-  /** A zone's size, or how far a chain can jump. */
+  /** A zone's size, how far a chain can jump, or an explosion's reach around its target. */
   radius?: number
   bounces?: number
   /** % less healing per chain jump. */
@@ -146,7 +191,7 @@ export interface EffectSpec {
   growth?: number
   /** Ticks that land the moment a HoT is applied. */
   instantTicks?: number
-  /** 1 = a zone follows the ally it was placed on. */
+  /** 1 = a zone follows the ally or enemy it was placed on. */
   follow?: number
   /** % less damage taken by allies inside a zone. */
   damageReduction?: number
@@ -158,25 +203,43 @@ export interface EffectSpec {
   extraCost?: number
   /** For buff effects. Its `stats.speed` is the effect's `speed` value. */
   buff?: BuffSpec
-  /** HoTs and zones with the same key refresh instead of stacking. Defaults to "<ability>:<index>". */
+  /** HoTs, DoTs and zones with the same key refresh instead of stacking. Defaults to "<ability>:<index>". */
   key?: string
   tags?: readonly Tag[]
+  /** A zone that hurts enemies standing in it instead of healing allies. */
+  hostile?: boolean
+  /** A DoT applied to every enemy inside a hostile zone on each tick. */
+  inflicts?: EffectSpec
+  /** Each application is its own stack with its own timer; ticks hit once per live stack. */
+  rolling?: boolean
+  /** Stacks added per application of a rolling DoT. Default 1. */
+  stacks?: number
+  /** Damage is multiplied by how many of your effects matching this the target has (Harvest's "per DoT"). */
+  perEffect?: Match
+  /** For finishers: this number is multiplied by the resource spent. */
+  perPoint?: 'amount' | 'duration'
+  /** For aura effects: the stats you and your group get. */
+  stats?: Partial<CharStats>
 }
 
 /** When a conditional bonus applies. Every field set must hold. */
 export interface Condition {
-  /** Target below this % health, checked before the heal lands. */
+  /** Target below this % health, checked before the hit or heal lands. */
   targetBelow?: number
-  /** Target has one of your HoTs that matches. */
+  /** Target has one of your HoTs or DoTs that matches. */
   targetHas?: Match
   /** Target stands in one of your zones. */
   inZone?: boolean
-  /** Target has one of your HoTs or stands in one of your zones. */
+  /** Target has one of your HoTs or DoTs, or stands in one of your zones. */
   affected?: boolean
   /** Target is you. */
   targetSelf?: boolean
   /** The heal overhealed. */
   overheal?: boolean
+  /** The bonus counts once for each of your effects matching this on the target (Convalescence). */
+  each?: Match
+  /** The bonus counts once for each stack of your effects matching this on the target (Festering Rot). */
+  stacksOf?: Match
 }
 
 export interface ModMechanic {
@@ -187,14 +250,15 @@ export interface ModMechanic {
   add?: number
   /** % change. All percentages on the same number add together. */
   pct?: number
-  /** Only for `amount`: a bonus that applies only when this holds, checked as the heal lands. */
+  /** Only for `amount`: a bonus that applies only when this holds, checked as the hit or heal lands. */
   when?: Condition
 }
 
 /**
  * What procs listen for. `cast` fires when a cast finishes (mobility included), `heal` and `crit`
- * on every heal that lands (HoT ticks too), `hit` on damage, `tick` once per zone tick, and
- * `expire` when a HoT or zone runs out.
+ * on every heal that lands (HoT ticks too), `hit` on every damage that lands (DoT ticks and minion
+ * attacks too; `crit` again when it crits), `tick` once per zone tick, and `expire` when a HoT,
+ * DoT or zone runs out.
  */
 export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire'
 
@@ -205,8 +269,9 @@ export type Action =
   /** Applies an effect. With `ofEvent`, its amount is that % of the event's healing or overhealing. */
   | { do: 'apply'; effect: EffectSpec; ofEvent?: { pct: number; of: 'amount' | 'overheal' } }
   /**
-   * Adds seconds to your HoTs and zones that match: on the event's target, everyone, allies near you,
-   * or ('source') the HoT or zone whose heal triggered it, never past `capPct`% longer than it started.
+   * Adds (or with a negative, takes) seconds to your HoTs, DoTs and zones that match: on the event's
+   * target, everyone, allies near you, or ('source') the HoT, DoT or zone whose tick triggered it,
+   * never past `capPct`% longer than it started.
    */
   | {
       do: 'extend'
@@ -219,14 +284,16 @@ export type Action =
   /** Takes seconds off matching abilities' cooldowns. Infinity resets them. */
   | { do: 'cooldown'; match: Match; seconds: number }
   | { do: 'buff'; buff: BuffSpec }
-  /** Instantly heals for this many seconds' worth of matching HoTs (on the event's target) or zones. */
+  /** Instantly lands this many seconds' worth of matching HoTs or DoTs (on the event's target) or zones. */
   | { do: 'pulse'; match: Match; seconds: number }
-  /** When a HoT or zone ends: heals for this many seconds' worth, once more. */
+  /** When a HoT, DoT or zone ends: lands this many seconds' worth, once more. */
   | { do: 'burst'; seconds: number }
   /** Casts the triggering ability's effects again, for free. */
   | { do: 'recast' }
   /** When a HoT ends: it jumps to the most injured ally in range without it (once). */
   | { do: 'jump'; range: number }
+  /** Copies a matching DoT from the event's target to the nearest enemy in range that doesn't have it. */
+  | { do: 'spread'; match: Match; range: number }
   /** Fires another ability's effects, slotted or not. */
   | { do: 'fire'; ability: string; at?: 'event' }
 
@@ -245,6 +312,8 @@ export interface ProcSpec {
 export type Mechanic =
   | ModMechanic
   | { kind: 'stat'; stat: CharStat; add: number }
+  /** A stat for you and your whole group (group buff trees). */
+  | { kind: 'group'; stat: CharStat; add: number }
   /** Adds an effect to an ability. */
   | { kind: 'grant'; to: string; effect: EffectSpec }
   | { kind: 'proc'; proc: ProcSpec }
@@ -253,8 +322,12 @@ export type Mechanic =
 export interface AbilitySpec {
   /** Extra tags talents can aim at, besides the ability id, slot kind and effect families. */
   tags?: readonly Tag[]
-  /** Mana. */
+  /** Resource: mana, imps sacrificed, combo points. */
   cost?: number
+  /** A finisher: spends all your resource (at least `cost`), and `perPoint` effects scale with it. */
+  spendsAll?: boolean
+  /** Each cast uses the next of its effects in turn (Plague's Pox, Blight, Malady). */
+  cycle?: boolean
   /** Seconds; 0 is instant. */
   castTime?: number
   /** Seconds. With charges, it's the time to get one charge back. */
@@ -265,6 +338,8 @@ export interface AbilitySpec {
   gcd?: number
   /** A passive: its effects fire on this event instead of being cast. */
   passive?: { on: EventKind; match: Match }
+  /** For an artifact whose resource is minions: what each one does (one minion per point of resource). */
+  minion?: EffectSpec
   effects: EffectSpec[]
   /** Card text with the live numbers. */
   text: (a: ResolvedAbility) => string
@@ -289,7 +364,7 @@ export interface ResolvedEffect {
   target: TargetRule
   amount: number
   critChance: number
-  /** 1.5 = crits heal for 150%. */
+  /** 1.5 = crits land for 150%. */
   critMultiplier: number
   duration: number
   interval: number
@@ -306,8 +381,15 @@ export interface ResolvedEffect {
   distance: number
   speed: number
   extraCost: number
+  stacks: number
   mode?: 'dash' | 'teleport'
   buff?: BuffSpec
+  hostile?: boolean
+  inflicts?: ResolvedEffect
+  rolling?: boolean
+  perEffect?: Match
+  perPoint?: 'amount' | 'duration'
+  stats?: Partial<CharStats>
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
   granted?: string
@@ -317,11 +399,13 @@ export interface ResolvedAbility {
   treeId: string
   name: string
   color: string
-  /** The artifact's resource, lower case ("mana"), for card text. */
+  /** The artifact's resource, lower case ("mana", "imps"), for card text. */
   resource: string
   kind: SlotKind
   tags: ReadonlySet<Tag>
   cost: number
+  spendsAll?: boolean
+  cycle?: boolean
   castTime: number
   cooldown: number
   charges: number
@@ -330,6 +414,7 @@ export interface ResolvedAbility {
   /** % chance to be cast a second time for free. */
   echo: number
   passive?: { on: EventKind; match: Match }
+  minion?: ResolvedEffect
   effects: ResolvedEffect[]
   text: string
 }

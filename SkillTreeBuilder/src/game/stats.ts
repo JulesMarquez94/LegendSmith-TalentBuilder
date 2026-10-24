@@ -3,6 +3,7 @@ import type { CharStat, CharStats } from './types.ts'
 /** A level 60 hero with nothing equipped. Health matches the overview's character screen (2,400 + trinkets). */
 export const BASE_STATS: CharStats = {
   health: 2400,
+  healthPct: 0,
   power: 0,
   haste: 0,
   crit: 5,
@@ -12,6 +13,7 @@ export const BASE_STATS: CharStats = {
   minionPower: 0,
   damageReduction: 0,
   dodge: 0,
+  healingTaken: 0,
   speed: 0,
   maxResource: 0,
   resourceRegen: 0,
@@ -38,6 +40,12 @@ export interface StatInfo {
 
 export const STAT_INFO: Record<CharStat, StatInfo> = {
   health: { label: 'Health', color: '#ffffff', unit: 'flat', help: 'Flat. Mostly from trinket item level.' },
+  healthPct: {
+    label: 'Max health',
+    color: '#8fe3a0',
+    unit: '%',
+    help: 'More maximum health, on top of the flat Health. Group buffs give it to everyone in your group.',
+  },
   power: {
     label: 'Power',
     color: '#ffffff',
@@ -81,6 +89,12 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     color: '#9fe7ff',
     unit: '%',
     help: 'Chance to avoid a hit completely. Every hit rolls on its own.',
+  },
+  healingTaken: {
+    label: 'Healing received',
+    color: '#8fe3a0',
+    unit: '%',
+    help: 'More healing from every heal, HoT and zone that lands on you.',
   },
   speed: {
     label: 'Speed',
@@ -127,9 +141,15 @@ export const withResource = (text: string, resource: string) =>
 /** The stat sheet, in sections. The top block shows Power, Health and the resource. */
 export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[] }[] = [
   { title: 'Secondary', stats: ['haste', 'crit', 'critDamage', 'potency'] },
-  { title: 'Defensive', stats: ['damageReduction', 'dodge'] },
+  { title: 'Defensive', stats: ['damageReduction', 'dodge', 'healthPct', 'healingTaken'] },
   { title: 'Extra', stats: ['echo', 'minionPower', 'speed', 'overhealToResource', 'lowResourceRegen', 'zoneResourceRegen'] },
 ]
 
-/** Shown only once a talent gives them. */
-export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>(['overhealToResource', 'lowResourceRegen', 'zoneResourceRegen'])
+/** Shown only once a talent or group buff gives them. */
+export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>([
+  'overhealToResource',
+  'lowResourceRegen',
+  'zoneResourceRegen',
+  'healthPct',
+  'healingTaken',
+])

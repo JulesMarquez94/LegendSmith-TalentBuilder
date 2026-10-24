@@ -8,6 +8,7 @@ import type { TreeDef } from '../talents/types.ts'
 export const boneSpear: TreeDef = {
   id: 'bone-spear',
   kind: 'damage',
+  artifacts: ['tome-of-summoning'],
   playtest: true,
   color: '#d8c49a',
   columns: 4,
@@ -92,6 +93,7 @@ export const boneSpear: TreeDef = {
 export const raiseGhoul: TreeDef = {
   id: 'raise-ghoul',
   kind: 'damage',
+  artifacts: ['tome-of-summoning'],
   playtest: true,
   color: '#8fb85a',
   columns: 4,
@@ -178,6 +180,7 @@ export const raiseGhoul: TreeDef = {
 export const soulSiphon: TreeDef = {
   id: 'soul-siphon',
   kind: 'damage',
+  artifacts: ['tome-of-summoning'],
   playtest: true,
   color: '#9c78ff',
   columns: 4,
@@ -264,6 +267,7 @@ export const bloodFrenzy: TreeDef = {
   id: 'blood-frenzy',
   kind: 'cooldown',
   role: 'damage',
+  artifacts: ['tome-of-summoning'],
   playtest: true,
   color: '#d4473f',
   columns: 4,
@@ -350,6 +354,7 @@ export const armyOfTheDead: TreeDef = {
   id: 'army-of-the-dead',
   kind: 'cooldown',
   role: 'damage',
+  artifacts: ['tome-of-summoning'],
   playtest: true,
   color: '#4fb39a',
   columns: 4,

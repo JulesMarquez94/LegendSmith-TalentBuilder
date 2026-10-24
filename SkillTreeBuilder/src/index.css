@@ -348,6 +348,13 @@ img {
     0 24px 60px rgba(0, 0, 0, 0.55);
 }
 
+.artifact--outdoor {
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 12px),
+    linear-gradient(#1b1d1a, #121412);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.12);
+}
+
 .artifact__icon {
   width: calc(var(--u) * 0.8);
   height: calc(var(--u) * 0.8);
@@ -1829,6 +1836,32 @@ select {
 .you__cast .bar__text {
   line-height: 16px;
   font-size: 11px;
+}
+
+.pips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  font-size: 12px;
+}
+
+.pips__label {
+  margin-right: 4px;
+  color: var(--muted);
+}
+
+.pip {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+}
+
+.pip--on {
+  background: radial-gradient(circle at 35% 35%, #ffd0a0, #ff8a5c 60%, #b24a1e);
+  border-color: #ffb38a;
+  box-shadow: 0 0 8px rgba(255, 138, 92, 0.6);
 }
 
 .you__buffs {

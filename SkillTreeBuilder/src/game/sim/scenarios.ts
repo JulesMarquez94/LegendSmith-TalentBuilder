@@ -41,6 +41,16 @@ export type ScenarioEvent =
   | { kind: 'drain'; perSec: number }
   /** Another healer in the group (a bot): heals the most injured ally. */
   | { kind: 'healer'; every: number; amount: number }
+  /** A wave of adds near the boss. They hit the tank, and the party kills them before the boss. */
+  | { kind: 'adds'; name: string; every: number; count: number; hp: number; hits: number; first?: number }
+
+/** An enemy that's there from the start, besides the boss (target dummies). */
+export interface EnemyTemplate {
+  name: string
+  pos: Vec
+  maxHp: number
+  radius?: number
+}
 
 export interface Scenario {
   id: string
@@ -50,6 +60,10 @@ export interface Scenario {
   /** Where you start. */
   playerHome: Vec
   boss: { name: string; maxHp: number }
+  /** Enemies besides the boss from the start. */
+  extraEnemies?: readonly EnemyTemplate[]
+  /** When you aren't the healer, a bot heals the group like this so damage dealers can test too. */
+  botHealer?: { every: number; amount: number }
   /** Where the party gathers for `stack` events. */
   stackPoint: Vec
   /** Health everyone starts at, as a fraction. */
@@ -59,7 +73,7 @@ export interface Scenario {
   events: readonly ScenarioEvent[]
 }
 
-export const ARENA = { width: 60, height: 40, boss: { x: 30, y: 12 }, bossRadius: 2.5 } as const
+export const ARENA = { width: 60, height: 40, boss: { x: 30, y: 12 }, bossRadius: 2.5, addRadius: 1.2 } as const
 
 export const SCENARIOS: readonly Scenario[] = [
   {
@@ -83,6 +97,30 @@ export const SCENARIOS: readonly Scenario[] = [
     ],
   },
   {
+    id: 'dummies',
+    name: 'Target dummies',
+    description:
+      'A big dummy and four small ones that never die, and a party that takes no damage. For watching damage, ' +
+      'DoTs, imps and area damage.',
+    party: [
+      { name: 'Tank', role: 'tank', maxHp: 30000, home: { x: 30, y: 17.5 }, dps: 0 },
+      { name: 'Blade', role: 'damage', maxHp: 16000, home: { x: 24, y: 20 }, dps: 0 },
+      { name: 'Archer', role: 'damage', maxHp: 16000, home: { x: 37, y: 24 }, dps: 0 },
+    ],
+    playerHome: { x: 30, y: 27 },
+    boss: { name: 'Training Dummy', maxHp: Infinity },
+    extraEnemies: [
+      { name: 'Dummy', pos: { x: 25, y: 11 }, maxHp: Infinity, radius: 1.2 },
+      { name: 'Dummy', pos: { x: 35, y: 11 }, maxHp: Infinity, radius: 1.2 },
+      { name: 'Dummy', pos: { x: 27, y: 6.5 }, maxHp: Infinity, radius: 1.2 },
+      { name: 'Dummy', pos: { x: 33, y: 6.5 }, maxHp: Infinity, radius: 1.2 },
+    ],
+    stackPoint: { x: 30, y: 22 },
+    startHealth: 1,
+    noDeaths: true,
+    events: [],
+  },
+  {
     id: 'dungeon',
     name: 'Dungeon boss (4 players)',
     description:
@@ -104,7 +142,9 @@ export const SCENARIOS: readonly Scenario[] = [
       { kind: 'spike', name: 'Hex Bolt', every: 7, amount: 3500, count: 1, first: 3 },
       { kind: 'pool', name: 'Blight Pool', every: 14, count: 2, radius: 5, dps: 1200, duration: 7, warn: 1.2, first: 9 },
       { kind: 'stack', every: 30, duration: 8, first: 20 },
+      { kind: 'adds', name: 'Blightling', every: 30, count: 3, hp: 30000, hits: 400, first: 15 },
     ],
+    botHealer: { every: 1, amount: 2600 },
   },
   {
     id: 'raid',
@@ -133,6 +173,8 @@ export const SCENARIOS: readonly Scenario[] = [
       { kind: 'pool', name: 'Hollow Ground', every: 12, count: 3, radius: 6, dps: 1600, duration: 7, warn: 1.2, first: 8 },
       { kind: 'stack', every: 25, duration: 8, first: 15 },
       { kind: 'healer', every: 2, amount: 1600 },
+      { kind: 'adds', name: 'Hollow Shade', every: 25, count: 4, hp: 45000, hits: 500, first: 12 },
     ],
+    botHealer: { every: 1, amount: 3600 },
   },
 ]

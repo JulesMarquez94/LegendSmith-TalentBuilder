@@ -1,6 +1,7 @@
-import { int, pct, sec, yd } from './format.ts'
+import { int, pct, sec, statValue, yd } from './format.ts'
 import { chainTotal, periodicTotal } from './resolve.ts'
-import type { Condition, ResolvedAbility, ResolvedEffect } from './types.ts'
+import { STAT_INFO } from './stats.ts'
+import type { CharStat, Condition, ResolvedAbility, ResolvedEffect } from './types.ts'
 
 /** One number on an ability card, with which way counts as an upgrade so changes can flash. */
 export interface NumberLine {
@@ -25,15 +26,19 @@ const TARGET: Partial<Record<ResolvedEffect['target'], string>> = {
   event: 'that ally',
   path: 'allies you dash past',
   origin: 'where you were',
+  target: 'enemy under your crosshair',
+  afflicted: 'every enemy with your DoTs',
 }
 
 export function describeCondition(when: Condition): string {
   const parts: string[] = []
   if (when.targetBelow !== undefined) parts.push(`below ${when.targetBelow}% health`)
-  if (when.targetHas !== undefined) parts.push('with your HoT')
+  if (when.targetHas !== undefined) parts.push('with your HoT or DoT')
   if (when.inZone) parts.push('in your zone')
   if (when.affected) parts.push('with your HoT or in your zone')
   if (when.targetSelf) parts.push('on you')
+  if (when.each !== undefined) parts.push('for each of your effects on it')
+  if (when.stacksOf !== undefined) parts.push('for each stack on it')
   return parts.join(', ')
 }
 
@@ -43,12 +48,17 @@ const percent = (n: number) => `${pct(n)}%`
 
 const capital = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
 
+/** "1 imp", "2 imps", "100 mana". */
+const counted = (n: number, resource: string) => `${int(n)} ${n === 1 ? resource.replace(/s$/, '') : resource}`
+
 /** `resource` is the artifact's resource in lower case ("mana"). */
 function effectLines(e: ResolvedEffect, prefix: string, resource: string): NumberLine[] {
   const key = (k: string) => `${prefix}${e.granted ?? e.index}:${k}`
   const name = e.name ?? e.granted
   const out: NumberLine[] = []
-  const heals = e.family === 'direct-heal' || e.family === 'hot' || e.family === 'zone'
+  const heals = !e.hostile && (e.family === 'direct-heal' || e.family === 'hot' || e.family === 'zone')
+  const hurts = e.tags.has('damage')
+  const per = e.perPoint ? ` per ${resource.replace(/s$/, '')}` : ''
   switch (e.type) {
     case 'heal':
       out.push({
@@ -79,10 +89,17 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
       out.push({ key: key('extra'), label: `${capital(resource)} per ally`, value: e.extraCost, format: amount, better: 'down' })
       break
     case 'hot':
+    case 'dot':
     case 'zone':
+      if (e.inflicts) {
+        out.push(...effectLines(e.inflicts, `${prefix}inflicts:`, resource))
+        out.push({ key: key('duration'), label: 'Zone lasts', value: e.duration, format: seconds, better: 'up' })
+        out.push({ key: key('radius'), label: 'Radius', value: e.radius, format: (n) => `${yd(n)} yd`, better: 'up' })
+        break
+      }
       out.push({
         key: key('amount'),
-        label: name ?? (e.type === 'hot' ? 'Per tick' : 'Per tick, each'),
+        label: name ?? (e.type === 'zone' ? 'Per tick, each' : e.rolling ? 'Per tick, per stack' : 'Per tick'),
         value: e.amount,
         format: amount,
         better: 'up',
@@ -90,11 +107,14 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
       })
       out.push({
         key: key('duration'),
-        label: 'Duration',
+        label: e.rolling ? 'Each stack lasts' : 'Duration',
         value: e.duration,
         format: seconds,
         better: 'up',
-        detail: `${e.ticks} ticks${e.instantTicks ? ` + ${e.instantTicks} on landing` : ''}`,
+        detail:
+          `${e.ticks} ticks${e.instantTicks ? ` + ${e.instantTicks} on landing` : ''}` +
+          (e.perPoint === 'duration' ? `${per}` : '') +
+          (e.rolling && e.stacks > 1 ? ` · ${e.stacks} stacks a cast` : ''),
       })
       if (e.type === 'zone') {
         out.push({
@@ -103,7 +123,7 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
           value: e.radius,
           format: (n) => `${yd(n)} yd`,
           better: 'up',
-          detail: e.follow ? 'follows its ally' : undefined,
+          detail: e.follow ? (e.hostile ? 'follows its enemy' : 'follows its ally') : undefined,
         })
         if (e.damageReduction) {
           out.push({ key: key('dr'), label: 'Damage taken inside', value: e.damageReduction, format: (n) => `−${pct(n)}%`, better: 'up' })
@@ -111,7 +131,7 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
       }
       out.push({
         key: key('total'),
-        label: e.type === 'hot' ? 'Total' : 'Total per ally',
+        label: e.type === 'zone' ? (e.hostile ? 'Total per enemy' : 'Total per ally') : e.rolling ? 'Total per stack' : 'Total',
         value: periodicTotal(e),
         format: amount,
         better: 'up',
@@ -120,8 +140,40 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
     case 'shield':
       out.push({ key: key('amount'), label: name ?? 'Shield', value: e.amount, format: amount, better: 'up', detail: seconds(e.duration) })
       break
-    case 'damage':
-      out.push({ key: key('amount'), label: name ?? 'Damage', value: e.amount, format: amount, better: 'up' })
+    case 'damage': {
+      const where =
+        e.target === 'self' ? `everything within ${yd(e.radius)} yd of you` : e.radius > 0 ? `+ everything within ${yd(e.radius)} yd` : TARGET[e.target]
+      out.push({
+        key: key('amount'),
+        label: name ?? 'Damage',
+        value: e.amount,
+        format: amount,
+        better: 'up',
+        detail: [per && `per point spent`, e.perEffect !== undefined && 'per DoT on each', where].filter(Boolean).join(' · '),
+      })
+      break
+    }
+    case 'minion':
+      out.push({
+        key: key('amount'),
+        label: name ?? 'Minion hit',
+        value: e.amount,
+        format: amount,
+        better: 'up',
+        detail: `every ${seconds(e.interval)}, each`,
+      })
+      break
+    case 'aura':
+      for (const [stat, n] of Object.entries(e.stats ?? {})) {
+        out.push({
+          key: key(stat),
+          label: STAT_INFO[stat as CharStat].label,
+          value: n ?? 0,
+          format: (v) => `+${statValue(stat as CharStat, v)}`,
+          better: 'up',
+          detail: 'you and your group',
+        })
+      }
       break
     case 'restore':
       out.push({
@@ -136,11 +188,21 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
       out.push({ key: key('distance'), label: 'Distance', value: e.distance, format: (n) => `${yd(n)} yd`, better: 'up' })
       break
     case 'buff':
-      if (e.speed) out.push({ key: key('speed'), label: 'Speed', value: e.speed, format: (n) => `+${pct(n)}%`, better: 'up' })
+      for (const [stat, n] of Object.entries(e.buff?.stats ?? {})) {
+        const value = stat === 'speed' ? e.speed : (n ?? 0)
+        out.push({
+          key: key(stat),
+          label: STAT_INFO[stat as CharStat].label,
+          value,
+          format: (v) => `+${statValue(stat as CharStat, v)}`,
+          better: 'up',
+          detail: e.buff?.group ? 'you and your group' : undefined,
+        })
+      }
       out.push({ key: key('duration'), label: 'Duration', value: e.duration, format: seconds, better: 'up' })
       break
   }
-  if (heals || e.type === 'damage') {
+  if (heals || hurts) {
     out.push({
       key: key('crit'),
       label: 'Crit chance',
@@ -166,8 +228,18 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
 /** Every number on an ability, with the live values: what the numbers panel and tooltips show. */
 export function abilityLines(a: ResolvedAbility): NumberLine[] {
   const out: NumberLine[] = []
-  if (a.cost > 0) out.push({ key: 'cost', label: capital(a.resource), value: a.cost, format: amount, better: 'down' })
-  if (!a.passive) {
+  if (a.cost > 0) {
+    out.push({
+      key: 'cost',
+      label: capital(a.resource),
+      value: a.cost,
+      format: (n) => (a.spendsAll ? `all (at least ${int(n)})` : int(n)),
+      better: 'down',
+      detail: a.spendsAll ? 'a finisher: spends everything you have' : undefined,
+    })
+  }
+  const aura = a.effects.length > 0 && a.effects.every((e) => e.type === 'aura')
+  if (!a.passive && !aura) {
     out.push({
       key: 'cast',
       label: 'Cast',
@@ -189,15 +261,16 @@ export function abilityLines(a: ResolvedAbility): NumberLine[] {
   }
   if (a.echo > 0) out.push({ key: 'echo', label: 'Echo', value: a.echo, format: percent, better: 'up', detail: 'chance to cast again' })
   for (const e of a.effects) out.push(...effectLines(e, '', a.resource))
+  if (a.minion) out.push(...effectLines(a.minion, 'minion:', a.resource))
   return out
 }
 
 /** A short summary for the ability header: "1.5 sec cast · 100 mana · 6 sec cooldown". */
 export function abilityMeta(a: ResolvedAbility): string {
   const parts: string[] = []
-  if (a.passive) parts.push('Passive')
+  if (a.passive || a.effects.every((e) => e.type === 'aura')) parts.push('Passive')
   else parts.push(a.castTime > 0 ? `${sec(a.castTime)} sec cast` : 'Instant')
-  if (a.cost > 0) parts.push(`${int(a.cost)} ${a.resource}`)
+  if (a.cost > 0) parts.push(a.spendsAll ? `all ${a.resource}` : counted(a.cost, a.resource))
   if (a.cooldown > 0) parts.push(`${sec(a.cooldown)} sec ${a.charges > 1 ? `recharge · ${a.charges} charges` : 'cooldown'}`)
   if (a.range > 0) parts.push(`${yd(a.range)} yd`)
   return parts.join(' · ')

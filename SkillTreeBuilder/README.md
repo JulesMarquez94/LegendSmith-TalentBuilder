@@ -1,8 +1,9 @@
 # LegendSmith Talent Builder
 
-A WoW Classic–style talent builder for testing LegendSmith's skill trees. You hold an artifact, slot
-abilities into a 3 × 2 grid, and each slotted ability brings its own talent tree. Trinkets set your
-stats, every ability shows its live numbers, and a **Test arena** lets you play the build against a boss.
+A WoW Classic–style talent builder for testing LegendSmith's skill trees. You hold an artifact (a
+healer's staff, a summoner's book or twin daggers), fill eight slots, and each slotted ability brings its
+own talent tree. Trinkets set your stats, every ability shows its live numbers, and a **Test arena** lets
+you play the build against dummies or a boss.
 
 ## Run it
 
@@ -27,9 +28,11 @@ repositories.
 | Slot | Holds | Keyboard |
 | --- | --- | --- |
 | 1 | The artifact, with its own tree (its main attack) | Left click |
-| 2–4 | Role abilities: heals for the Lifewarden Staff, damage for the Tome of Summoning | Right click, Q, E |
-| 5 | An ultimate (big cooldown) | F |
+| 2–4 | Role abilities: heals for the staff, damage for the book or the daggers | Right click, Q, E |
+| 5 | An ultimate (big cooldown). Fervor fits every role | F |
 | 6 | A mobility ability, shared by every role | Shift |
+| 7 | A group buff for your role: passive, for you and your group | — |
+| 8 | Outdoor talents, always there. Empty for now | — |
 
 Click **Change** on slot 1 to switch artifacts; abilities that don't fit the new role come out and
 refund their points. Click an empty slot (or **Change**) to pick an ability. Picking one that's
@@ -64,8 +67,34 @@ Talents aim at **families and tags**, not named abilities. Every tree's "heals m
 whole family: Mend's and Miracle's lift direct heals, Chain Heal's chain heals, Healing Rain's and
 Sanctuary's zones, Renew's and Lifetide's HoTs. Each ultimate also has a talent that cuts its cooldown
 when you crit with its family. A talent's tooltip lists what it
-reaches ("Affects: Renew, Lifetide"). The families are direct heal, HoT, zone, shield, damage, mana,
-movement and buff, plus `healing` on every heal, slot kinds (`heal`, `cooldown`…) and ability ids.
+reaches ("Affects: Renew, Lifetide"). The families are direct heal, HoT, zone, shield, direct damage,
+DoT, minion, resource, movement, buff and aura, plus `healing` on every heal, `damage` on every hit,
+`aoe` on area damage, slot kinds (`heal`, `cooldown`…) and ability ids.
+
+## The damage weapons
+
+The **Tome of Summoning** has imps for a resource, up to 6. Its main attack, Summon Imp, adds one, every
+imp attacks your target on its own, and its spells are paid for by **sacrificing imps**. Minion power
+raises all your damage for each imp you command.
+
+| Slot | Choices |
+| --- | --- |
+| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (a zone that makes everyone inside sick), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
+| Ultimate | Fervor (you and your group gain 30% haste for 20 sec) |
+
+The **Twin Daggers** build combo points (up to 6) with Quick Strike: hold the key to keep striking.
+Finishers (Eviscerate, Rupture) spend all your points and grow with each one; Fan of Knives and
+Backstab build them.
+
+Their talents aim at families too: damage over time, direct damage, area damage, zones, minions,
+finishers. The Plague tree keeps its art and layout from the deck, with its X values filled in.
+
+## Group buffs
+
+Every character slots one group buff for their role. It's passive: you and your group get its stats,
+and its tree adds more. Healers pick more maximum health or more healing received. Damage dealers pick
+Haste, Critical or Power. Tanks get Damage reduction, Dodge or Speed, ready for when there's a tank
+weapon.
 
 ## Gear and stats
 
@@ -94,8 +123,9 @@ when they improve and red when they drop, with the base (nothing equipped or lea
 
 ## Test arena
 
-Pick a fight (Practice, a 4-player dungeon boss or an 8-player raid boss), then click the arena or
-press an ability key. Move with W A S D. Heals go to the lowest-health ally in range, zones land on that
+Pick a fight (Practice, Target dummies, a 4-player dungeon boss or an 8-player raid boss), then click the
+arena or press an ability key. Healers start on Practice and damage dealers on Target dummies. The boss
+fights send waves of adds; when you're a damage dealer, a bot heals the group. Move with W A S D. Heals go to the lowest-health ally in range, zones land on that
 ally, and Dash and Teleport go the way you're moving (or toward the crosshair). Hold a key to keep
 casting it. Step out of the red pools.
 

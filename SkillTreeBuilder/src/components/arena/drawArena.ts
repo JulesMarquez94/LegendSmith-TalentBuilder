@@ -94,14 +94,16 @@ export function drawArena(canvas: HTMLCanvasElement, arena: Arena, aim: Vec | nu
     g.setLineDash([])
   }
 
-  // Your zones
+  // Your zones (damaging ones dashed, so they read apart from heals)
   for (const z of arena.zones) {
-    g.fillStyle = rgba(z.effect.color, 0.13)
+    g.fillStyle = rgba(z.effect.color, z.hostile ? 0.18 : 0.13)
     circle(z.pos, z.radius)
     g.fill()
     g.strokeStyle = rgba(z.effect.color, 0.5)
     g.lineWidth = 0.1
+    if (z.hostile) g.setLineDash([0.4, 0.3])
     g.stroke()
+    g.setLineDash([])
     g.strokeStyle = rgba(z.effect.color, 0.9)
     g.lineWidth = 0.25
     arc(z.pos, z.radius, (z.endsAt - now) / z.duration)
@@ -111,22 +113,52 @@ export function drawArena(canvas: HTMLCanvasElement, arena: Arena, aim: Vec | nu
     g.fillText(z.name, z.pos.x, z.pos.y - z.radius + 0.9)
   }
 
-  // Boss
-  const boss = arena.boss
-  g.fillStyle = '#3a1d1d'
-  circle(boss.pos, boss.radius)
-  g.fill()
-  g.strokeStyle = '#ff6b6b'
-  g.lineWidth = 0.15
-  g.stroke()
-  g.fillStyle = '#ffd0c8'
-  g.font = font(0.85, 900)
-  g.fillText(boss.name, boss.pos.x, boss.pos.y - boss.radius - 1.4)
-  if (Number.isFinite(boss.maxHp)) {
-    g.fillStyle = 'rgba(0,0,0,0.6)'
-    g.fillRect(boss.pos.x - 3, boss.pos.y - boss.radius - 0.75, 6, 0.4)
-    g.fillStyle = '#ff6b6b'
-    g.fillRect(boss.pos.x - 3, boss.pos.y - boss.radius - 0.75, (6 * boss.hp) / boss.maxHp, 0.4)
+  // Enemies: the boss, dummies and adds, with your DoTs on them
+  const target = arena.mainTarget(40)
+  for (const enemy of arena.enemies) {
+    if (!enemy.alive) continue
+    g.fillStyle = enemy.isBoss ? '#3a1d1d' : '#2c1d33'
+    circle(enemy.pos, enemy.radius)
+    g.fill()
+    g.strokeStyle = enemy === target ? '#ffe9a0' : enemy.isBoss ? '#ff6b6b' : '#c27be0'
+    g.lineWidth = enemy === target ? 0.22 : 0.15
+    g.stroke()
+    const top = enemy.pos.y - enemy.radius
+    if (enemy.isBoss) {
+      g.fillStyle = '#ffd0c8'
+      g.font = font(0.85, 900)
+      g.fillText(enemy.name, enemy.pos.x, top - 1.4)
+    }
+    if (Number.isFinite(enemy.maxHp)) {
+      const w = enemy.radius * 2.4
+      g.fillStyle = 'rgba(0,0,0,0.6)'
+      g.fillRect(enemy.pos.x - w / 2, top - 0.75, w, 0.4)
+      g.fillStyle = enemy.isBoss ? '#ff6b6b' : '#c27be0'
+      g.fillRect(enemy.pos.x - w / 2, top - 0.75, (w * enemy.hp) / enemy.maxHp, 0.4)
+    }
+    enemy.dots.forEach((d, i) => {
+      const x = enemy.pos.x - ((enemy.dots.length - 1) * 0.7) / 2 + i * 0.7
+      const y = enemy.pos.y + enemy.radius + 0.6
+      g.fillStyle = d.effect.color
+      circle({ x, y }, 0.28)
+      g.fill()
+      if (d.stacks.length > 1) {
+        g.fillStyle = '#fff'
+        g.font = font(0.5, 900)
+        g.fillText(String(d.stacks.length), x, y + 0.65)
+      }
+    })
+  }
+
+  // Your imps, circling you
+  for (const imp of arena.imps) {
+    const p = arena.impPos(imp)
+    g.fillStyle = 'rgba(255,138,92,0.25)'
+    circle(p, 0.65)
+    g.fill()
+    g.fillStyle = '#ff8a5c'
+    circle(p, 0.35)
+    g.fill()
   }
 
   // Allies

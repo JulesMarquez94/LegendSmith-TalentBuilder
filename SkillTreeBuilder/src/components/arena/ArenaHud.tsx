@@ -48,7 +48,10 @@ export function PartyFrames({ arena }: { arena: Arena }) {
   )
 }
 
-/** Your health, resource (mana for the staff), cast bar and buffs. */
+/** A resource you count rather than pool (imps, combo points): shown as pips. */
+const isCounted = (arena: Arena) => arena.maxResource <= 10 && arena.kit.character.stats.resourceRegen === 0
+
+/** Your health, resource (mana, imps, combo points), cast bar and buffs. */
 export function PlayerBars({ arena }: { arena: Arena }) {
   const p = arena.player
   const max = arena.maxResource
@@ -61,7 +64,15 @@ export function PlayerBars({ arena }: { arena: Arena }) {
           Health {int(p.hp)} / {int(p.maxHp)}
         </span>
       </div>
-      {max > 0 && (
+      {max > 0 && isCounted(arena) && (
+        <div className="pips" aria-label={`${arena.kit.resource} ${Math.floor(arena.resource)} of ${max}`}>
+          <span className="pips__label">{arena.kit.resource}</span>
+          {Array.from({ length: max }, (_, i) => (
+            <i key={i} className={i < Math.floor(arena.resource + 1e-6) ? 'pip pip--on' : 'pip'} />
+          ))}
+        </div>
+      )}
+      {max > 0 && !isCounted(arena) && (
         <div className="bar you__bar you__resource">
           <div className="bar__fill" style={{ width: `${(arena.resource / max) * 100}%` }} />
           <span className="bar__text">

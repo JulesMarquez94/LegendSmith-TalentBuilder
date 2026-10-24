@@ -2,8 +2,9 @@ import type { Loadout } from './loadout.ts'
 import type { ArtifactDef, SlotKind, TreeDef } from './types.ts'
 
 /**
- * The six slots, left to right then top to bottom (3 across, 2 down): the artifact, three role
- * abilities, the big cooldown and mobility. The artifact decides what the role slots hold.
+ * The eight slots, left to right then top to bottom (3 across): the artifact, three role abilities,
+ * the big cooldown, mobility, the group buff and outdoor talents. The artifact decides what the role
+ * slots hold and which group buffs fit.
  */
 export const slotKinds = (artifact: ArtifactDef): readonly SlotKind[] => [
   'artifact',
@@ -12,11 +13,20 @@ export const slotKinds = (artifact: ArtifactDef): readonly SlotKind[] => [
   artifact.roleKind,
   'cooldown',
   'mobility',
+  'buff',
+  'outdoor',
 ]
+
+/** The slots the arena's action bar and keys use: the artifact, role abilities, ultimate, mobility. */
+export const ACTION_SLOTS = 6
 
 /** A tree fits a slot of its kind, if it belongs to the artifact's role or to every role. */
 export const fits = (tree: TreeDef, kind: SlotKind, artifact: ArtifactDef) =>
-  tree.kind === kind && kind !== 'artifact' && (tree.role === undefined || tree.role === artifact.role)
+  tree.kind === kind &&
+  kind !== 'artifact' &&
+  kind !== 'outdoor' &&
+  (tree.role === undefined || tree.role === artifact.role) &&
+  (tree.artifacts === undefined || tree.artifacts.includes(artifact.id))
 
 /**
  * Holds a different artifact. Its tree (if it has one) goes in slot 1, abilities that no longer

@@ -1,9 +1,14 @@
 import type { Loadout, PointRules } from '../talents/loadout.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
+import { GROUP_BUFFS } from './buffs.ts'
+import { backstab, eviscerate, fanOfKnives, rupture, twinDaggers } from './daggers.ts'
+import { fervor } from './fervor.ts'
 import { bloom, chainHeal, conduit, healingRain, mend, renew } from './healer/heals.ts'
 import { lifewardenStaff } from './healer/staff.ts'
 import { lifetide, miracle, sanctuary } from './healer/ultimates.ts'
 import { dash, sprint, teleport } from './mobility.ts'
+import { ashfall, festeringRot, harvest, miasma, necroticExplosion } from './necro/spells.ts'
+import { tomeOfSummoning } from './necro/tome.ts'
 import { plague } from './plague.ts'
 import { armyOfTheDead, bloodFrenzy, boneSpear, raiseGhoul, shadowStep, soulSiphon, wraithWalk } from './playtest.ts'
 
@@ -13,19 +18,8 @@ import { armyOfTheDead, bloodFrenzy, boneSpear, raiseGhoul, shadowStep, soulSiph
  */
 export const POINT_RULES: PointRules = { total: 60, perTree: 12 }
 
-/** The damage placeholder the Plague and playtest trees sit under. It has no main attack or tree yet. */
-export const tomeOfSummoning: ArtifactDef = {
-  id: 'tome-of-summoning',
-  name: 'Tome of Summoning',
-  color: '#c89b4c',
-  role: 'damage',
-  roleKind: 'damage',
-  resource: 'None yet',
-  description: 'Damage. A placeholder for the Plague and playtest trees: no main attack or talents yet.',
-}
-
 /** Every artifact that can be held. Add new ones here. */
-export const ARTIFACTS: readonly ArtifactDef[] = [lifewardenStaff, tomeOfSummoning]
+export const ARTIFACTS: readonly ArtifactDef[] = [lifewardenStaff, tomeOfSummoning, twinDaggers]
 
 /** Every tree that can be slotted, artifact trees included. Add new trees here. */
 export const TREES: readonly TreeDef[] = [
@@ -40,24 +34,40 @@ export const TREES: readonly TreeDef[] = [
   miracle,
   sanctuary,
   lifetide,
-  // Damage
+  // Summoner
   plague,
+  harvest,
+  festeringRot,
+  miasma,
+  necroticExplosion,
+  ashfall,
   boneSpear,
   raiseGhoul,
   soulSiphon,
   bloodFrenzy,
   armyOfTheDead,
+  // Daggers
+  eviscerate,
+  rupture,
+  fanOfKnives,
+  backstab,
+  // Ultimates for every role
+  fervor,
   // Mobility, for every role
   dash,
   teleport,
   sprint,
   shadowStep,
   wraithWalk,
+  // Group buffs, by role
+  ...GROUP_BUFFS,
 ]
 
 /** What the builder opens with: the healer kit, ready for the test arena. */
 export const STARTING_LOADOUT: Loadout = {
   artifact: lifewardenStaff.id,
-  slots: [lifewardenStaff.tree!.id, 'mend', 'renew', 'healing-rain', 'miracle', 'dash'],
+  slots: [lifewardenStaff.tree!.id, 'mend', 'renew', 'healing-rain', 'miracle', 'dash', 'vitality-aura', null],
   ranks: {},
 }
+
+export { tomeOfSummoning }

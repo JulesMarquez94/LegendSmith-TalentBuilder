@@ -6,7 +6,8 @@ import { SCENARIOS, type Scenario } from './scenarios.ts'
 
 // A quiet room: the practice party at half health, nothing hitting anyone.
 // Ids: you 1 (30, 27), Tank 2 (30, 15.5), Blade 3 (25.5, 15), Archer 4 (37, 23).
-const QUIET: Scenario = { ...SCENARIOS[0], events: [], startHealth: 0.5 }
+const scenario = (id: string) => SCENARIOS.find((s) => s.id === id)!
+const QUIET: Scenario = { ...scenario('practice'), events: [], startHealth: 0.5 }
 
 const DT = 0.05
 const run = (arena: Arena, seconds: number) => {
@@ -250,7 +251,7 @@ describe('a changed build', () => {
 
 describe('the dungeon fight', () => {
   it('runs to the end with a bot spamming heals', () => {
-    const arena = new Arena(healerKit(['mend', 'renew', 'healing-rain', 'miracle', 'dash']), SCENARIOS[1], { seed: 3 })
+    const arena = new Arena(healerKit(['mend', 'renew', 'healing-rain', 'miracle', 'dash']), scenario('dungeon'), { seed: 3 })
     for (let t = 0; t < 200 && !arena.ended; t += DT) {
       for (const slot of [4, 3, 2, 1]) arena.press(slot)
       if (arena.resource < 200) arena.press(0)

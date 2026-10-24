@@ -26,17 +26,29 @@ export const FAMILY_OF: Record<EffectType, Family> = {
   hot: 'hot',
   zone: 'zone',
   shield: 'shield',
-  damage: 'damage',
+  damage: 'direct-damage',
+  dot: 'dot',
+  minion: 'minion',
   restore: 'resource',
   move: 'movement',
   buff: 'buff',
+  aura: 'aura',
 }
 
 const HEALING: ReadonlySet<Family> = new Set<Family>(['direct-heal', 'hot', 'zone'])
+const DAMAGING: ReadonlySet<Family> = new Set<Family>(['direct-damage', 'dot', 'minion'])
 /** Power raises every damage, heal and shield number. */
-const POWERED: ReadonlySet<Family> = new Set<Family>(['direct-heal', 'hot', 'zone', 'shield', 'damage'])
+const POWERED: ReadonlySet<Family> = new Set<Family>([
+  'direct-heal',
+  'hot',
+  'zone',
+  'shield',
+  'direct-damage',
+  'dot',
+  'minion',
+])
 /** Potency lengthens these durations. A dash isn't made longer by it. */
-const POTENT: ReadonlySet<Family> = new Set<Family>(['hot', 'zone', 'shield', 'buff'])
+const POTENT: ReadonlySet<Family> = new Set<Family>(['hot', 'dot', 'zone', 'shield', 'buff'])
 
 /** The heal green from the overview's colour key. */
 const DEFAULT_COLOR = '#8fe3a0'
@@ -69,6 +81,8 @@ export interface StatLine {
   base: number
   gear: number
   talents: number
+  /** From your group buff (yours too, since you're in your own group). */
+  group: number
   total: number
 }
 
@@ -88,9 +102,16 @@ export interface BuildInput {
 }
 
 export interface Kit {
-  /** The artifact's resource name ("Mana"). */
+  /** The artifact's resource name ("Mana", "Imps"). */
   resource: string
+  role: ArtifactDef['role']
+  /** Resource a fight starts with. */
+  resourceStart: number
   character: CharacterSheet
+  /** What your group buff gives everyone in your group, you included. */
+  groupStats: Partial<CharStats>
+  /** What each of your minions does, when your resource is minions. */
+  minion: ResolvedEffect | null
   /** Each slot's ability with live numbers; null when empty or the tree is display-only. */
   slots: readonly (ResolvedAbility | null)[]
   procs: readonly ResolvedProc[]
@@ -117,7 +138,25 @@ export function collectMechanics(trees: readonly (TreeDef | null)[], ranks: Buil
   return out
 }
 
-export function computeCharacter(input: BuildInput, mechanics: readonly Mechanic[]): CharacterSheet {
+/** The group buff's stats: its aura plus its talents' group stats. You get them too. */
+export function computeGroupStats(trees: readonly (TreeDef | null)[], mechanics: readonly Mechanic[]): Partial<CharStats> {
+  const group: Partial<CharStats> = {}
+  const add = (stat: CharStat, n: number) => (group[stat] = (group[stat] ?? 0) + n)
+  for (const tree of trees) {
+    for (const effect of tree?.spec?.effects ?? []) {
+      if (effect.type !== 'aura') continue
+      for (const [stat, n] of Object.entries(effect.stats ?? {})) add(stat as CharStat, n ?? 0)
+    }
+  }
+  for (const m of mechanics) if (m.kind === 'group') add(m.stat, m.add)
+  return group
+}
+
+export function computeCharacter(
+  input: BuildInput,
+  mechanics: readonly Mechanic[],
+  groupStats: Partial<CharStats> = {},
+): CharacterSheet {
   const gear = gearTotals(input.gear)
   const stats = { ...BASE_STATS }
   const lines = {} as Record<CharStat, StatLine>
@@ -125,9 +164,16 @@ export function computeCharacter(input: BuildInput, mechanics: readonly Mechanic
     const base = BASE_STATS[stat] + (input.artifact.stats?.[stat] ?? 0)
     const fromGear = gear[stat] ?? 0
     const talents = mechanics.reduce((sum, m) => (m.kind === 'stat' && m.stat === stat ? sum + m.add : sum), 0)
-    const total = base + fromGear + talents
-    lines[stat] = { base, gear: fromGear, talents, total }
+    const group = groupStats[stat] ?? 0
+    const total = base + fromGear + talents + group
+    lines[stat] = { base, gear: fromGear, talents, group, total }
     stats[stat] = total
+  }
+  // "% more health" multiplies the flat total; the extra shows on the Health line as group.
+  if (stats.healthPct) {
+    const flat = stats.health
+    stats.health = Math.round(flat * (1 + stats.healthPct / 100))
+    lines.health = { ...lines.health, group: lines.health.group + stats.health - flat, total: stats.health }
   }
   return { stats, lines }
 }
@@ -155,8 +201,13 @@ const isSpell = (tree: TreeDef) => (tree.spec?.cost ?? 0) > 0
 
 function effectTags(tree: TreeDef, effect: EffectSpec): Set<Tag> {
   const family = FAMILY_OF[effect.type]
-  const tags = new Set<Tag>([family, tree.id, tree.kind, ...(tree.spec?.tags ?? []), ...(effect.tags ?? [])])
-  if (HEALING.has(family)) tags.add('healing')
+  // A minion's attack is its own: it doesn't carry the main attack's tags.
+  const abilityTags = effect.type === 'minion' ? [] : (tree.spec?.tags ?? [])
+  const tags = new Set<Tag>([family, tree.id, tree.kind, ...abilityTags, ...(effect.tags ?? [])])
+  if (effect.hostile) tags.add('damage').add('aoe')
+  else if (HEALING.has(family)) tags.add('healing')
+  if (DAMAGING.has(family)) tags.add('damage')
+  if (effect.type === 'damage' && (effect.radius ?? 0) > 0) tags.add('aoe')
   if (isSpell(tree)) tags.add('spell')
   return tags
 }
@@ -168,6 +219,7 @@ function resolveEffectWith(
   stats: CharStats,
   mods: readonly ModMechanic[],
   granted?: string,
+  groupTalents: Partial<CharStats> = {},
 ): ResolvedEffect {
   const family = FAMILY_OF[effect.type]
   const tags = effectTags(tree, effect)
@@ -190,7 +242,8 @@ function resolveEffectWith(
     color: tree.color ?? DEFAULT_COLOR,
     key: effect.key ?? `${tree.id}:${granted ?? index}`,
     tags,
-    target: effect.target ?? 'lowest',
+    // Damage finds the enemy under your crosshair; everything else, the lowest-health ally.
+    target: effect.target ?? (DAMAGING.has(family) || effect.hostile ? 'target' : 'lowest'),
     amount: Math.max(0, scaled(effect.amount ?? 0, get('amount')) * power),
     critChance: Math.min(100, stats.crit + get('critChance').add),
     critMultiplier: 1 + (stats.critDamage + get('critDamage').add) / 100,
@@ -209,8 +262,17 @@ function resolveEffectWith(
     distance: Math.max(0, scaled(effect.distance ?? 0, get('distance'))),
     speed: Math.max(0, scaled(speedBase, get('speed'))),
     extraCost: Math.max(0, scaled(effect.extraCost ?? 0, get('extraCost'))),
+    stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
     mode: effect.mode,
     buff: effect.buff,
+    hostile: effect.hostile,
+    inflicts: effect.inflicts
+      ? resolveEffectWith(tree, effect.inflicts, index, stats, mods, effect.inflicts.name ?? 'inflicts')
+      : undefined,
+    rolling: effect.rolling,
+    perEffect: effect.perEffect,
+    perPoint: effect.perPoint,
+    stats: effect.type === 'aura' ? addStats(effect.stats ?? {}, groupTalents) : effect.stats,
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))
       .map((m) => ({
@@ -228,6 +290,7 @@ function resolveAbilityWith(
   mods: readonly ModMechanic[],
   grants: readonly Sourced<Extract<Mechanic, { kind: 'grant' }>>[],
   resource: string,
+  groupTalents: Partial<CharStats> = {},
 ): ResolvedAbility | null {
   const spec = tree.spec
   if (!spec) return null
@@ -237,7 +300,8 @@ function resolveAbilityWith(
   ]
   const families = effects.map(({ effect }) => FAMILY_OF[effect.type])
   const tags = new Set<Tag>([tree.id, tree.kind, ...(spec.tags ?? []), ...families])
-  if (families.some((f) => HEALING.has(f))) tags.add('healing')
+  if (effects.some(({ effect }) => HEALING.has(FAMILY_OF[effect.type]) && !effect.hostile)) tags.add('healing')
+  if (effects.some(({ effect }) => DAMAGING.has(FAMILY_OF[effect.type]) || effect.hostile)) tags.add('damage')
   if (isSpell(tree)) tags.add('spell')
   const get = (key: ValueKey) => sum(mods, key, tags)
   const haste = 1 + stats.haste / 100
@@ -252,6 +316,8 @@ function resolveAbilityWith(
     kind: tree.kind,
     tags,
     cost: Math.max(0, scaled(spec.cost ?? 0, get('cost'))),
+    spendsAll: spec.spendsAll,
+    cycle: spec.cycle,
     castTime: Math.max(0, scaled(spec.castTime ?? 0, get('castTime'))) / haste,
     cooldown: spec.cooldown ? Math.max(0, scaled(spec.cooldown, get('cooldown'))) : 0,
     charges: Math.max(1, Math.round((spec.charges ?? 1) + get('charges').add)),
@@ -260,7 +326,8 @@ function resolveAbilityWith(
     // Echo repeats casts; a second dash or teleport would read as a bug, so movement never echoes.
     echo: spec.passive || moves ? 0 : Math.max(0, stats.echo + get('echo').add),
     passive: spec.passive,
-    effects: effects.map(({ effect, granted }, i) => resolveEffectWith(tree, effect, i, stats, mods, granted)),
+    minion: spec.minion ? resolveEffectWith(tree, spec.minion, -1, stats, mods, 'minion') : undefined,
+    effects: effects.map(({ effect, granted }, i) => resolveEffectWith(tree, effect, i, stats, mods, granted, groupTalents)),
     text: '',
   }
   resolved.text = spec.text(resolved)
@@ -269,7 +336,8 @@ function resolveAbilityWith(
 
 export function buildKit(input: BuildInput): Kit {
   const mechanics = collectMechanics(input.trees, input.ranks)
-  const character = computeCharacter(input, mechanics)
+  const groupStats = computeGroupStats(input.trees, mechanics)
+  const character = computeCharacter(input, mechanics, groupStats)
   const mods = mechanics.filter((m): m is Sourced<ModMechanic> => m.kind === 'mod')
   const grants = mechanics.filter((m): m is Sourced<Extract<Mechanic, { kind: 'grant' }>> => m.kind === 'grant')
   const treeById = new Map(input.catalog.map((t) => [t.id, t]))
@@ -278,23 +346,40 @@ export function buildKit(input: BuildInput): Kit {
     m.kind === 'proc' ? [{ proc: m.proc, source: m.source, tree: treeOf.get(m.source.treeId)! }] : [],
   )
 
+  // A group buff tree's own group talents, so its card shows the total it gives.
+  const groupTalents = (treeId: string) => {
+    const out: Partial<CharStats> = {}
+    for (const m of mechanics) if (m.kind === 'group' && m.source.treeId === treeId) out[m.stat] = (out[m.stat] ?? 0) + m.add
+    return out
+  }
   const resolve: Kit['resolve'] = (treeId, extra = [], stats = character.stats) => {
     const tree = treeById.get(treeId)
-    return tree
-      ? resolveAbilityWith(tree, stats, extra.length ? [...mods, ...extra] : mods, grants, input.artifact.resource)
-      : null
+    if (!tree) return null
+    const all = extra.length ? [...mods, ...extra] : mods
+    return resolveAbilityWith(tree, stats, all, grants, input.artifact.resource, groupTalents(treeId))
   }
 
+  const slots = input.trees.map((tree) => (tree ? resolve(tree.id) : null))
   return {
     resource: input.artifact.resource,
+    role: input.artifact.role,
+    resourceStart: input.artifact.resourceStart ?? character.stats.maxResource,
     character,
-    slots: input.trees.map((tree) => (tree ? resolve(tree.id) : null)),
+    groupStats,
+    minion: slots[0]?.minion ?? null,
+    slots,
     procs,
     mechanics,
     resolve,
     resolveEffect: (tree, effect, extra = [], stats = character.stats) =>
       resolveEffectWith(tree, effect, -1, stats, extra.length ? [...mods, ...extra] : mods, effect.name ?? 'proc'),
   }
+}
+
+function addStats(a: Partial<CharStats>, b: Partial<CharStats>): Partial<CharStats> {
+  const out = { ...a }
+  for (const [k, v] of Object.entries(b)) out[k as CharStat] = (out[k as CharStat] ?? 0) + (v ?? 0)
+  return out
 }
 
 /** One tick of a HoT or zone, after growth or decay: each tick is `growth`% more than the last. */
@@ -338,6 +423,7 @@ export function reach(mechanics: readonly Mechanic[], kit: Kit): string[] {
   for (const m of mechanics) {
     if (m.kind === 'mod') hits(m.match, ABILITY_KEYS.has(m.key))
     else if (m.kind === 'stat') names.add('your character')
+    else if (m.kind === 'group') names.add('your group')
     else if (m.kind === 'grant') named(m.to)
     else {
       hits(m.proc.match, m.proc.on === 'cast')

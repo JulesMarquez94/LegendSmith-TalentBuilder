@@ -6,6 +6,7 @@ import type {
   BuffSpec,
   CharStats,
   Condition,
+  Conditional,
   EventKind,
   Match,
   ModMechanic,
@@ -22,6 +23,8 @@ import { ARENA, type AllyRole, type Scenario, type ScenarioEvent, type Vec } fro
 
 /** Smart-targeting range for heals that come from talents rather than an ability with its own range. */
 const HEAL_RANGE = 40
+/** How far minions reach, and procs that hit enemies without a range of their own. */
+const ENEMY_RANGE = 40
 /** How close to a dash's path an ally must be for path heals. */
 const PATH_WIDTH = 3
 /** Reservoir never stores more resource than this. */
@@ -31,6 +34,8 @@ const SHIELD_CAP = 0.5
 /** Presses are remembered this long, so a key hit just before a cast ends still goes off (like WoW's spell queue). */
 const QUEUE_WINDOW = 0.35
 const DASH_TIME = 0.15
+/** Adds swing at the tank this often. */
+const ADD_SWING = 2
 
 // ---------- Geometry ----------
 
@@ -79,6 +84,24 @@ export interface Hot {
   depth: number
 }
 
+/** Your damage over time on an enemy. */
+export interface Dot {
+  key: string
+  name: string
+  effect: ResolvedEffect
+  target: Enemy
+  amount: number
+  interval: number
+  duration: number
+  nextTick: number
+  endsAt: number
+  baseEnd: number
+  tick: number
+  depth: number
+  /** For rolling DoTs, each stack's own end time; ticks hit once per live stack. Empty otherwise. */
+  stacks: number[]
+}
+
 export interface Shield {
   key: string
   name: string
@@ -92,8 +115,11 @@ export interface Zone {
   key: string
   name: string
   effect: ResolvedEffect
+  /** Hurts enemies inside instead of healing allies. */
+  hostile: boolean
   pos: Vec
   anchor: Ally | null
+  anchorEnemy: Enemy | null
   radius: number
   amount: number
   interval: number
@@ -136,6 +162,28 @@ export interface Ally {
   dps: number
 }
 
+export interface Enemy {
+  id: number
+  name: string
+  pos: Vec
+  radius: number
+  maxHp: number
+  hp: number
+  alive: boolean
+  isBoss: boolean
+  dots: Dot[]
+  /** Adds hit the tank for this every couple of seconds. */
+  hits: number
+  swingAt: number
+}
+
+/** One of your minions. Each point of a minion resource is one of these. */
+export interface Imp {
+  id: number
+  angle: number
+  nextAttack: number
+}
+
 export interface ActiveBuff {
   id: string
   name: string
@@ -146,6 +194,8 @@ export interface ActiveBuff {
   consumeOn?: Match
   /** Its stats and mods count once per stack. */
   stacks: number
+  /** Your whole group gets its stats. */
+  group: boolean
 }
 
 export interface Casting {
@@ -174,6 +224,14 @@ export interface MeterRow {
   crits: number
 }
 
+export interface DamageRow {
+  name: string
+  color: string
+  damage: number
+  hits: number
+  crits: number
+}
+
 export type Fx =
   | { kind: 'text'; pos: Vec; text: string; color: string; big: boolean; born: number; life: number; dx: number }
   | { kind: 'beam'; from: Vec; to: Vec; color: string; born: number; life: number }
@@ -195,7 +253,7 @@ export interface ArenaInput {
 }
 
 export interface ArenaOptions {
-  /** Multiplies every hit the boss and pools deal. */
+  /** Multiplies every hit the boss, adds and pools deal. */
   damageScale: number
   /** Allies (and you) stop at 1 health. */
   noDeaths: boolean
@@ -212,11 +270,13 @@ interface CastContext {
   /** Who the latest effect landed on, for 'same'. */
   primary: Ally[]
   eventTarget?: Ally
+  eventEnemy?: Enemy
   /** 0 for a cast; each proc adds one. Procs stop at 2 so they can't feed each other forever. */
   depth: number
   range: number
-  /** The HoT or zone whose tick this is, for talents that extend it. */
+  /** The HoT, DoT or zone whose tick this is, for talents that extend it. */
   sourceHot?: Hot
+  sourceDot?: Dot
   sourceZone?: Zone
 }
 
@@ -225,16 +285,18 @@ interface GameEvent {
   tags: ReadonlySet<Tag>
   ctx: CastContext
   target?: Ally
+  enemy?: Enemy
   amount?: number
   overheal?: number
   crit?: boolean
-  /** Target health fraction before the heal. */
+  /** Target health fraction before the heal or hit. */
   before?: number
   hot?: Hot
+  dot?: Dot
   zone?: Zone
 }
 
-interface HealOptions {
+interface HitOptions {
   label: string
   /** An amount taken from another event (a share of a heal or overheal): no crit, no conditional bonuses. */
   fixed?: boolean
@@ -250,9 +312,11 @@ export class Arena {
   readonly options: ArenaOptions
   readonly allies: Ally[] = []
   readonly player: Ally
-  readonly boss: { name: string; pos: Vec; radius: number; maxHp: number; hp: number }
-  /** The artifact's resource (mana for the staff). */
+  /** The boss first, then dummies and adds. */
+  enemies: Enemy[] = []
+  /** The artifact's resource: mana, imps, combo points. */
   resource: number
+  imps: Imp[] = []
   zones: Zone[] = []
   hazards: Hazard[] = []
   buffs: ActiveBuff[] = []
@@ -263,12 +327,14 @@ export class Arena {
   /** Overhealing stored by Reservoir, as resource. */
   reservoir = 0
   facing: Vec = { x: 0, y: -1 }
+  aim: Vec | null = null
   dashing: { from: Vec; to: Vec; start: number } | null = null
   stackUntil = 0
   ended: 'victory' | 'wipe' | null = null
   notice: { text: string; t: number } | null = null
   readonly meter = {
     rows: new Map<string, MeterRow>(),
+    damageRows: new Map<string, DamageRow>(),
     damage: 0,
     damageTaken: 0,
     resourceSpent: new Map<string, number>(),
@@ -281,27 +347,49 @@ export class Arena {
   private readonly rng: () => number
   private nextId = 1
   private castCounter = 0
+  private resourceName: string
   private readonly requests = new Map<number, { until: number; fresh: boolean }>()
   private readonly procCounts = new Map<string, number>()
   private readonly refunded = new Set<number>()
+  private readonly cycles = new Map<string, number>()
   private readonly schedule: { event: ScenarioEvent; next: number }[]
+  /** Group stats the bots had last, so a new build rescales their health. */
+  private botHealthPct = 0
 
   constructor(kit: Kit, scenario: Scenario, options: Partial<ArenaOptions> = {}) {
     this.kit = kit
     this.scenario = scenario
     this.options = { damageScale: 1, noDeaths: scenario.noDeaths, seed: 1, ...options }
     this.rng = mulberry32(this.options.seed)
-    const health = kit.character.stats.health
-    this.player = this.makeAlly('You', 'healer', health, scenario.playerHome, 0, true)
-    for (const t of scenario.party) this.makeAlly(t.name, t.role, t.maxHp, t.home, t.dps, false)
+    this.resourceName = kit.resource
+    const youHeal = kit.role === 'healer'
+    this.player = this.makeAlly('You', youHeal ? 'healer' : kit.role, kit.character.stats.health, scenario.playerHome, 0, true)
+    const party = scenario.party.map((t) => ({ ...t }))
+    // A damage dealer brings no healing, so a bot takes the healer's seat.
+    if (!youHeal && scenario.botHealer && !party.some((t) => t.role === 'healer')) {
+      const seat = [...party].reverse().find((t) => t.role === 'damage')
+      if (seat) Object.assign(seat, { name: 'Bot healer', role: 'healer', dps: 1000 })
+    }
+    for (const t of party) this.makeAlly(t.name, t.role, t.maxHp, t.home, t.dps, false)
+    this.applyBotHealth()
     for (const a of this.allies) a.hp = a.maxHp * scenario.startHealth
-    this.boss = { name: scenario.boss.name, pos: { ...ARENA.boss }, radius: ARENA.bossRadius, maxHp: scenario.boss.maxHp, hp: scenario.boss.maxHp }
-    this.resource = this.stats().maxResource
-    this.schedule = scenario.events.map((event) => ({
+    this.enemies.push(this.makeEnemy(scenario.boss.name, { ...ARENA.boss }, scenario.boss.maxHp, ARENA.bossRadius, true))
+    for (const t of scenario.extraEnemies ?? []) {
+      this.enemies.push(this.makeEnemy(t.name, t.pos, t.maxHp, t.radius ?? ARENA.addRadius, false))
+    }
+    this.resource = kit.resourceStart
+    const events: ScenarioEvent[] = [...scenario.events]
+    if (!youHeal && scenario.botHealer) events.push({ kind: 'healer', ...scenario.botHealer })
+    this.schedule = events.map((event) => ({
       event,
       next: 'first' in event && event.first !== undefined ? event.first : 'every' in event ? event.every : 0,
     }))
     this.syncCooldowns()
+  }
+
+  /** The boss, first of the enemies. */
+  get boss(): Enemy {
+    return this.enemies[0]
   }
 
   private makeAlly(name: string, role: AllyRole, maxHp: number, home: Vec, dps: number, isPlayer: boolean): Ally {
@@ -325,6 +413,22 @@ export class Arena {
     return ally
   }
 
+  private makeEnemy(name: string, pos: Vec, maxHp: number, radius: number, isBoss: boolean, hits = 0): Enemy {
+    return {
+      id: this.nextId++,
+      name,
+      pos: { ...pos },
+      radius,
+      maxHp,
+      hp: maxHp,
+      alive: true,
+      isBoss,
+      dots: [],
+      hits,
+      swingAt: this.time + ADD_SWING,
+    }
+  }
+
   // ---------- Build changes ----------
 
   /** Changes the damage slider or "nobody dies" mid-fight. */
@@ -338,9 +442,28 @@ export class Arena {
     this.kit = kit
     this.player.maxHp = kit.character.stats.health
     this.player.hp = (this.player.hp / oldMax) * this.player.maxHp
+    // A different weapon means a different resource: start it afresh.
+    if (kit.resource !== this.resourceName) {
+      this.resourceName = kit.resource
+      this.resource = kit.resourceStart
+    }
     this.resource = Math.min(this.resource, this.stats().maxResource)
+    this.applyBotHealth()
     if (this.cast && !kit.slots.some((a) => a?.treeId === this.cast!.ability.treeId)) this.cast = null
     this.syncCooldowns()
+  }
+
+  /** Bots' maximum health follows the group buff, keeping their health as a share. */
+  private applyBotHealth() {
+    const pct = this.groupStats().healthPct ?? 0
+    if (pct === this.botHealthPct) return
+    for (const a of this.allies) {
+      if (a.isPlayer) continue
+      const frac = a.hp / a.maxHp
+      a.maxHp = (a.maxHp / (1 + this.botHealthPct / 100)) * (1 + pct / 100)
+      a.hp = a.maxHp * frac
+    }
+    this.botHealthPct = pct
   }
 
   private syncCooldowns() {
@@ -360,12 +483,25 @@ export class Arena {
 
   // ---------- Live stats ----------
 
-  /** Character stats with active buffs (Sprint's speed, Evasion's damage reduction…). */
+  /** Character stats with active buffs (Sprint's speed, Fervor's haste…). */
   stats(): CharStats {
     if (this.buffs.length === 0) return this.kit.character.stats
     const s = { ...this.kit.character.stats }
     for (const b of this.buffs) {
       for (const [k, v] of Object.entries(b.stats)) s[k as keyof CharStats] += (v ?? 0) * b.stacks
+    }
+    return s
+  }
+
+  /** What the bots in your group get: your group buff, plus group buffs you have up (Fervor). */
+  groupStats(): Partial<CharStats> {
+    const s: Partial<CharStats> = { ...this.kit.groupStats }
+    for (const b of this.buffs) {
+      if (!b.group) continue
+      for (const [k, v] of Object.entries(b.stats)) {
+        const key = k as keyof CharStats
+        s[key] = (s[key] ?? 0) + (v ?? 0) * b.stacks
+      }
     }
     return s
   }
@@ -389,6 +525,14 @@ export class Arena {
     return this.kit.resolve(base.treeId, this.buffMods(), this.stats())
   }
 
+  /** What each minion does right now, buffs (haste) included. */
+  private minionNow(): ResolvedEffect | null {
+    if (!this.kit.minion) return null
+    if (this.buffs.length === 0) return this.kit.minion
+    const artifact = this.kit.slots[0]
+    return (artifact && this.kit.resolve(artifact.treeId, this.buffMods(), this.stats())?.minion) ?? this.kit.minion
+  }
+
   resourceRegen(): number {
     const s = this.stats()
     const low = this.resource < this.maxResource * 0.3 ? 1 + s.lowResourceRegen / 100 : 1
@@ -407,6 +551,7 @@ export class Arena {
   step(dt: number, input: ArenaInput = { move: { x: 0, y: 0 }, aim: null, held: new Set() }) {
     if (this.ended) return
     this.time += dt
+    this.aim = input.aim
     this.movePlayer(dt, input)
     this.moveBots(dt)
     if (this.player.alive) this.gainResource(this.resourceRegen() * dt, 'Regeneration', true)
@@ -416,13 +561,16 @@ export class Arena {
       this.finish(c.ability, c.castId, c.cost, input)
     }
     this.useRequested(input)
+    this.syncImps()
+    this.updateImps()
     this.updateHots()
+    this.updateDots()
     this.updateZones()
     this.updateTimers()
     this.runScenario(dt)
     this.updateHazards()
-    this.updateBoss(dt)
-    this.fx = this.fx.filter((f) => this.time - f.born < f.life).slice(-80)
+    this.updateEnemies(dt)
+    this.fx = this.fx.filter((f) => this.time - f.born < f.life).slice(-90)
   }
 
   private useRequested(input: ArenaInput) {
@@ -449,23 +597,36 @@ export class Arena {
     const base = this.kit.slots[slot]
     if (!base) return 'Nothing playable in that slot'
     if (base.passive) return `${base.name} is passive`
+    if (base.effects.every((e) => e.type === 'aura')) return `${base.name} is a group buff: always on`
     if (!this.player.alive) return 'You are dead'
     const offGcd = base.gcd === 0
     if (!offGcd && (this.cast || this.time < this.gcdUntil)) return 'busy'
     const cd = this.cooldowns.get(base.treeId)
     if (cd && cd.charges < 1) return `${base.name} isn't ready yet`
-    const a = this.current(slot)!
-    if (this.resource + 1e-6 < a.cost) return `Not enough ${this.kit.resource.toLowerCase()}`
-    if (a.tags.has('main-attack') && dist(this.player.pos, this.boss.pos) - this.boss.radius > a.range) {
-      return 'Out of range'
+    let a = this.current(slot)!
+    const resource = this.kit.resource.toLowerCase()
+    if (this.resource + 1e-6 < a.cost) return `Not enough ${resource}`
+    if (a.effects.some((e) => e.type === 'restore' && e.tags.has('main-attack')) && this.kit.minion) {
+      if (this.resource + 1 > this.maxResource + 1e-6) return `You command as many ${resource} as you can`
+    }
+    const needsTarget = a.effects.some((e) => this.hitsEnemy(e) && e.target === 'target')
+    if (needsTarget && !this.mainTarget(a.range)) return a.range <= 8 ? 'Get closer to an enemy' : 'No enemy in range'
+    if (a.effects.some((e) => this.hitsEnemy(e) && e.target === 'afflicted') && !this.afflicted(a.range).length) {
+      return 'No enemy has your damage over time'
     }
     if (a.effects.some((e) => e.type === 'bloom') && !this.alliesInRange(a.range).some((t) => this.affected(t))) {
       return 'Nobody has your HoTs or stands in your zones'
     }
 
-    // Buffs that change this cast are used up by it (Surge of Light, Momentum…).
+    // Buffs that change this cast are used up by it (Surge of Light, Momentum, Latent Charge…).
     this.buffs = this.buffs.filter((b) => !(b.consumeOn && matches(b.consumeOn, a.tags)))
-    this.spend(a.cost, a.name)
+    let cost = a.cost
+    if (a.spendsAll) {
+      // A finisher spends everything you have, and its per-point numbers grow with it.
+      cost = Math.floor(this.resource + 1e-6)
+      a = this.scaleByPoints(a, cost)
+    }
+    this.spend(cost, a.name)
     // Abilities without a cooldown never use up a charge.
     if (cd && cd.duration > 0) {
       cd.charges -= 1
@@ -477,21 +638,43 @@ export class Arena {
     }
     const castId = ++this.castCounter
     if (a.castTime > 0) {
-      this.cast = { slot, ability: a, cost: a.cost, start: this.time, end: this.time + a.castTime, castId }
-    } else this.finish(a, castId, a.cost, input)
+      this.cast = { slot, ability: a, cost, start: this.time, end: this.time + a.castTime, castId }
+    } else this.finish(a, castId, cost, input)
     return 'ok'
+  }
+
+  private scaleByPoints(a: ResolvedAbility, points: number): ResolvedAbility {
+    const effects = a.effects.map((e) => {
+      if (e.perPoint === 'amount') return { ...e, amount: e.amount * points }
+      if (e.perPoint === 'duration') {
+        const duration = e.duration * points
+        return { ...e, duration, ticks: e.interval > 0 ? Math.floor(duration / e.interval + 1e-6) : 0 }
+      }
+      return e
+    })
+    return { ...a, effects }
   }
 
   private finish(a: ResolvedAbility, castId: number, cost: number, input?: ArenaInput) {
     const ctx = this.newContext(a, castId, cost)
     this.meter.casts.set(a.name, (this.meter.casts.get(a.name) ?? 0) + 1)
     if (!a.tags.has('main-attack')) this.addLog(`You cast ${a.name}`, 'cast')
-    this.runEffects(a, ctx, input)
+    const effects = this.effectsForCast(a)
+    this.runEffects(a, ctx, input, undefined, effects)
     this.emit({ kind: 'cast', tags: a.tags, ctx })
     if (a.echo > 0 && this.rng() * 100 < a.echo) {
       this.addLog(`Echo: ${a.name} goes off again`, 'proc')
-      this.runEffects(a, this.newContext(a, castId, cost), input)
+      this.runEffects(a, this.newContext(a, castId, cost), input, undefined, effects)
     }
+  }
+
+  /** A cycling ability (Plague) uses the next of its own effects each cast, plus anything talents add. */
+  private effectsForCast(a: ResolvedAbility): ResolvedEffect[] {
+    if (!a.cycle) return a.effects
+    const own = a.effects.filter((e) => e.granted === undefined)
+    const i = this.cycles.get(a.treeId) ?? 0
+    this.cycles.set(a.treeId, i + 1)
+    return [own[i % own.length], ...a.effects.filter((e) => e.granted !== undefined)]
   }
 
   private newContext(a: ResolvedAbility | null, castId: number, cost: number, depth = 0): CastContext {
@@ -507,15 +690,25 @@ export class Arena {
     }
   }
 
-  private runEffects(a: ResolvedAbility, ctx: CastContext, input?: ArenaInput, forceTarget?: TargetRule) {
-    for (const e of a.effects) {
+  private runEffects(
+    a: ResolvedAbility,
+    ctx: CastContext,
+    input?: ArenaInput,
+    forceTarget?: TargetRule,
+    effects: readonly ResolvedEffect[] = a.effects,
+  ) {
+    for (const e of effects) {
       this.applyEffect(forceTarget ? { ...e, target: forceTarget } : e, ctx, { label: e.name ?? a.name }, input)
     }
   }
 
   // ---------- Effects ----------
 
-  private applyEffect(e: ResolvedEffect, ctx: CastContext, opts: HealOptions, input?: ArenaInput) {
+  private hitsEnemy(e: ResolvedEffect) {
+    return e.type === 'damage' || e.type === 'dot' || (e.type === 'zone' && !!e.hostile)
+  }
+
+  private applyEffect(e: ResolvedEffect, ctx: CastContext, opts: HitOptions, input?: ArenaInput) {
     switch (e.type) {
       case 'heal': {
         const targets = this.pick(e.target, ctx, e, e.targets)
@@ -572,7 +765,10 @@ export class Arena {
         for (const t of this.pick(e.target, ctx, e, e.targets)) this.addShield(t, e.amount, e.duration, opts.label, e.key)
         break
       case 'damage':
-        this.hitBoss(e, ctx)
+        this.dealDamage(e, ctx, opts)
+        break
+      case 'dot':
+        for (const enemy of this.pickEnemies(e.target, ctx, e)) this.applyDot(enemy, e, ctx, opts.label)
         break
       case 'restore':
         this.gainResource(e.restore, opts.label)
@@ -590,20 +786,39 @@ export class Arena {
           this.addBuff({ ...e.buff, stats, duration: e.duration }, false)
         }
         break
+      case 'minion':
+      case 'aura':
+        break
     }
   }
 
-  private heal(target: Ally, base: number, e: ResolvedEffect, ctx: CastContext, opts: HealOptions) {
+  /** Direct damage: to the target (and everyone within its radius), around you, or to every afflicted enemy. */
+  private dealDamage(e: ResolvedEffect, ctx: CastContext, opts: HitOptions) {
+    const victims = this.pickEnemies(e.target, ctx, e)
+    if (e.radius > 0 && e.target !== 'afflicted') {
+      const center = e.target === 'self' ? this.player.pos : victims[0]?.pos
+      if (center) this.ring(center, e.radius, e.color)
+    }
+    for (const enemy of victims) {
+      if (e.target !== 'self') this.beam(this.player.pos, enemy.pos, e.color)
+      const per = e.perEffect ? this.countEffects(enemy, e.perEffect) : 1
+      if (per > 0) this.hitEnemy(enemy, e.amount * per, e, ctx, opts)
+    }
+  }
+
+  private heal(target: Ally, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions) {
     if (!target.alive) return
     let amount = base
     let crit = false
     if (!opts.fixed) {
       let bonus = 0
-      for (const c of e.conditionals) if (this.meets(c.when, target)) bonus += c.pct
+      for (const c of e.conditionals) bonus += this.allyBonus(c, target)
       amount *= 1 + bonus / 100
       crit = this.rng() * 100 < e.critChance
       if (crit) amount *= e.critMultiplier
     }
+    const received = target.isPlayer ? this.stats().healingTaken : (this.groupStats().healingTaken ?? 0)
+    amount *= 1 + received / 100
     const before = target.hp / target.maxHp
     const effective = Math.min(amount, target.maxHp - target.hp)
     const overheal = amount - effective
@@ -622,6 +837,49 @@ export class Arena {
     const ev: GameEvent = { kind: 'heal', tags: e.tags, ctx, target, amount: effective, overheal, crit, before }
     this.emit(ev)
     if (crit) this.emit({ ...ev, kind: 'crit' })
+  }
+
+  /** Every hit you land on an enemy: direct damage, DoT ticks, minion attacks, damaging zones. */
+  private hitEnemy(enemy: Enemy, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions) {
+    if (!enemy.alive) return
+    let amount = base
+    let crit = false
+    if (!opts.fixed) {
+      let bonus = 0
+      for (const c of e.conditionals) bonus += this.enemyBonus(c, enemy)
+      // Minion power: more damage for each minion you command.
+      amount *= (1 + bonus / 100) * (1 + (this.stats().minionPower * this.imps.length) / 100)
+      crit = this.rng() * 100 < e.critChance
+      if (crit) amount *= e.critMultiplier
+    }
+    const before = enemy.hp / enemy.maxHp
+    if (Number.isFinite(enemy.hp)) enemy.hp -= amount
+    this.meter.damage += amount
+    const row = this.meter.damageRows.get(opts.label) ?? { name: opts.label, color: e.color, damage: 0, hits: 0, crits: 0 }
+    row.damage += amount
+    row.hits += 1
+    if (crit) row.crits += 1
+    this.meter.damageRows.set(opts.label, row)
+    if (!opts.quiet) {
+      const big = crit || e.family === 'direct-damage'
+      this.text(enemy.pos, `${int(amount)}${crit ? '!' : ''}`, e.family === 'dot' ? e.color : '#ffd23f', big)
+    }
+    const ev: GameEvent = { kind: 'hit', tags: e.tags, ctx: { ...ctx, eventEnemy: enemy }, enemy, amount, crit, before }
+    this.emit(ev)
+    if (crit) this.emit({ ...ev, kind: 'crit' })
+    if (enemy.hp <= 0) this.killEnemy(enemy)
+  }
+
+  private killEnemy(enemy: Enemy) {
+    if (!enemy.alive) return
+    enemy.alive = false
+    enemy.hp = 0
+    enemy.dots = []
+    this.ring(enemy.pos, enemy.radius + 1, '#ff6b6b')
+    if (enemy.isBoss) {
+      this.ended = 'victory'
+      this.addLog(`${enemy.name} is defeated`, 'info')
+    }
   }
 
   private applyHot(target: Ally, e: ResolvedEffect, ctx: CastContext, name: string, generation = 0) {
@@ -652,14 +910,54 @@ export class Arena {
     for (let i = 0; i < e.instantTicks; i++) this.heal(target, hot.amount, e, this.hotContext(hot), { label: name })
   }
 
+  /** Puts a DoT on an enemy. Ordinary DoTs refresh; rolling ones add stacks that each keep their own timer. */
+  private applyDot(enemy: Enemy, e: ResolvedEffect, ctx: CastContext, name: string) {
+    if (!enemy.alive || e.duration <= 0 || e.interval <= 0) return
+    let d = enemy.dots.find((x) => x.key === e.key)
+    if (!d) {
+      d = {
+        key: e.key,
+        name,
+        effect: e,
+        target: enemy,
+        amount: e.amount,
+        interval: e.interval,
+        duration: e.duration,
+        nextTick: this.time + e.interval,
+        endsAt: this.time + e.duration,
+        baseEnd: this.time + e.duration,
+        tick: 0,
+        depth: ctx.depth,
+        stacks: [],
+      }
+      enemy.dots.push(d)
+    } else Object.assign(d, { effect: e, amount: e.amount, interval: e.interval, duration: e.duration })
+    if (e.rolling) {
+      for (let i = 0; i < e.stacks; i++) d.stacks.push(this.time + e.duration)
+      d.endsAt = Math.max(...d.stacks)
+    } else {
+      d.endsAt = this.time + e.duration
+      d.tick = 0
+    }
+    d.baseEnd = d.endsAt
+  }
+
   private hotContext(h: Hot): CastContext {
     return { ...this.newContext(null, -1, 0, h.depth), primary: [h.target], eventTarget: h.target, sourceHot: h }
   }
 
+  private dotContext(d: Dot): CastContext {
+    return { ...this.newContext(null, -1, 0, d.depth), eventEnemy: d.target, sourceDot: d, range: ENEMY_RANGE }
+  }
+
   private spawnZone(e: ResolvedEffect, ctx: CastContext, name: string) {
     let anchor: Ally | null = null
+    let anchorEnemy: Enemy | null = null
     let pos: Vec | undefined
-    if (e.target === 'origin') pos = ctx.origin
+    if (e.hostile) {
+      anchorEnemy = (e.target === 'event' ? ctx.eventEnemy : this.mainTarget(ctx.range)) ?? null
+      pos = anchorEnemy?.pos
+    } else if (e.target === 'origin') pos = ctx.origin
     else if (e.target === 'self') anchor = this.player
     else if (e.target === 'event') anchor = ctx.eventTarget ?? null
     else if (e.target === 'lowest-missing') {
@@ -674,8 +972,10 @@ export class Arena {
       key: e.key,
       name,
       effect: e,
+      hostile: !!e.hostile,
       pos: { ...pos },
       anchor: e.follow ? anchor : null,
+      anchorEnemy: e.follow ? anchorEnemy : null,
       radius: e.radius,
       amount: e.amount,
       interval: e.interval,
@@ -714,19 +1014,8 @@ export class Arena {
       mods: spec.mods ?? [],
       consumeOn: spec.consumeOn,
       stacks,
+      group: !!spec.group,
     })
-  }
-
-  private hitBoss(e: ResolvedEffect, ctx: CastContext) {
-    const crit = this.rng() * 100 < e.critChance
-    const amount = e.amount * (crit ? e.critMultiplier : 1)
-    if (Number.isFinite(this.boss.hp)) this.boss.hp -= amount
-    this.meter.damage += amount
-    this.beam(this.player.pos, this.boss.pos, '#ffe9a0')
-    this.text(this.boss.pos, `${int(amount)}${crit ? '!' : ''}`, '#ffd23f', crit)
-    const ev: GameEvent = { kind: 'hit', tags: e.tags, ctx, amount, crit }
-    this.emit(ev)
-    if (crit) this.emit({ ...ev, kind: 'crit' })
   }
 
   private moveBy(e: ResolvedEffect, ctx: CastContext, input?: ArenaInput) {
@@ -778,6 +1067,7 @@ export class Arena {
       ability: ability ?? ev.ctx.ability,
       primary: ev.target ? [ev.target] : [],
       eventTarget: ev.target,
+      eventEnemy: ev.enemy ?? ev.ctx.eventEnemy,
       depth: ev.ctx.depth + 1,
       range: ability?.range || HEAL_RANGE,
     }
@@ -810,13 +1100,13 @@ export class Arena {
       }
       case 'extend': {
         if (action.scope === 'source') {
-          const source = ev.ctx.sourceZone ?? ev.ctx.sourceHot
+          const source = ev.ctx.sourceZone ?? ev.ctx.sourceHot ?? ev.ctx.sourceDot
           if (!source || !matches(action.match, source.effect.tags)) break
-          const cap = action.capPct === undefined ? Infinity : source.baseEnd + (source.duration * action.capPct) / 100
-          source.endsAt = Math.max(source.endsAt, Math.min(cap, source.endsAt + action.seconds))
+          if (ev.ctx.sourceDot) this.extendDot(ev.ctx.sourceDot, action.seconds, action.capPct)
+          else source.endsAt = this.capped(source, action.seconds, action.capPct)
           break
         }
-        const targets =
+        const allies =
           action.scope === 'event'
             ? ev.target
               ? [ev.target]
@@ -824,7 +1114,13 @@ export class Arena {
             : action.scope === 'near'
               ? this.allies.filter((a) => dist(a.pos, this.player.pos) <= (action.radius ?? 10))
               : this.allies
-        for (const t of targets) for (const h of t.hots) if (matches(action.match, h.effect.tags)) h.endsAt += action.seconds
+        for (const t of allies) {
+          for (const h of t.hots) if (matches(action.match, h.effect.tags)) h.endsAt = this.capped(h, action.seconds, action.capPct)
+        }
+        const enemies = action.scope === 'event' ? (ev.enemy ? [ev.enemy] : []) : action.scope === 'all' ? this.enemies : []
+        for (const t of enemies) {
+          for (const d of t.dots) if (matches(action.match, d.effect.tags)) this.extendDot(d, action.seconds, action.capPct)
+        }
         if (action.scope === 'all') for (const z of this.zones) if (matches(action.match, z.effect.tags)) z.endsAt += action.seconds
         break
       }
@@ -850,7 +1146,14 @@ export class Arena {
             this.heal(ev.target, amount, h.effect, this.hotContext(h), { label: name })
           }
         }
-        if (!ev.target || ev.kind === 'cast') {
+        if (ev.enemy) {
+          for (const d of [...ev.enemy.dots]) {
+            if (!matches(action.match, d.effect.tags)) continue
+            const amount = this.tickOf(d) * this.liveStacks(d) * (action.seconds / d.interval)
+            this.hitEnemy(ev.enemy, amount, d.effect, this.dotContext(d), { label: d.name })
+          }
+        }
+        if ((!ev.target && !ev.enemy) || ev.kind === 'cast') {
           for (const z of [...this.zones]) if (matches(action.match, z.effect.tags)) this.zoneBurst(z, action.seconds, name)
         }
         break
@@ -858,6 +1161,11 @@ export class Arena {
         if (ev.hot) {
           const h = ev.hot
           this.heal(h.target, this.tickOf(h) * (action.seconds / h.interval), h.effect, this.hotContext(h), { label: name })
+        }
+        if (ev.dot) {
+          const d = ev.dot
+          const amount = this.tickOf(d) * Math.max(1, d.stacks.length) * (action.seconds / d.interval)
+          this.hitEnemy(d.target, amount, d.effect, this.dotContext(d), { label: name })
         }
         if (ev.zone) this.zoneBurst(ev.zone, action.seconds, name)
         break
@@ -878,6 +1186,20 @@ export class Arena {
         }
         break
       }
+      case 'spread': {
+        const from = ev.enemy
+        if (!from) break
+        for (const d of from.dots.filter((x) => matches(action.match, x.effect.tags))) {
+          const next = this.enemies
+            .filter((x) => x.alive && x !== from && dist(x.pos, from.pos) <= action.range && !x.dots.some((y) => y.key === d.key))
+            .sort((a, b) => dist(a.pos, from.pos) - dist(b.pos, from.pos))[0]
+          if (!next) continue
+          this.beam(from.pos, next.pos, d.effect.color)
+          this.applyDot(next, d.effect, this.dotContext(d), d.name)
+          break
+        }
+        break
+      }
       case 'fire': {
         const a = this.kit.resolve(action.ability, this.buffMods(), this.stats())
         if (a) this.runEffects(a, { ...ctx, ability: a, range: a.range || HEAL_RANGE }, undefined, action.at === 'event' ? 'event' : undefined)
@@ -887,49 +1209,112 @@ export class Arena {
     if (action.do !== 'restore' && action.do !== 'refund') this.addLog(`${name} triggers`, 'proc')
   }
 
-  /** One tick of a HoT or zone, after its growth or decay so far. */
-  private tickOf(x: Hot | Zone) {
+  /** A new end time `seconds` later (or sooner), never past `capPct`% longer than it started. */
+  private capped(x: Hot | Dot | Zone, seconds: number, capPct?: number) {
+    const cap = capPct === undefined ? Infinity : x.baseEnd + (x.duration * capPct) / 100
+    return seconds < 0 ? x.endsAt + seconds : Math.max(x.endsAt, Math.min(cap, x.endsAt + seconds))
+  }
+
+  /** Adds or takes away time; rolling stacks all move together. */
+  private extendDot(d: Dot, seconds: number, capPct?: number) {
+    const shift = this.capped(d, seconds, capPct) - d.endsAt
+    d.endsAt += shift
+    if (d.stacks.length) d.stacks = d.stacks.map((t) => t + shift)
+  }
+
+  /** One tick of a HoT, DoT or zone, after its growth or decay so far. */
+  private tickOf(x: Hot | Dot | Zone) {
     return tickAmount({ amount: x.amount, growth: x.effect.growth }, x.tick)
+  }
+
+  private liveStacks(d: Dot) {
+    return d.stacks.length ? d.stacks.filter((t) => t > this.time).length : 1
   }
 
   private zoneBurst(z: Zone, seconds: number, label: string) {
     const amount = this.tickOf(z) * (seconds / z.interval)
     this.ring(z.pos, z.radius, z.effect.color)
+    if (z.hostile) {
+      for (const enemy of this.enemiesIn(z)) {
+        if (amount > 0) this.hitEnemy(enemy, amount, z.effect, this.zoneContext(z), { label })
+        if (z.effect.inflicts) this.pulseInflicted(enemy, z, seconds, label)
+      }
+      return
+    }
     for (const a of this.allies) {
       if (a.alive && dist(a.pos, z.pos) <= z.radius) this.heal(a, amount, z.effect, this.zoneContext(z), { label })
     }
   }
 
+  /** A burst of a hostile zone whose damage is all in the DoT it inflicts (Miasma): lands that DoT's worth. */
+  private pulseInflicted(enemy: Enemy, z: Zone, seconds: number, label: string) {
+    const e = z.effect.inflicts!
+    this.hitEnemy(enemy, e.amount * (seconds / e.interval), e, this.zoneContext(z), { label })
+  }
+
   private zoneContext(z: Zone): CastContext {
-    return { ...this.newContext(null, -1, 0, z.depth), sourceZone: z }
+    return { ...this.newContext(null, -1, 0, z.depth), sourceZone: z, range: ENEMY_RANGE }
   }
 
   // ---------- Conditions and targeting ----------
 
-  /** For conditional bonuses, checked on the target as the heal lands. */
-  private meets(when: Condition, target: Ally): boolean {
-    if (when.targetBelow !== undefined && (target.hp / target.maxHp) * 100 >= when.targetBelow) return false
-    if (when.targetHas !== undefined && !target.hots.some((h) => matches(when.targetHas!, h.effect.tags))) return false
-    if (when.inZone && !this.inZone(target)) return false
-    if (when.affected && !this.affected(target)) return false
-    if (when.targetSelf && !target.isPlayer) return false
-    return true
+  /** A conditional bonus on an ally: its %, times how many matching effects for `each` and `stacksOf`. */
+  private allyBonus(c: Conditional, target: Ally): number {
+    const when = c.when
+    if (when.targetBelow !== undefined && (target.hp / target.maxHp) * 100 >= when.targetBelow) return 0
+    if (when.targetHas !== undefined && !target.hots.some((h) => matches(when.targetHas!, h.effect.tags))) return 0
+    if (when.inZone && !this.inZone(target)) return 0
+    if (when.affected && !this.affected(target)) return 0
+    if (when.targetSelf && !target.isPlayer) return 0
+    let n = 1
+    if (when.each) n = target.hots.filter((h) => matches(when.each!, h.effect.tags)).length
+    if (when.stacksOf) n = target.hots.filter((h) => matches(when.stacksOf!, h.effect.tags)).length
+    return c.pct * n
   }
 
-  /** For procs: the same checks against the event, with health from before the heal. */
+  /** The same for an enemy, with your DoTs and hostile zones. */
+  private enemyBonus(c: Conditional, enemy: Enemy): number {
+    const when = c.when
+    if (when.targetBelow !== undefined && (enemy.hp / enemy.maxHp) * 100 >= when.targetBelow) return 0
+    if (when.targetHas !== undefined && !enemy.dots.some((d) => matches(when.targetHas!, d.effect.tags))) return 0
+    if (when.inZone && !this.enemyInZone(enemy)) return 0
+    if (when.affected && !(enemy.dots.length > 0 || this.enemyInZone(enemy))) return 0
+    if (when.targetSelf || when.overheal) return 0
+    let n = 1
+    if (when.each) n = this.countEffects(enemy, when.each)
+    if (when.stacksOf) {
+      n = enemy.dots.filter((d) => matches(when.stacksOf!, d.effect.tags)).reduce((sum, d) => sum + this.liveStacks(d), 0)
+    }
+    return c.pct * n
+  }
+
+  /** How many of your DoTs matching this an enemy has (each counts once, whatever its stacks). */
+  private countEffects(enemy: Enemy, match: Match) {
+    return enemy.dots.filter((d) => matches(match, d.effect.tags)).length
+  }
+
+  /** For procs: the same checks against the event, with health from before the heal or hit. */
   private eventMeets(when: Condition, ev: GameEvent): boolean {
     if (when.overheal && !((ev.overheal ?? 0) > 0)) return false
-    const target = ev.target
-    const needsTarget =
-      when.targetBelow !== undefined || when.targetHas !== undefined || when.inZone || when.affected || when.targetSelf
+    const { overheal: _overheal, targetBelow, ...rest } = when
+    const needsTarget = targetBelow !== undefined || Object.values(rest).some((v) => v !== undefined && v !== false)
     if (!needsTarget) return true
-    if (!target) return false
-    if (when.targetBelow !== undefined && (ev.before ?? target.hp / target.maxHp) * 100 >= when.targetBelow) return false
-    return this.meets({ ...when, targetBelow: undefined }, target)
+    if (!ev.target && !ev.enemy) return false
+    if (targetBelow !== undefined && (ev.before ?? 1) * 100 >= targetBelow) return false
+    const probe: Conditional = { pct: 1, when: rest, source: '' }
+    return ev.target ? this.allyBonus(probe, ev.target) > 0 : this.enemyBonus(probe, ev.enemy!) > 0
   }
 
   inZone(a: Ally): boolean {
-    return this.zones.some((z) => dist(z.pos, a.pos) <= z.radius)
+    return this.zones.some((z) => !z.hostile && dist(z.pos, a.pos) <= z.radius)
+  }
+
+  private enemyInZone(enemy: Enemy): boolean {
+    return this.zones.some((z) => z.hostile && dist(z.pos, enemy.pos) <= z.radius + enemy.radius)
+  }
+
+  private enemiesIn(z: Zone): Enemy[] {
+    return this.enemies.filter((e) => e.alive && dist(z.pos, e.pos) <= z.radius + e.radius)
   }
 
   /** Has one of your HoTs or stands in one of your zones (Bloom's targets). */
@@ -943,6 +1328,42 @@ export class Arena {
 
   private byHealth(list: Ally[]): Ally[] {
     return [...list].sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp || a.id - b.id)
+  }
+
+  /** The enemy nearest your crosshair (or nearest you without one) within range. */
+  mainTarget(range: number): Enemy | null {
+    const pool = this.enemies.filter((e) => e.alive && dist(e.pos, this.player.pos) - e.radius <= range)
+    const from = this.aim ?? this.player.pos
+    pool.sort((a, b) => dist(a.pos, from) - a.radius - (dist(b.pos, from) - b.radius) || Number(b.isBoss) - Number(a.isBoss))
+    return pool[0] ?? null
+  }
+
+  /** Enemies in range with one of your DoTs or standing in one of your zones. */
+  private afflicted(range: number): Enemy[] {
+    return this.enemies.filter(
+      (e) => e.alive && dist(e.pos, this.player.pos) - e.radius <= range && (e.dots.length > 0 || this.enemyInZone(e)),
+    )
+  }
+
+  private pickEnemies(rule: TargetRule, ctx: CastContext, e: ResolvedEffect): Enemy[] {
+    const around = (center: Vec) => this.enemies.filter((x) => x.alive && dist(x.pos, center) <= e.radius + x.radius)
+    switch (rule) {
+      case 'self':
+        return e.radius > 0 ? around(this.player.pos) : []
+      case 'afflicted':
+        return this.afflicted(ctx.range)
+      case 'event': {
+        const enemy = ctx.eventEnemy
+        if (!enemy?.alive) return []
+        return e.radius > 0 && e.type === 'damage' ? around(enemy.pos) : [enemy]
+      }
+      default: {
+        const main = this.mainTarget(ctx.range)
+        if (!main) return []
+        if (e.radius > 0 && e.type === 'damage') return [main, ...around(main.pos).filter((x) => x !== main)]
+        return [main]
+      }
+    }
   }
 
   private pick(rule: TargetRule, ctx: CastContext, e: ResolvedEffect, count: number): Ally[] {
@@ -971,11 +1392,13 @@ export class Arena {
         return path ? this.allies.filter((a) => a.alive && !a.isPlayer && distToSegment(a.pos, path[0], path[1]) <= PATH_WIDTH) : []
       }
       case 'origin':
+      case 'target':
+      case 'afflicted':
         return []
     }
   }
 
-  // ---------- Mana ----------
+  // ---------- Resource ----------
 
   private gainResource(n: number, source: string, quiet = false) {
     const before = this.resource
@@ -990,6 +1413,39 @@ export class Arena {
     if (n <= 0) return
     this.resource = Math.max(0, this.resource - n)
     this.meter.resourceSpent.set(source, (this.meter.resourceSpent.get(source) ?? 0) + n)
+  }
+
+  // ---------- Minions ----------
+
+  /** One imp per whole point of a minion resource: summoned ones appear, sacrificed ones vanish. */
+  private syncImps() {
+    const want = this.kit.minion && this.player.alive ? Math.floor(this.resource + 1e-6) : 0
+    while (this.imps.length < want) {
+      this.imps.push({ id: this.nextId++, angle: this.rng() * Math.PI * 2, nextAttack: this.time + 0.4 + this.rng() * 0.6 })
+    }
+    while (this.imps.length > want) {
+      const imp = this.imps.pop()!
+      this.ring(this.impPos(imp), 1.2, '#ff8a5c')
+    }
+  }
+
+  /** Where an imp hovers: circling you. */
+  impPos(imp: Imp): Vec {
+    const a = imp.angle + this.time * 0.8
+    return { x: this.player.pos.x + Math.cos(a) * 2.4, y: this.player.pos.y + Math.sin(a) * 2.4 }
+  }
+
+  private updateImps() {
+    const e = this.imps.length ? this.minionNow() : null
+    if (!e) return
+    for (const imp of this.imps) {
+      if (this.time < imp.nextAttack) continue
+      imp.nextAttack = this.time + e.interval
+      const target = this.mainTarget(ENEMY_RANGE)
+      if (!target) continue
+      this.beam(this.impPos(imp), target.pos, '#ff8a5c')
+      this.hitEnemy(target, e.amount, e, this.newContext(null, -1, 0), { label: e.name ?? 'Minion', quiet: true })
+    }
   }
 
   // ---------- Timers ----------
@@ -1010,13 +1466,39 @@ export class Arena {
     }
   }
 
+  private updateDots() {
+    for (const enemy of this.enemies) {
+      for (const d of [...enemy.dots]) {
+        while (d.nextTick <= d.endsAt + 1e-6 && d.nextTick <= this.time && enemy.alive) {
+          const stacks = d.stacks.length ? d.stacks.filter((t) => t >= d.nextTick - 1e-6).length : 1
+          if (stacks > 0) this.hitEnemy(enemy, this.tickOf(d) * stacks, d.effect, this.dotContext(d), { label: d.name, quiet: true })
+          d.tick += 1
+          d.nextTick += d.interval
+        }
+        if (d.stacks.length) d.stacks = d.stacks.filter((t) => t > this.time)
+        if (this.time >= d.endsAt || !enemy.alive) {
+          enemy.dots = enemy.dots.filter((x) => x !== d)
+          if (enemy.alive) this.emit({ kind: 'expire', tags: d.effect.tags, ctx: this.dotContext(d), enemy, dot: d })
+        }
+      }
+    }
+  }
+
   private updateZones() {
     for (const z of [...this.zones]) {
       if (z.anchor?.alive) z.pos = { ...z.anchor.pos }
+      if (z.anchorEnemy?.alive) z.pos = { ...z.anchorEnemy.pos }
       while (z.nextTick <= z.endsAt + 1e-6 && z.nextTick <= this.time) {
         const amount = this.tickOf(z)
-        for (const a of this.allies) {
-          if (a.alive && dist(a.pos, z.pos) <= z.radius) this.heal(a, amount, z.effect, this.zoneContext(z), { label: z.name })
+        if (z.hostile) {
+          for (const enemy of this.enemiesIn(z)) {
+            if (amount > 0) this.hitEnemy(enemy, amount, z.effect, this.zoneContext(z), { label: z.name, quiet: true })
+            if (z.effect.inflicts) this.applyDot(enemy, z.effect.inflicts, this.zoneContext(z), z.effect.inflicts.name ?? z.name)
+          }
+        } else {
+          for (const a of this.allies) {
+            if (a.alive && dist(a.pos, z.pos) <= z.radius) this.heal(a, amount, z.effect, this.zoneContext(z), { label: z.name })
+          }
         }
         z.tick += 1
         z.nextTick += z.interval
@@ -1061,6 +1543,7 @@ export class Arena {
   }
 
   private moveBots(dt: number) {
+    const speed = RUN_SPEED * (1 + (this.groupStats().speed ?? 0) / 100)
     for (const a of this.allies) {
       if (a.isPlayer || !a.alive) continue
       if (a.reactAt !== null && this.time >= a.reactAt) {
@@ -1074,7 +1557,7 @@ export class Arena {
       }
       if (a.dest) {
         const d = dist(a.pos, a.dest)
-        const stepLen = RUN_SPEED * dt
+        const stepLen = speed * dt
         if (d <= stepLen) {
           a.pos = { ...a.dest }
           a.dest = null
@@ -1107,7 +1590,7 @@ export class Arena {
     return null
   }
 
-  // ---------- The boss ----------
+  // ---------- The boss and its adds ----------
 
   private runScenario(dt: number) {
     const scale = this.options.damageScale
@@ -1124,9 +1607,14 @@ export class Arena {
     }
   }
 
+  private currentTank(): Ally | undefined {
+    const alive = this.allies.filter((a) => a.alive)
+    return alive.find((a) => a.role === 'tank') ?? alive[0]
+  }
+
   private bossEvent(ev: ScenarioEvent, scale: number) {
     const alive = this.allies.filter((a) => a.alive)
-    if (alive.length === 0) return
+    if (alive.length === 0 || !this.boss.alive) return
     switch (ev.kind) {
       case 'melee': {
         const tanks = alive.filter((a) => a.role === 'tank')
@@ -1156,7 +1644,7 @@ export class Arena {
         for (let i = 0; i < ev.count && pool.length; i++) {
           const [target] = pool.splice(Math.floor(this.rng() * pool.length), 1)
           const pos = inArena({ x: target.pos.x + (this.rng() - 0.5) * 2, y: target.pos.y + (this.rng() - 0.5) * 2 })
-          const h: Hazard = {
+          this.hazards.push({
             id: this.nextId++,
             name: ev.name,
             pos,
@@ -1165,8 +1653,7 @@ export class Arena {
             endsAt: this.time + ev.warn + ev.duration,
             dps: ev.dps,
             nextTick: this.time + ev.warn,
-          }
-          this.hazards.push(h)
+          })
           for (const a of this.allies) {
             if (!a.isPlayer && a.alive && dist(a.pos, pos) <= ev.radius + 0.5) a.reactAt = this.time + 0.5 + this.rng() * 0.9
           }
@@ -1181,8 +1668,19 @@ export class Arena {
         const healer = alive.find((a) => a.role === 'healer' && !a.isPlayer)
         const target = this.byHealth(alive)[0]
         if (!healer || !target) break
-        target.hp = Math.min(target.maxHp, target.hp + ev.amount)
-        this.text(target.pos, `+${int(ev.amount)}`, '#9aa79d', false)
+        const received = target.isPlayer ? this.stats().healingTaken : (this.groupStats().healingTaken ?? 0)
+        const amount = ev.amount * (1 + received / 100)
+        target.hp = Math.min(target.maxHp, target.hp + amount)
+        this.text(target.pos, `+${int(amount)}`, '#9aa79d', false)
+        break
+      }
+      case 'adds': {
+        this.addLog(`${ev.count} ${ev.name}s join the fight`, 'boss')
+        for (let i = 0; i < ev.count; i++) {
+          const angle = Math.PI * (0.15 + (0.7 * (i + 0.5)) / ev.count)
+          const pos = { x: this.boss.pos.x + Math.cos(angle) * 6, y: this.boss.pos.y + Math.sin(angle) * 4.5 }
+          this.enemies.push(this.makeEnemy(ev.name, pos, ev.hp, ARENA.addRadius, false, ev.hits))
+        }
         break
       }
       case 'drain':
@@ -1205,15 +1703,24 @@ export class Arena {
     }
   }
 
-  private updateBoss(dt: number) {
-    if (Number.isFinite(this.boss.hp)) {
-      for (const a of this.allies) if (a.alive) this.boss.hp -= a.dps * dt
-      if (this.boss.hp <= 0) {
-        this.boss.hp = 0
-        this.ended = 'victory'
-        this.addLog(`${this.boss.name} is defeated`, 'info')
-      }
+  /** Bots hit adds before the boss; adds swing at the tank. */
+  private updateEnemies(dt: number) {
+    const group = this.groupStats()
+    const botBoost = 1 + ((group.haste ?? 0) + (group.power ?? 0)) / 100 + (group.crit ?? 0) / 200
+    const dps = this.allies.reduce((sum, a) => (a.alive && !a.isPlayer ? sum + a.dps : sum), 0) * botBoost
+    const adds = this.enemies.filter((e) => e.alive && !e.isBoss && Number.isFinite(e.hp))
+    const target = adds[0] ?? (this.boss.alive ? this.boss : null)
+    if (target && Number.isFinite(target.hp) && dps > 0) {
+      target.hp -= dps * dt
+      if (target.hp <= 0) this.killEnemy(target)
     }
+    for (const add of adds) {
+      if (!add.alive || add.hits <= 0 || this.time < add.swingAt) continue
+      add.swingAt = this.time + ADD_SWING
+      const tank = this.currentTank()
+      if (tank) this.damage(tank, add.hits * this.options.damageScale, add.name)
+    }
+    this.enemies = this.enemies.filter((e) => e.alive || e.isBoss)
     if (!this.allies.some((a) => a.alive)) {
       this.ended = 'wipe'
       this.addLog('Everyone is dead', 'death')
@@ -1223,12 +1730,15 @@ export class Arena {
   /** `quiet` is for steady drains: no numbers, and no dodging them. */
   private damage(a: Ally, amount: number, source: string, quiet = false) {
     if (!a.alive || amount <= 0) return
-    if (a.isPlayer && !quiet && this.rng() * 100 < this.stats().dodge) {
+    const group = this.groupStats()
+    const dodge = a.isPlayer ? this.stats().dodge : (group.dodge ?? 0)
+    if (!quiet && dodge > 0 && this.rng() * 100 < dodge) {
       this.text(a.pos, 'Dodge', '#9fe7ff', false)
       return
     }
-    const zoneDr = Math.max(0, ...this.zones.filter((z) => dist(z.pos, a.pos) <= z.radius).map((z) => z.damageReduction))
-    const dr = Math.min(90, zoneDr + (a.isPlayer ? this.stats().damageReduction : 0))
+    const zoneDr = Math.max(0, ...this.zones.filter((z) => !z.hostile && dist(z.pos, a.pos) <= z.radius).map((z) => z.damageReduction))
+    const ownDr = a.isPlayer ? this.stats().damageReduction : (group.damageReduction ?? 0)
+    const dr = Math.min(90, zoneDr + ownDr)
     let left = amount * (1 - dr / 100)
     for (const s of a.shields) {
       const absorbed = Math.min(s.amount, left)

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Kit } from '../../game/resolve.ts'
 import { Arena, type ArenaInput } from '../../game/sim/arena.ts'
-import { SCENARIOS, type Vec } from '../../game/sim/scenarios.ts'
+import { SCENARIOS, type Scenario, type Vec } from '../../game/sim/scenarios.ts'
+import { ACTION_SLOTS } from '../../talents/slots.ts'
 import type { TreeDef } from '../../talents/types.ts'
 import { ActionBar, PartyFrames, PlayerBars } from './ArenaHud.tsx'
 import { ArenaMeter } from './ArenaMeter.tsx'
@@ -58,6 +59,10 @@ const keepsKey = (e: KeyboardEvent) => {
   return TEXT_INPUTS.has(t.type) || (t.type === 'range' && e.code.startsWith('Arrow'))
 }
 
+/** Healers start on the practice party; damage dealers on the target dummies. */
+const defaultFight = (role: Kit['role']): Scenario =>
+  SCENARIOS.find((s) => s.id === (role === 'healer' ? 'practice' : 'dummies')) ?? SCENARIOS[0]
+
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
 
 /** A playable test fight for the current build. Gear and talent changes apply live, mid-fight. */
@@ -67,7 +72,15 @@ export function ArenaView({ kit, trees, active }: Props) {
   const [paused, setPaused] = useState(true)
   const [, setFrame] = useState(0)
   // Build, slider and checkbox changes go into the running fight; only a new fight or a restart replaces it.
-  const [arena, setArena] = useState(() => new Arena(kit, SCENARIOS[0], { damageScale: 1, seed: 1 }))
+  const [arena, setArena] = useState(() => new Arena(kit, defaultFight(kit.role), { damageScale: 1, seed: 1 }))
+  // Picking a weapon of another role brings up that role's practice fight.
+  const [role, setRole] = useState(kit.role)
+  if (kit.role !== role) {
+    setRole(kit.role)
+    setArena(new Arena(kit, defaultFight(kit.role), { damageScale, seed: arena.options.seed + 1 }))
+    setNoDeaths(null)
+    setPaused(true)
+  }
   const scenario = arena.scenario
   const canvas = useRef<HTMLCanvasElement>(null)
   const pausedRef = useRef(paused)
@@ -314,7 +327,7 @@ export function ArenaView({ kit, trees, active }: Props) {
           </div>
 
           <PlayerBars arena={arena} />
-          <ActionBar arena={arena} trees={trees} onUse={trigger} />
+          <ActionBar arena={arena} trees={trees.slice(0, ACTION_SLOTS)} onUse={trigger} />
           <p className="arena__keys">
             Move with W A S D. {SLOT_KEYS.map((k, i) => `${k} · slot ${i + 1}`).join('   ')}. Number keys 1–6 work too;
             hold a key to keep casting. Space pauses.

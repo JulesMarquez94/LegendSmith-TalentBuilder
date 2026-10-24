@@ -3,6 +3,7 @@ import type {
   Action,
   BuffSpec,
   CharStat,
+  CharStats,
   Condition,
   EffectSpec,
   EventKind,
@@ -20,6 +21,8 @@ import type { TalentDef } from '../talents/types.ts'
 interface TalentInput {
   id: string
   name: string
+  /** File name (without .png) in the tree's art folder. */
+  icon?: string
   row: number
   col: number
   requires?: string
@@ -115,3 +118,40 @@ export const selfBuff = (spec: BuffSpec): EffectSpec => ({
   duration: spec.duration,
   buff: spec,
 })
+
+// ---------- Damage, minions and group buffs ----------
+
+/** Direct damage to the enemy nearest your crosshair; give it a `radius` to hit everything that close to it. */
+export const damage = (amount: number, target: TargetRule = 'target', extra: Extra = {}): EffectSpec => ({
+  type: 'damage',
+  amount,
+  target,
+  ...extra,
+})
+
+/** Damage over time on an enemy. Add `rolling: true` for stacks that each keep their own timer. */
+export const dot = (
+  amount: number,
+  duration: number,
+  interval: number,
+  target: TargetRule = 'target',
+  extra: Extra = {},
+): EffectSpec => ({ type: 'dot', amount, duration, interval, target, ...extra })
+
+/** A zone that hurts enemies inside it. With `inflicts`, it also puts that DoT on them every tick. */
+export const hostileZone = (
+  amount: number,
+  duration: number,
+  interval: number,
+  radius: number,
+  extra: Extra = {},
+): EffectSpec => ({ type: 'zone', hostile: true, amount, duration, interval, radius, target: 'target', ...extra })
+
+/** A group buff's stats, for you and everyone in your group. */
+export const aura = (stats: Partial<CharStats>): EffectSpec => ({ type: 'aura', target: 'all', stats })
+
+/** A stat for you and your whole group (group buff talents). */
+export const group = (s: CharStat, add: number): Mechanic => ({ kind: 'group', stat: s, add })
+
+/** Copies a matching DoT from the event's target to the nearest enemy in range without it. */
+export const spread = (match: Match, range: number): Action => ({ do: 'spread', match, range })

@@ -33,12 +33,15 @@ describe('tree data', () => {
     expect(
       validateCatalog(TREES, ARTIFACTS, {
         artifact: 'tome-of-summoning',
-        slots: [null, 'shadow-step', null, null, null, null],
+        slots: ['tome-of-summoning', 'shadow-step', null, null, null, null, null, null],
         ranks: {},
       }),
     ).toEqual(['Starting slot 2 is a damage slot, but Shadow Step is mobility'])
     expect(
-      validateCatalog(TREES, ARTIFACTS, { ...STARTING_LOADOUT, slots: ['lifewarden-staff', 'mend', null, null, 'army-of-the-dead', null] }),
+      validateCatalog(TREES, ARTIFACTS, {
+        ...STARTING_LOADOUT,
+        slots: ['lifewarden-staff', 'mend', null, null, 'army-of-the-dead', null, null, null],
+      }),
     ).toEqual(['Starting slot 5 is a cooldown slot, but Army of the Dead is damage cooldown'])
   })
 })

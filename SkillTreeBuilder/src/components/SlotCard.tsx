@@ -61,6 +61,14 @@ export function SlotCard(props: Props) {
           onLearn={(talent) => onLearn(tree, talent)}
           onUnlearn={(talent) => onUnlearn(tree, talent)}
         />
+      ) : kind === 'outdoor' ? (
+        <div className="artifact artifact--outdoor">
+          <div className="artifact__name">Outdoor</div>
+          <p className="artifact__note">
+            Always here, whatever you play: talents for the open world (gathering, travel, events). Nothing to spec yet.
+          </p>
+          <span className="tag">Coming later</span>
+        </div>
       ) : isArtifact ? (
         <div className="artifact" style={{ '--tint': artifact.color } as CSSProperties}>
           <ArtIcon label={artifact.name} tint={artifact.color} className="artifact__icon" />

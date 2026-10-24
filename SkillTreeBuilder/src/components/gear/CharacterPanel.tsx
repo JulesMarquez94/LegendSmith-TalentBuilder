@@ -78,7 +78,7 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
             <Vital
               label={artifact.resource}
               value={int(stats.maxResource)}
-              sub={`+${statValue('resourceRegen', stats.resourceRegen)}`}
+              sub={stats.resourceRegen ? `+${statValue('resourceRegen', stats.resourceRegen)}` : undefined}
               color="#5aa9ff"
               {...hoverOn({ kind: 'stat', stat: 'maxResource' })}
             />

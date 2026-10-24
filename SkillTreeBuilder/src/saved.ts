@@ -22,7 +22,12 @@ function read(): Partial<Saved> {
 }
 
 export function savedLoadout(): Loadout {
-  const { loadout } = read()
+  const { loadout: stored } = read()
+  // Builds saved before the group buff and outdoor slots had six slots: add the two empty ones.
+  const loadout =
+    stored && Array.isArray(stored.slots) && stored.slots.length < STARTING_LOADOUT.slots.length
+      ? { ...stored, slots: [...stored.slots, ...Array(STARTING_LOADOUT.slots.length - stored.slots.length).fill(null)] }
+      : stored
   if (!loadout || validateCatalog(TREES, ARTIFACTS, loadout).length > 0) return STARTING_LOADOUT
   // Keep only ranks for talents that still exist, within their max rank.
   const ranks = Object.fromEntries(

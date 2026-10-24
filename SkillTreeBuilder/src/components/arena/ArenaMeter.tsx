@@ -10,6 +10,8 @@ export function ArenaMeter({ arena }: { arena: Arena }) {
   const { meter } = arena
   const t = Math.max(1, arena.time)
   const rows = [...meter.rows.values()].sort((a, b) => b.healing - a.healing)
+  const hits = [...meter.damageRows.values()].sort((a, b) => b.damage - a.damage)
+  const topHit = hits[0]?.damage || 1
   const healing = sum(rows.map((r) => r.healing))
   const overheal = sum(rows.map((r) => r.overheal))
   const top = rows[0]?.healing || 1
@@ -37,7 +39,35 @@ export function ArenaMeter({ arena }: { arena: Arena }) {
         </div>
       </div>
 
-      <table className="meter__table">
+      {hits.length > 0 && (
+        <table className="meter__table">
+          <thead>
+            <tr>
+              <th>Damage</th>
+              <th>Total</th>
+              <th>Per sec</th>
+              <th>Hits</th>
+              <th>Crit</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hits.map((r) => (
+              <tr key={r.name}>
+                <td>
+                  <span className="meter__bar" style={{ width: `${(r.damage / topHit) * 100}%`, background: r.color }} />
+                  <span className="meter__name">{r.name}</span>
+                </td>
+                <td>{int(r.damage)}</td>
+                <td>{int(r.damage / t)}</td>
+                <td>{r.hits}</td>
+                <td>{`${pct((r.crits / r.hits) * 100)}%`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <table className="meter__table" hidden={rows.length === 0 && hits.length > 0}>
         <thead>
           <tr>
             <th>Healing</th>

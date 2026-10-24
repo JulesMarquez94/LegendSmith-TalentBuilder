@@ -6,4 +6,6 @@ export const KIND_LABEL: Record<SlotKind, string> = {
   heal: 'Heal',
   cooldown: 'Ultimate',
   mobility: 'Mobility',
+  buff: 'Group buff',
+  outdoor: 'Outdoor',
 }

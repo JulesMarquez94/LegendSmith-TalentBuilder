@@ -1,13 +1,16 @@
 import type { AbilitySpec, CharStats, Mechanic } from '../game/types.ts'
 
-/** What an ability slot accepts. */
-export type AbilityKind = 'damage' | 'heal' | 'cooldown' | 'mobility'
+/** What an ability slot accepts. `buff` is the group buff slot. */
+export type AbilityKind = 'damage' | 'heal' | 'cooldown' | 'mobility' | 'buff'
 
-/** Slot 1 holds the artifact; the rest hold abilities. */
-export type SlotKind = 'artifact' | AbilityKind
+/** Slot 1 holds the artifact; the last slot holds outdoor talents (none yet); the rest hold abilities. */
+export type SlotKind = 'artifact' | AbilityKind | 'outdoor'
 
-/** The role an artifact gives you. Role and cooldown abilities belong to one role; mobility is shared. */
-export type Role = 'damage' | 'healer'
+/**
+ * The role an artifact gives you. Role abilities and group buffs belong to one role; mobility and
+ * some ultimates (Fervor) are shared.
+ */
+export type Role = 'damage' | 'healer' | 'tank'
 
 /** An ability card, like the deck's ability slides. */
 export interface AbilityCard {
@@ -46,8 +49,10 @@ export interface TreeDef {
   id: string
   /** Which slots it fits. Artifact trees belong to an artifact and go in slot 1. */
   kind: SlotKind
-  /** Role and cooldown abilities fit only artifacts of this role. Leave out to fit any (mobility). */
+  /** Role, cooldown and buff trees fit only artifacts of this role. Leave out to fit any (mobility, Fervor). */
   role?: Role
+  /** Only these artifacts can slot it, when its costs or mechanics need that weapon (imps, combo points). */
+  artifacts?: readonly string[]
   ability: AbilityCard
   /** Abilities it applies, listed on its card — e.g. Plague's Pox, Blight and Malady. */
   effects?: AbilityCard[]
@@ -76,8 +81,10 @@ export interface ArtifactDef {
   roleKind: AbilityKind
   /** Shown on the artifact card and in the picker. */
   description: string
-  /** Its resource, e.g. "Mana". */
+  /** Its resource, e.g. "Mana", "Imps", "Combo points". */
   resource: string
+  /** How much resource a fight starts with. Default: full. */
+  resourceStart?: number
   /** What holding it adds to the character: the staff's mana pool and regeneration. */
   stats?: Partial<CharStats>
   /** Its main attack and talents. Leave out while the artifact is a placeholder. */
