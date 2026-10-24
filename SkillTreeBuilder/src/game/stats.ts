@@ -18,6 +18,7 @@ export const BASE_STATS: CharStats = {
   maxResource: 0,
   resourceRegen: 0,
   resourceRegenPct: 0,
+  comboBonus: 0,
   overhealToResource: 0,
   lowResourceRegen: 0,
   zoneResourceRegen: 0,
@@ -121,6 +122,12 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     unit: '%',
     help: 'More @resource per second, as a share of your maximum.',
   },
+  comboBonus: {
+    label: 'Combo bonus',
+    color: '#ff7a7a',
+    unit: '%',
+    help: 'Each step past the first that an ability pays for adds this much on top of its usual 100%.',
+  },
   overhealToResource: {
     label: 'Reservoir',
     color: '#5aa9ff',
@@ -151,7 +158,16 @@ export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[
   { title: 'Defensive', stats: ['damageReduction', 'dodge', 'healthPct', 'healingTaken'] },
   {
     title: 'Extra',
-    stats: ['echo', 'minionPower', 'speed', 'resourceRegenPct', 'overhealToResource', 'lowResourceRegen', 'zoneResourceRegen'],
+    stats: [
+      'echo',
+      'minionPower',
+      'speed',
+      'comboBonus',
+      'resourceRegenPct',
+      'overhealToResource',
+      'lowResourceRegen',
+      'zoneResourceRegen',
+    ],
   },
 ]
 
@@ -161,6 +177,7 @@ export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>([
   'lowResourceRegen',
   'zoneResourceRegen',
   'resourceRegenPct',
+  'comboBonus',
   'healthPct',
   'healingTaken',
 ])

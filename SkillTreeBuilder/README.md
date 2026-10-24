@@ -87,12 +87,15 @@ imp attacks your target on its own, and its spells are paid for by **sacrificing
 | Ultimate | Fervor (you and your group gain 30% haste for 20 sec) |
 
 The **Twin Daggers** build combo points (up to 6) with Quick Strike: hold the key to keep striking.
-Finishers (Eviscerate, Rupture) spend all your points and grow with each one; Fan of Knives and
-Backstab build them.
+Fan of Knives and Backstab build them too. **Combo points pay in steps**: an ability that costs 2
+spends 4 or 6 if you have them, and every step makes it stronger (two steps hit twice as hard; Rupture
+lasts longer instead). The action bar shows how many steps the next press takes (×3). The daggers'
+own tree is about that: more combo points to hold (Bandolier), more from each step (Compounding), and
+procs on spending 2 or 3 steps at once (Adrenaline, Sleight of Hand, Restless Hands, Encore).
 
 **Every damage ability fits every damage weapon.** The book's spells and the daggers' abilities can be
-mixed on either: they cost whatever the weapon holds (Eviscerate on the book spends all your imps,
-Harvest on the daggers costs combo points), and their talents aim only at themselves or at families:
+mixed on either: they cost whatever the weapon holds (Eviscerate costs 2 imps on the book, and pays in
+steps of 2 combo points on the daggers), and their talents aim only at themselves or at families:
 damage over time, direct damage, area damage, zones, finishers. The Plague tree keeps its art and
 layout from the deck, with its X values filled in.
 

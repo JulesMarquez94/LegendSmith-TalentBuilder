@@ -62,6 +62,11 @@ export type CharStat =
   | 'resourceRegen'
   /** Extra regeneration as a % of your maximum resource per second, so it means the same on any weapon. */
   | 'resourceRegenPct'
+  /**
+   * Combo weapons: each step past the first adds this % on top of its usual 100%, so three steps at
+   * +20% land at 1 + 2 × 1.2 = 3.4 times the ability's strength.
+   */
+  | 'comboBonus'
   /** % of overhealing stored, then given back as resource by the next main attack. */
   | 'overhealToResource'
   /** % stronger resource regeneration while below 30% of the maximum. */
@@ -218,14 +223,16 @@ export interface EffectSpec {
   stacks?: number
   /** Damage is multiplied by how many of your effects matching this the target has (Harvest's "per DoT"). */
   perEffect?: Match
-  /** For finishers: this number is multiplied by the resource spent. */
-  perPoint?: 'amount' | 'duration'
+  /** On a combo weapon, what grows with each step a cast pays for: its amount (default) or its duration (Rupture). */
+  grows?: 'amount' | 'duration'
   /** For aura effects: the stats you and your group get. */
   stats?: Partial<CharStats>
 }
 
 /** When a conditional bonus applies. Every field set must hold. */
 export interface Condition {
+  /** The cast paid its cost in at least this many steps (combo weapons). Procs only. */
+  paidAtLeast?: number
   /** Target below this % health, checked before the hit or heal lands. */
   targetBelow?: number
   /** Target has one of your HoTs or DoTs that matches. */
@@ -330,8 +337,6 @@ export interface AbilitySpec {
   tags?: readonly Tag[]
   /** Resource: mana, imps sacrificed, combo points. */
   cost?: number
-  /** A finisher: spends all your resource (at least `cost`), and `perPoint` effects scale with it. */
-  spendsAll?: boolean
   /** Each cast uses the next of its effects in turn (Plague's Pox, Blight, Malady). */
   cycle?: boolean
   /** Seconds; 0 is instant. */
@@ -394,7 +399,7 @@ export interface ResolvedEffect {
   inflicts?: ResolvedEffect
   rolling?: boolean
   perEffect?: Match
-  perPoint?: 'amount' | 'duration'
+  grows?: 'amount' | 'duration'
   stats?: Partial<CharStats>
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
@@ -410,7 +415,12 @@ export interface ResolvedAbility {
   kind: SlotKind
   tags: ReadonlySet<Tag>
   cost: number
-  spendsAll?: boolean
+  /**
+   * On a combo weapon (the daggers) the cost is paid in steps, as many as you can afford, and every
+   * step past the first adds `perStep` times the ability's strength. `maxSteps` is what a full bar
+   * pays for. Absent on other weapons and on abilities that cost nothing.
+   */
+  combo?: { maxSteps: number; perStep: number }
   cycle?: boolean
   castTime: number
   cooldown: number

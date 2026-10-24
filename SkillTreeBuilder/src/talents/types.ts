@@ -83,6 +83,11 @@ export interface ArtifactDef {
   resource: string
   /** How much resource a fight starts with. Default: full. */
   resourceStart?: number
+  /**
+   * Combo points: every ability that costs something takes as many steps of its cost as you can pay
+   * (a cost of 2 spends 4 or 6) and grows with each step. The abilities themselves don't change.
+   */
+  combo?: boolean
   /** What holding it adds to the character: the staff's mana pool and regeneration. */
   stats?: Partial<CharStats>
   /** Its main attack and talents. Leave out while the artifact is a placeholder. */

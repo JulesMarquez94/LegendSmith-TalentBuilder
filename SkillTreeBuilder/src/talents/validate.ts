@@ -41,6 +41,7 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
         if (m.kind === 'mod' && m.when && m.key !== 'amount') {
           problems.push(`${t.name}: only "amount" can have a condition, not "${m.key}"`)
         }
+        if (m.kind === 'mod' && m.when?.paidAtLeast !== undefined) problems.push(`${t.name}: only procs can count combo steps`)
       }
     }
     art(t.name, t.icon)
@@ -107,7 +108,7 @@ function givenStats(m: Mechanic): CharStat[] {
 }
 
 /** Stats in a weapon's own numbers: an imp, a combo point and a point of mana are worth very different things. */
-const WEAPON_STATS: readonly CharStat[] = ['maxResource', 'resourceRegen', 'overhealToResource', 'minionPower']
+const WEAPON_STATS: readonly CharStat[] = ['maxResource', 'resourceRegen', 'overhealToResource', 'minionPower', 'comboBonus']
 
 /**
  * Abilities go on any weapon of their role, so their talents can't lean on one: they aim at their own
@@ -137,6 +138,8 @@ function weaponProblems(tree: TreeDef, trees: readonly TreeDef[]): string[] {
       (m) => m.kind === 'proc' && m.proc.actions.some((a) => a.do === 'restore' && (a.amount ?? 0) !== 0),
     )
     if (flat) problems.push(`${t.name} (${tree.ability.name}) gives back a flat amount of resource, not a share of the maximum`)
+    const steps = mechanics.some((m) => m.kind === 'proc' && m.proc.when?.paidAtLeast !== undefined)
+    if (steps) problems.push(`${t.name} (${tree.ability.name}) counts combo steps, which only combo weapons take`)
   }
   return problems
 }

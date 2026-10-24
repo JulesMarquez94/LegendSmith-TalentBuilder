@@ -1,4 +1,4 @@
-import { counted, int, sec, single, yd } from '../game/format.ts'
+import { counted, int, sec, yd } from '../game/format.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
 import {
   apply,
@@ -19,11 +19,11 @@ import {
 } from './authoring.ts'
 
 // The rogue's artifact and its abilities. Combo points start empty: Quick Strike (the main attack),
-// Backstab and Fan of Knives build them, and the finishers, Eviscerate and Rupture, spend them all
-// and hit harder for each point spent. The abilities fit any damage weapon and build or spend whatever
-// it holds (imps on the summoning book), so their talents aim only at themselves or at families and
-// tags (direct damage, DoTs, area damage, finishers), and give resource back as a share of your
-// maximum or of what a cast cost, never as combo points by name. The artifact's own tree may.
+// Backstab and Fan of Knives build them. Combo points pay in steps: an ability that costs 2 spends 4
+// or 6 if you have them, and grows with every step (see `combo` on the artifact). That's the daggers'
+// rule, not the abilities': Eviscerate on the summoning book just costs 2 imps. So the abilities'
+// talents aim only at themselves or at families and tags (direct damage, DoTs, area damage,
+// finishers), and only the daggers' own tree talks about steps and combo points.
 
 // ---------- Twin Daggers: the artifact and its main attack, Quick Strike ----------
 
@@ -70,46 +70,71 @@ const tree: TreeDef = {
       row: 0,
       col: 1,
       per: [0.1, 0.2],
-      text: "Quick Strike's global cooldown is {} sec shorter.",
+      text: "Quick Strike's global cooldown is {} sec shorter, so you build combo points faster.",
       does: (v) => [plus('gcd', 'main-attack', -v)],
     }),
     talent({
-      id: 'sharp-eyes',
-      name: 'Sharp Eyes',
+      id: 'bandolier',
+      name: 'Bandolier',
       row: 0,
       col: 2,
-      per: [2, 4, 6],
-      text: 'You have +{}% critical chance.',
-      does: (v) => [stat('crit', v)],
+      per: [1, 2],
+      text: 'You can hold {} more combo points, so your abilities can take more steps.',
+      does: (v) => [stat('maxResource', v)],
+    }),
+    talent({
+      id: 'compounding',
+      name: 'Compounding',
+      row: 0,
+      col: 3,
+      per: [10, 20, 30],
+      text: 'Each step past the first adds {}% more on top of its own 100%.',
+      does: (v) => [stat('comboBonus', v)],
     }),
 
     // Row 2
     talent({
-      id: 'wicked-barbs',
-      name: 'Wicked Barbs',
-      row: 1,
-      col: 0,
-      per: [10, 20],
-      text: 'You have +{}% crit damage.',
-      does: (v) => [stat('critDamage', v)],
-    }),
-    talent({
       id: 'lucky-cut',
       name: 'Lucky Cut',
       row: 1,
-      col: 2,
-      requires: 'sharp-eyes',
+      col: 0,
+      requires: 'keen-edges',
       per: [50, 100],
       text: 'When Quick Strike critically strikes, you have a {}% chance to gain 1 more combo point.',
       does: (v) => [proc('crit', 'main-attack', [restore(1)], { chance: v })],
     }),
     talent({
-      id: 'bandolier',
-      name: 'Bandolier',
+      id: 'sharp-eyes',
+      name: 'Sharp Eyes',
+      row: 1,
+      col: 1,
+      per: [2, 4, 6],
+      text: 'You have +{}% critical chance.',
+      does: (v) => [stat('crit', v)],
+    }),
+    talent({
+      id: 'adrenaline',
+      name: 'Adrenaline',
+      row: 1,
+      col: 2,
+      requires: 'bandolier',
+      per: [5, 10],
+      text: 'Spending combo points in 3 or more steps at once gives you {}% haste for 6 sec.',
+      does: (v) => [
+        proc('cast', 'spell', [buff({ id: 'adrenaline', name: 'Adrenaline', duration: 6, stats: { haste: v } })], {
+          when: { paidAtLeast: 3 },
+        }),
+      ],
+    }),
+    talent({
+      id: 'sleight-of-hand',
+      name: 'Sleight of Hand',
       row: 1,
       col: 3,
-      text: 'You can hold 1 more combo point.',
-      does: () => [stat('maxResource', 1)],
+      requires: 'compounding',
+      per: [15, 30],
+      text: 'Spending combo points in 3 or more steps at once has a {}% chance to give you half of them back.',
+      does: (v) => [proc('cast', 'spell', [refund(50)], { chance: v, when: { paidAtLeast: 3 } })],
     }),
 
     // Row 3
@@ -119,40 +144,46 @@ const tree: TreeDef = {
       row: 2,
       col: 0,
       per: [15, 30],
-      text: 'After a finisher, Quick Strike deals {}% more damage for 5 sec.',
+      text: 'After you spend combo points, Quick Strike deals {}% more damage for 5 sec.',
       does: (v) => [
-        proc('cast', 'finisher', [
+        proc('cast', 'spell', [
           buff({ id: 'follow-through', name: 'Follow-Through', duration: 5, mods: [more('amount', 'main-attack', v)] }),
         ]),
       ],
     }),
     talent({
-      id: 'executioners-eye',
-      name: "Executioner's Eye",
-      row: 2,
-      col: 2,
-      per: [5, 10],
-      text: 'Your finishers have +{}% critical chance.',
-      does: (v) => [plus('critChance', 'finisher', v)],
-    }),
-    talent({
       id: 'restless-hands',
       name: 'Restless Hands',
       row: 2,
-      col: 3,
-      requires: 'bandolier',
-      text: 'After a finisher, your next Quick Strike gives 1 more combo point.',
+      col: 1,
+      requires: 'flickering-blades',
+      text: 'After you spend combo points in 2 or more steps, your next Quick Strike gives 1 more combo point.',
       does: () => [
-        proc('cast', 'finisher', [
-          buff({
-            id: 'restless-hands',
-            name: 'Restless Hands',
-            duration: 10,
-            mods: [plus('restore', { all: ['main-attack', 'resource'] }, 1)],
-            consumeOn: 'main-attack',
-          }),
-        ]),
+        proc(
+          'cast',
+          'spell',
+          [
+            buff({
+              id: 'restless-hands',
+              name: 'Restless Hands',
+              duration: 10,
+              mods: [plus('restore', { all: ['main-attack', 'resource'] }, 1)],
+              consumeOn: 'main-attack',
+            }),
+          ],
+          { when: { paidAtLeast: 2 } },
+        ),
       ],
+    }),
+    talent({
+      id: 'wicked-barbs',
+      name: 'Wicked Barbs',
+      row: 2,
+      col: 2,
+      requires: 'sharp-eyes',
+      per: [10, 20],
+      text: 'You have +{}% crit damage.',
+      does: (v) => [stat('critDamage', v)],
     }),
 
     // Row 4
@@ -161,9 +192,19 @@ const tree: TreeDef = {
       name: 'Twin Fangs',
       row: 3,
       col: 1,
-      requires: 'flickering-blades',
+      requires: 'restless-hands',
       text: 'Every 4th Quick Strike strikes twice.',
       does: () => [proc('cast', 'main-attack', [{ do: 'recast' }], { every: 4 })],
+    }),
+    talent({
+      id: 'encore',
+      name: 'Encore',
+      row: 3,
+      col: 3,
+      requires: 'sleight-of-hand',
+      per: [10, 20],
+      text: 'Spending combo points in 3 or more steps at once has a {}% chance to make the ability go off again at the same strength, for free.',
+      does: (v) => [proc('cast', 'spell', [{ do: 'recast' }], { chance: v, when: { paidAtLeast: 3 } })],
     }),
   ],
 }
@@ -176,9 +217,11 @@ export const twinDaggers: ArtifactDef = {
   roleKind: 'damage',
   resource: 'Combo points',
   resourceStart: 0,
+  combo: true,
   stats: { maxResource: 6, resourceRegen: 0 },
   description:
-    'Damage. Combo points start empty: strikes build them, and finishers spend them all, hitting harder for each one.',
+    'Damage. Strikes build combo points; every ability that costs some spends as many steps of its cost as you have, ' +
+    'growing with each (a cost of 2 spends 4 or 6).',
   tree,
 }
 
@@ -201,21 +244,20 @@ export const eviscerate: TreeDef = {
     name: 'Eviscerate',
     castTime: 'Instant',
     range: '5 range',
-    description: 'Finisher. Spend all your resource to strike the enemy nearest your crosshair, harder for each point.',
+    description: 'Finisher. Strike the enemy nearest your crosshair for heavy damage.',
   },
   spec: {
     tags: ['finisher'],
-    spendsAll: true,
-    cost: 1,
+    cost: 2,
     range: 5,
-    effects: [damage(300, 'target', { perPoint: 'amount' })],
+    effects: [damage(600, 'target')],
     text: (a) => {
       const e = a.effects[0]
       // Cleaving Finish gives it a radius.
       const splash = e.radius > 0 ? ` Every enemy within ${yd(e.radius)} yd of it is hit too.` : ''
       return (
-        `Finisher. Strikes the enemy nearest your crosshair within ${yd(a.range)} yd for ${int(e.amount)} damage ` +
-        `per ${single(a.resource)} spent.${splash} Spends all your ${a.resource}.`
+        `Finisher. Strikes the enemy nearest your crosshair within ${yd(a.range)} yd for ${int(e.amount)} damage.` +
+        `${splash} Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },
@@ -332,19 +374,19 @@ export const rupture: TreeDef = {
     name: 'Rupture',
     castTime: 'Instant',
     range: '5 range',
-    description: 'Finisher. Spend all your resource to make the enemy nearest your crosshair bleed, longer for each point.',
+    description: 'Finisher. Make the enemy nearest your crosshair bleed.',
   },
   spec: {
     tags: ['finisher'],
-    spendsAll: true,
-    cost: 1,
+    cost: 2,
     range: 5,
-    effects: [dot(110, 4, 1, 'target', { perPoint: 'duration', name: 'Rupture' })],
+    // Steps make the bleed last longer rather than hit harder.
+    effects: [dot(110, 8, 1, 'target', { grows: 'duration', name: 'Rupture' })],
     text: (a) => {
       const e = a.effects[0]
       return (
         `Finisher. Makes the enemy nearest your crosshair within ${yd(a.range)} yd bleed for ${int(e.amount)} damage ` +
-        `every ${sec(e.interval)} sec, for ${sec(e.duration)} sec per ${single(a.resource)} spent. Spends all your ${a.resource}.`
+        `every ${sec(e.interval)} sec for ${sec(e.duration)} sec. Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },
@@ -382,8 +424,8 @@ export const rupture: TreeDef = {
       row: 1,
       col: 0,
       requires: 'open-veins',
-      text: 'Rupture also hits its target for 80 damage for each point it spent.',
-      does: () => [grant('rupture', damage(80, 'same', { perPoint: 'amount', name: 'Jagged Cut' }))],
+      text: 'Rupture also hits its target for 160 damage.',
+      does: () => [grant('rupture', damage(160, 'same', { name: 'Jagged Cut' }))],
     }),
     talent({
       id: 'fresh-cuts',

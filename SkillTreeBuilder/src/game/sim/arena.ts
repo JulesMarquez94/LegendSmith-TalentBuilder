@@ -1,5 +1,5 @@
 import { int } from '../format.ts'
-import { matches, tickAmount, type Kit, type ResolvedProc } from '../resolve.ts'
+import { comboStrength, matches, tickAmount, type Kit, type ResolvedProc } from '../resolve.ts'
 import { RUN_SPEED } from '../stats.ts'
 import type {
   Action,
@@ -202,6 +202,8 @@ export interface Casting {
   slot: number
   ability: ResolvedAbility
   cost: number
+  /** Steps of its cost it paid for (combo weapons); 1 otherwise. */
+  steps: number
   start: number
   end: number
   castId: number
@@ -265,6 +267,8 @@ interface CastContext {
   castId: number
   ability: ResolvedAbility | null
   cost: number
+  /** Steps of its cost the cast paid for (combo weapons); 1 otherwise. */
+  steps: number
   origin: Vec
   path: [Vec, Vec] | null
   /** Who the latest effect landed on, for 'same'. */
@@ -559,7 +563,7 @@ export class Arena {
     if (this.cast && this.time >= this.cast.end) {
       const c = this.cast
       this.cast = null
-      this.finish(c.ability, c.castId, c.cost, input)
+      this.finish(c.ability, c.castId, c.cost, input, c.steps)
     }
     this.useRequested(input)
     this.syncImps()
@@ -622,10 +626,12 @@ export class Arena {
     // Buffs that change this cast are used up by it (Surge of Light, Momentum, Latent Charge…).
     this.buffs = this.buffs.filter((b) => !(b.consumeOn && matches(b.consumeOn, a.tags)))
     let cost = a.cost
-    if (a.spendsAll) {
-      // A finisher spends everything you have, and its per-point numbers grow with it.
-      cost = Math.floor(this.resource + 1e-6)
-      a = this.scaleByPoints(a, cost)
+    let steps = 1
+    if (a.combo) {
+      // A combo weapon pays the cost as many times over as you can afford, and the ability grows with each.
+      steps = Math.max(1, Math.floor((this.resource + 1e-6) / a.cost))
+      cost = a.cost * steps
+      a = this.grow(a, steps)
     }
     this.spend(cost, a.name)
     // Abilities without a cooldown never use up a charge.
@@ -639,33 +645,36 @@ export class Arena {
     }
     const castId = ++this.castCounter
     if (a.castTime > 0) {
-      this.cast = { slot, ability: a, cost, start: this.time, end: this.time + a.castTime, castId }
-    } else this.finish(a, castId, cost, input)
+      this.cast = { slot, ability: a, cost, steps, start: this.time, end: this.time + a.castTime, castId }
+    } else this.finish(a, castId, cost, input, steps)
     return 'ok'
   }
 
-  private scaleByPoints(a: ResolvedAbility, points: number): ResolvedAbility {
+  /** An ability paid for in `steps` steps: each effect's amount, or its duration, grows to match. */
+  private grow(a: ResolvedAbility, steps: number): ResolvedAbility {
+    if (steps <= 1 || !a.combo) return a
+    const k = comboStrength(steps, a.combo.perStep)
     const effects = a.effects.map((e) => {
-      if (e.perPoint === 'amount') return { ...e, amount: e.amount * points }
-      if (e.perPoint === 'duration') {
-        const duration = e.duration * points
+      if (e.grows === 'duration') {
+        const duration = e.duration * k
         return { ...e, duration, ticks: e.interval > 0 ? Math.floor(duration / e.interval + 1e-6) : 0 }
       }
-      return e
+      return { ...e, amount: e.amount * k, inflicts: e.inflicts && { ...e.inflicts, amount: e.inflicts.amount * k } }
     })
     return { ...a, effects }
   }
 
-  private finish(a: ResolvedAbility, castId: number, cost: number, input?: ArenaInput) {
-    const ctx = this.newContext(a, castId, cost)
+  private finish(a: ResolvedAbility, castId: number, cost: number, input?: ArenaInput, steps = 1) {
+    const ctx = this.newContext(a, castId, cost, 0, steps)
+    if (steps > 1) this.text(this.player.pos, `${a.name} ×${steps}`, a.color, false)
     this.meter.casts.set(a.name, (this.meter.casts.get(a.name) ?? 0) + 1)
-    if (!a.tags.has('main-attack')) this.addLog(`You cast ${a.name}`, 'cast')
+    if (!a.tags.has('main-attack')) this.addLog(`You cast ${a.name}${steps > 1 ? ` (${steps} steps)` : ''}`, 'cast')
     const effects = this.effectsForCast(a)
     this.runEffects(a, ctx, input, undefined, effects)
     this.emit({ kind: 'cast', tags: a.tags, ctx })
     if (a.echo > 0 && this.rng() * 100 < a.echo) {
       this.addLog(`Echo: ${a.name} goes off again`, 'proc')
-      this.runEffects(a, this.newContext(a, castId, cost), input, undefined, effects)
+      this.runEffects(a, this.newContext(a, castId, cost, 0, steps), input, undefined, effects)
     }
   }
 
@@ -678,11 +687,12 @@ export class Arena {
     return [own[i % own.length], ...a.effects.filter((e) => e.granted !== undefined)]
   }
 
-  private newContext(a: ResolvedAbility | null, castId: number, cost: number, depth = 0): CastContext {
+  private newContext(a: ResolvedAbility | null, castId: number, cost: number, depth = 0, steps = 1): CastContext {
     return {
       castId,
       ability: a,
       cost,
+      steps,
       origin: { ...this.player.pos },
       path: null,
       primary: [],
@@ -1297,7 +1307,8 @@ export class Arena {
   /** For procs: the same checks against the event, with health from before the heal or hit. */
   private eventMeets(when: Condition, ev: GameEvent): boolean {
     if (when.overheal && !((ev.overheal ?? 0) > 0)) return false
-    const { overheal: _overheal, targetBelow, ...rest } = when
+    if (when.paidAtLeast !== undefined && ev.ctx.steps < when.paidAtLeast) return false
+    const { overheal: _overheal, paidAtLeast: _paid, targetBelow, ...rest } = when
     const needsTarget = targetBelow !== undefined || Object.values(rest).some((v) => v !== undefined && v !== false)
     if (!needsTarget) return true
     if (!ev.target && !ev.enemy) return false

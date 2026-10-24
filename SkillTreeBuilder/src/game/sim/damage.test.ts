@@ -129,17 +129,45 @@ describe('the summoning book', () => {
 })
 
 describe('the daggers', () => {
-  it('build combo points with strikes and spend them all on a finisher', () => {
+  it('build combo points with strikes and spend them in steps of the cost', () => {
     const arena = new Arena(noCrits(kitFor(daggers, ['eviscerate', null, null, null, null, null])), DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 16 }
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
       cast(arena, 0)
       run(arena, 1)
     }
-    expect(arena.resource).toBe(3)
+    expect(arena.resource).toBe(5)
+    // Eviscerate costs 2: with 5 points it pays two steps (4 points), keeps 1, and hits twice as hard.
+    cast(arena, 1)
+    expect(arena.resource).toBe(1)
+    expect(damageOf(arena, 'Eviscerate')).toMatchObject({ hits: 1, damage: 1200 })
+  })
+
+  it('make each extra step stronger with Compounding, and count steps for procs', () => {
+    const kit = noCrits(
+      kitFor(daggers, ['rupture', null, null, null, null, null], {
+        'twin-daggers': { compounding: 3, bandolier: 2, adrenaline: 2 },
+      }),
+    )
+    const rupture = kit.slots[1]!
+    expect(rupture.combo).toEqual({ maxSteps: 4, perStep: 1.3 })
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 16 }
+    arena.resource = 6
     cast(arena, 1)
     expect(arena.resource).toBe(0)
-    expect(damageOf(arena, 'Eviscerate')).toMatchObject({ hits: 1, damage: 900 })
+    // Three steps at +30%: 1 + 2 × 1.3 = 3.6 times its 8 sec.
+    expect(arena.enemies.flatMap((e) => e.dots).find((d) => d.name === 'Rupture')?.duration).toBeCloseTo(28.8)
+    expect(arena.stats().haste).toBe(10)
+  })
+
+  it('cost a plain 2 on a weapon without combo points', () => {
+    const arena = new Arena(noCrits(kitFor(book, ['eviscerate', null, null, null, null, null])), DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 16 }
+    arena.resource = 6
+    cast(arena, 1)
+    expect(arena.resource).toBe(4)
+    expect(damageOf(arena, 'Eviscerate')).toMatchObject({ hits: 1, damage: 600 })
   })
 
   it('need you in melee range', () => {

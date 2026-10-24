@@ -1,6 +1,7 @@
 import type { Ranks } from '../talents/rules.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
 import { gearTotals, type Gear } from './gear.ts'
+import { int, pct } from './format.ts'
 import { BASE_STATS, MIN_GCD } from './stats.ts'
 import {
   ABILITY_KEYS,
@@ -271,7 +272,7 @@ function resolveEffectWith(
       : undefined,
     rolling: effect.rolling,
     perEffect: effect.perEffect,
-    perPoint: effect.perPoint,
+    grows: effect.grows,
     stats: effect.type === 'aura' ? addStats(effect.stats ?? {}, groupTalents) : effect.stats,
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))
@@ -291,6 +292,7 @@ function resolveAbilityWith(
   grants: readonly Sourced<Extract<Mechanic, { kind: 'grant' }>>[],
   resource: string,
   groupTalents: Partial<CharStats> = {},
+  combo = false,
 ): ResolvedAbility | null {
   const spec = tree.spec
   if (!spec) return null
@@ -316,7 +318,6 @@ function resolveAbilityWith(
     kind: tree.kind,
     tags,
     cost: Math.max(0, scaled(spec.cost ?? 0, get('cost'))),
-    spendsAll: spec.spendsAll,
     cycle: spec.cycle,
     castTime: Math.max(0, scaled(spec.castTime ?? 0, get('castTime'))) / haste,
     cooldown: spec.cooldown ? Math.max(0, scaled(spec.cooldown, get('cooldown'))) : 0,
@@ -330,8 +331,27 @@ function resolveAbilityWith(
     effects: effects.map(({ effect, granted }, i) => resolveEffectWith(tree, effect, i, stats, mods, granted, groupTalents)),
     text: '',
   }
-  resolved.text = spec.text(resolved)
+  if (combo && resolved.cost > 0) {
+    resolved.combo = {
+      maxSteps: Math.max(1, Math.floor(stats.maxResource / resolved.cost + 1e-6)),
+      perStep: 1 + stats.comboBonus / 100,
+    }
+  }
+  resolved.text = spec.text(resolved) + comboText(resolved)
   return resolved
+}
+
+/** How many times its base strength an ability lands at when it pays for `steps` steps. */
+export const comboStrength = (steps: number, perStep: number) => 1 + (Math.max(1, steps) - 1) * perStep
+
+/** On a combo weapon, every ability that costs something says how it grows. */
+function comboText(a: ResolvedAbility): string {
+  if (!a.combo || a.combo.maxSteps < 2) return ''
+  const { maxSteps, perStep } = a.combo
+  return (
+    ` Spends your ${a.resource} in steps of ${int(a.cost)}, as many as you have, and grows with every step: ` +
+    `${maxSteps} steps at full ${a.resource} for ${pct(comboStrength(maxSteps, perStep))}× the effect.`
+  )
 }
 
 export function buildKit(input: BuildInput): Kit {
@@ -356,7 +376,7 @@ export function buildKit(input: BuildInput): Kit {
     const tree = treeById.get(treeId)
     if (!tree) return null
     const all = extra.length ? [...mods, ...extra] : mods
-    return resolveAbilityWith(tree, stats, all, grants, input.artifact.resource, groupTalents(treeId))
+    return resolveAbilityWith(tree, stats, all, grants, input.artifact.resource, groupTalents(treeId), input.artifact.combo)
   }
 
   const slots = input.trees.map((tree) => (tree ? resolve(tree.id) : null))

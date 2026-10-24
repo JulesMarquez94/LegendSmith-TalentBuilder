@@ -136,6 +136,8 @@ export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readon
         const sweep = Math.max(waiting, gcd)
         const short = a !== null && arena.resource + 1e-6 < a.cost
         const left = cd && cd.charges < 1 && cd.rechargeAt !== null ? cd.rechargeAt - arena.time : 0
+        // Combo weapons pay in steps: show how many the next press would take.
+        const steps = a?.combo ? Math.floor((arena.resource + 1e-6) / a.cost) : 0
         return (
           <button
             key={i}
@@ -160,6 +162,7 @@ export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readon
             <span className="action__key">{SLOT_KEYS[i]}</span>
             {cd && cd.max > 1 && <span className="action__charges">{cd.charges}</span>}
             {a && a.cost > 0 && <span className="action__cost">{int(a.cost)}</span>}
+            {steps > 1 && <span className="action__steps">×{steps}</span>}
             {a?.passive && <span className="action__cost">Passive</span>}
           </button>
         )

@@ -1982,6 +1982,19 @@ select {
   color: var(--mana);
 }
 
+.action__steps {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  padding: 0 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  color: #ffd27a;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 3px;
+}
+
 .meter {
   padding: 12px;
   background: linear-gradient(#1c1c1c, #151515);
