@@ -43,8 +43,20 @@ const MOVE_FOR_CODE: Record<string, Vec> = {
   ArrowRight: { x: 1, y: 0 },
 }
 
-const typing = (target: EventTarget | null) =>
-  target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName))
+const TEXT_INPUTS = new Set(['text', 'search', 'email', 'number', 'password', 'tel', 'url'])
+
+/**
+ * Only text fields keep keys to themselves. The fight dropdown, slider, checkbox and buttons don't,
+ * so the game still gets W A S D after you've used them (and the dropdown can't swallow a D for "Dungeon").
+ * A focused slider keeps its arrow keys.
+ */
+const keepsKey = (e: KeyboardEvent) => {
+  const t = e.target
+  if (!(t instanceof HTMLElement)) return false
+  if (t.isContentEditable || t.tagName === 'TEXTAREA') return true
+  if (!(t instanceof HTMLInputElement)) return false
+  return TEXT_INPUTS.has(t.type) || (t.type === 'range' && e.code.startsWith('Arrow'))
+}
 
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
 
@@ -74,9 +86,13 @@ export function ArenaView({ kit, trees, active }: Props) {
   useEffect(() => arena.setKit(kit), [arena, kit])
   useEffect(() => arena.setOptions({ damageScale, noDeaths: noDeaths ?? scenario.noDeaths }), [arena, damageScale, noDeaths, scenario])
 
+  // After using a control, hand the keyboard back to the arena so Space and the ability keys go to the game.
+  const focusArena = () => canvas.current?.focus({ preventScroll: true })
+
   const newFight = (next = scenario, deaths = noDeaths) => {
     setArena(new Arena(kit, next, { damageScale, noDeaths: deaths ?? next.noDeaths, seed: Date.now() >>> 0 }))
     setPaused(true)
+    focusArena()
   }
 
   const input = (): ArenaInput => {
@@ -129,7 +145,7 @@ export function ArenaView({ kit, trees, active }: Props) {
   useEffect(() => {
     if (!active) return
     const down = (e: KeyboardEvent) => {
-      if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return
+      if (keepsKey(e) || e.ctrlKey || e.metaKey || e.altKey) return
       if (e.code === 'Space' || e.code === 'KeyP' || e.code === 'Escape') {
         e.preventDefault()
         if (!arena.ended) setPaused((p) => !p)
@@ -193,14 +209,37 @@ export function ArenaView({ kit, trees, active }: Props) {
         </label>
         <label className="field field--range">
           <span>Boss damage ×{damageScale.toFixed(2).replace(/\.?0+$/, '')}</span>
-          <input type="range" min={0.25} max={2} step={0.05} value={damageScale} onChange={(e) => setDamageScale(Number(e.target.value))} />
+          <input
+            type="range"
+            min={0.25}
+            max={2}
+            step={0.05}
+            value={damageScale}
+            onChange={(e) => setDamageScale(Number(e.target.value))}
+            onPointerUp={focusArena}
+          />
         </label>
         <label className="field field--check">
-          <input type="checkbox" checked={noDeaths ?? scenario.noDeaths} onChange={(e) => setNoDeaths(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={noDeaths ?? scenario.noDeaths}
+            onChange={(e) => {
+              setNoDeaths(e.target.checked)
+              focusArena()
+            }}
+          />
           <span>Nobody dies</span>
         </label>
         <span className="arena__spacer" />
-        <button type="button" className="btn btn--lg" disabled={arena.ended !== null} onClick={() => setPaused((p) => !p)}>
+        <button
+          type="button"
+          className="btn btn--lg"
+          disabled={arena.ended !== null}
+          onClick={() => {
+            setPaused((p) => !p)
+            focusArena()
+          }}
+        >
           {paused ? (arena.time > 0 ? 'Resume' : 'Start') : 'Pause'}
         </button>
         <button type="button" className="btn btn--lg" onClick={restart}>
@@ -228,6 +267,7 @@ export function ArenaView({ kit, trees, active }: Props) {
             <canvas
               ref={canvas}
               className="arena__canvas"
+              tabIndex={0}
               aria-label="Arena. Move with W A S D, attack with left click, heal with right click, Q and E."
               onContextMenu={(e) => e.preventDefault()}
               onPointerMove={(e) => (aim.current = toYards(e.currentTarget, e.clientX, e.clientY))}
@@ -238,7 +278,9 @@ export function ArenaView({ kit, trees, active }: Props) {
               }}
               onPointerDown={(e) => {
                 if (e.button !== 0 && e.button !== 2) return
+                // Stops text selection, which also stops the browser moving focus here, so do that by hand.
                 e.preventDefault()
+                e.currentTarget.focus({ preventScroll: true })
                 aim.current = toYards(e.currentTarget, e.clientX, e.clientY)
                 // The click that starts a paused fight only starts it.
                 if (pausedRef.current && !arena.ended) {
