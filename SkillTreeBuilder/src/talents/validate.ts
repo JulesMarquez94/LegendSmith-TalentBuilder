@@ -72,6 +72,7 @@ function actionTags(a: Action): string[] {
     case 'cooldown':
     case 'pulse':
     case 'spread':
+    case 'consume':
       return tagsOf(a.match)
     case 'buff':
       return buffTags(a.buff)
@@ -151,7 +152,10 @@ function weaponProblems(tree: TreeDef, trees: readonly TreeDef[]): string[] {
     const flatCost = mechanics.flatMap(modsOf).some((m) => RESOURCE_KEYS.includes(m.key) && (m.add ?? 0) !== 0)
     if (flatCost) problems.push(`${t.name} (${tree.ability.name}) changes a cost or a gain by a flat amount, not a %`)
     const steps = mechanics.some((m) => m.kind === 'proc' && m.proc.when?.paidAtLeast !== undefined)
-    if (steps) problems.push(`${t.name} (${tree.ability.name}) counts combo steps, which only combo weapons take`)
+    // An ability that spends all counts its own spend on any weapon, so its tree may.
+    if (steps && !tree.spec?.spendsAll) {
+      problems.push(`${t.name} (${tree.ability.name}) counts combo steps, which only combo weapons take`)
+    }
   }
   return problems
 }

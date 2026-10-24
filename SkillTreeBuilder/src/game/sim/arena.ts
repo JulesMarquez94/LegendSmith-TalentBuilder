@@ -1,5 +1,5 @@
 import { int } from '../format.ts'
-import { comboStrength, matches, tickAmount, type Kit, type ResolvedProc } from '../resolve.ts'
+import { comboStrength, matches, spendStrength, tickAmount, type Kit, type ResolvedProc } from '../resolve.ts'
 import { RUN_SPEED } from '../stats.ts'
 import type {
   Action,
@@ -211,6 +211,9 @@ export interface ActiveBuff {
   group: boolean
 }
 
+/** The tags a `gain` event carries, so talents can aim at it with 'resource'. */
+const GAIN_TAGS: ReadonlySet<Tag> = new Set<Tag>(['resource'])
+
 export interface Casting {
   slot: number
   ability: ResolvedAbility
@@ -344,6 +347,10 @@ export class Arena {
   readonly cooldowns = new Map<string, Cooldown>()
   /** Overhealing stored by Reservoir, as resource. */
   reservoir = 0
+  /** Regeneration since the last `gain` event: one fires per 10% of your maximum. */
+  private regenPool = 0
+  /** True while a `gain` event runs, so a talent that gives resource on a gain can't loop. */
+  private gaining = false
   facing: Vec = { x: 0, y: -1 }
   aim: Vec | null = null
   dashing: { from: Vec; to: Vec; start: number } | null = null
@@ -642,11 +649,16 @@ export class Arena {
     this.buffs = this.buffs.filter((b) => !(b.consumeOn && matches(b.consumeOn, a.tags)))
     let cost = a.cost
     let steps = 1
-    if (a.combo) {
+    if (a.spendsAll) {
+      // It spends everything you have, at least its cost, and grows with every bit past the cost.
+      cost = this.resource
+      steps = Math.max(1, Math.floor((cost + 1e-6) / a.cost))
+      a = this.grow(a, spendStrength(cost, a.cost, a.spendsAll.surplus))
+    } else if (a.combo) {
       // A combo weapon pays the cost as many times over as you can afford, and the ability grows with each.
       steps = Math.max(1, Math.floor((this.resource + 1e-6) / a.cost))
       cost = a.cost * steps
-      a = this.grow(a, steps)
+      a = this.grow(a, comboStrength(steps, a.combo.perStep))
     }
     this.spend(cost, a.name)
     // Abilities without a cooldown never use up a charge.
@@ -665,10 +677,9 @@ export class Arena {
     return 'ok'
   }
 
-  /** An ability paid for in `steps` steps: each effect's amount, or its duration, grows to match. */
-  private grow(a: ResolvedAbility, steps: number): ResolvedAbility {
-    if (steps <= 1 || !a.combo) return a
-    const k = comboStrength(steps, a.combo.perStep)
+  /** An ability that spent more than its cost: each effect's amount, or its duration, is `k` times as much. */
+  private grow(a: ResolvedAbility, k: number): ResolvedAbility {
+    if (k <= 1) return a
     const effects = a.effects.map((e) => {
       if (e.grows === 'duration') {
         const duration = e.duration * k
@@ -1153,6 +1164,16 @@ export class Arena {
         if (action.scope === 'all') for (const z of this.zones) if (matches(action.match, z.effect.tags)) z.endsAt += action.seconds
         break
       }
+      case 'consume': {
+        const enemy = ev.enemy ?? ev.ctx.eventEnemy
+        if (!enemy?.alive) break
+        for (const d of enemy.dots.filter((x) => matches(action.match, x.effect.tags))) {
+          const amount = (this.tickOf(d) * this.ticksLeft(d) * action.pct) / 100
+          enemy.dots = enemy.dots.filter((x) => x !== d)
+          if (amount > 0) this.hitEnemy(enemy, amount, d.effect, this.dotContext(d), { label: name })
+        }
+        break
+      }
       case 'cooldown':
         for (const a of this.kit.slots) {
           if (!a || !matches(action.match, a.tags)) continue
@@ -1254,6 +1275,12 @@ export class Arena {
   /** One tick of a HoT, DoT or zone, after its growth or decay so far. */
   private tickOf(x: Hot | Dot | Zone) {
     return tickAmount({ amount: x.amount, growth: x.effect.growth }, x.tick)
+  }
+
+  /** Ticks a DoT still has to land; for a rolling one, every live stack's added up. */
+  private ticksLeft(d: Dot) {
+    const ends = d.stacks.length ? d.stacks : [d.endsAt]
+    return ends.reduce((n, end) => n + (d.nextTick <= end + 1e-6 ? Math.floor((end - d.nextTick) / d.interval + 1e-6) + 1 : 0), 0)
   }
 
   private liveStacks(d: Dot) {
@@ -1437,6 +1464,16 @@ export class Arena {
     if (gained <= 0) return
     this.meter.resourceGained.set(source, (this.meter.resourceGained.get(source) ?? 0) + gained)
     if (!quiet && gained >= 1) this.text(this.player.pos, `+${int(gained)} ${this.kit.resource.toLowerCase()}`, '#5aa9ff', false)
+    // Talents can listen for gains: once per gain, but regeneration only once per 10% of your maximum.
+    if (source === 'Regeneration') {
+      this.regenPool += gained
+      if (this.regenPool < this.maxResource * 0.1) return
+      this.regenPool -= this.maxResource * 0.1
+    }
+    if (this.gaining) return
+    this.gaining = true
+    this.emit({ kind: 'gain', tags: GAIN_TAGS, ctx: this.newContext(null, -1, 0), amount: gained })
+    this.gaining = false
   }
 
   private spend(n: number, source: string) {

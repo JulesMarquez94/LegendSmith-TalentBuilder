@@ -9,8 +9,8 @@ export const int = (n: number) => Math.round(n).toLocaleString('en-US')
 /** Seconds: 1.5 → "1.5", 1.6667 → "1.67", 12 → "12" */
 export const sec = (n: number) => trim(n, 2)
 
-/** One unit of a resource: "imp" from "imps", "combo point" from "combo points"; "mana" stays. */
-export const single = (resource: string) => resource.replace(/s$/, '')
+/** One unit of a resource: "imp" from "imps", "combo point" from "combo points"; "mana" and "focus" stay. */
+export const single = (resource: string) => resource.replace(/(?<![su])s$/, '')
 
 /** "1 imp", "2 imps", "100 mana". */
 export const counted = (n: number, resource: string) => `${int(n)} ${n === 1 ? single(resource) : resource}`

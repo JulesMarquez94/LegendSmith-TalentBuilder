@@ -77,7 +77,16 @@ export type CharStat =
 export type CharStats = Record<CharStat, number>
 
 /** Numbers that belong to an ability as a whole. Talents aim these at the ability's tags. */
-export type AbilityKey = 'cost' | 'castTime' | 'cooldown' | 'charges' | 'range' | 'gcd' | 'echo'
+export type AbilityKey =
+  | 'cost'
+  | 'castTime'
+  | 'cooldown'
+  | 'charges'
+  | 'range'
+  | 'gcd'
+  | 'echo'
+  /** An ability that spends all: % more that what it spends past its cost counts for. */
+  | 'surplus'
 
 /** Numbers that belong to one effect of an ability. Talents aim these at the effect's tags. */
 export type EffectKey =
@@ -113,6 +122,7 @@ export const ABILITY_KEYS: ReadonlySet<ValueKey> = new Set<ValueKey>([
   'range',
   'gcd',
   'echo',
+  'surplus',
 ])
 
 export type EffectType =
@@ -237,7 +247,10 @@ export interface EffectSpec {
 
 /** When a conditional bonus applies. Every field set must hold. */
 export interface Condition {
-  /** The cast paid its cost in at least this many steps (combo weapons). Procs only. */
+  /**
+   * The cast paid its cost at least this many times over: steps on a combo weapon, or what an ability
+   * that spends all spent against its cost. Procs only.
+   */
   paidAtLeast?: number
   /** Target below this % health, checked before the hit or heal lands. */
   targetBelow?: number
@@ -273,9 +286,10 @@ export interface ModMechanic {
  * What procs listen for. `cast` fires when a cast finishes (mobility included), `heal` and `crit`
  * on every heal that lands (HoT ticks too), `hit` on every damage that lands (DoT ticks and minion
  * attacks too; `crit` again when it crits), `tick` once per zone tick, and `expire` when a HoT,
- * DoT or zone runs out.
+ * DoT or zone runs out. `gain` fires when you gain resource: once per gain from an ability or talent,
+ * and once for every 10% of your maximum you regenerate.
  */
-export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire'
+export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire' | 'gain'
 
 export type Action =
   /**
@@ -311,6 +325,8 @@ export type Action =
   | { do: 'recast' }
   /** When a HoT ends: it jumps to the most injured ally in range without it (once). */
   | { do: 'jump'; range: number }
+  /** Ends your DoTs matching this on the event's enemy, landing `pct`% of the damage they had left at once. */
+  | { do: 'consume'; match: Match; pct: number }
   /** Copies a matching DoT from the event's target to the nearest enemy in range that doesn't have it. */
   | { do: 'spread'; match: Match; range: number }
   /** Fires another ability's effects, slotted or not. */
@@ -343,6 +359,11 @@ export interface AbilitySpec {
   tags?: readonly Tag[]
   /** Resource: mana, imps sacrificed, combo points. */
   cost?: number
+  /**
+   * Spends all your resource, at least `cost`, and grows with what it spends: twice the cost is twice
+   * the strength (more with `surplus`). Effects grow in amount, or in duration with `grows`.
+   */
+  spendsAll?: boolean
   /** Each cast uses the next of its effects in turn (Plague's Pox, Blight, Malady). */
   cycle?: boolean
   /** Seconds; 0 is instant. */
@@ -428,6 +449,8 @@ export interface ResolvedAbility {
    * pays for. Absent on other weapons and on abilities that cost nothing.
    */
   combo?: { maxSteps: number; perStep: number }
+  /** It spends all your resource: `surplus` is its bonus on what's past the cost, `atFull` its strength with a full bar. */
+  spendsAll?: { surplus: number; atFull: number }
   cycle?: boolean
   castTime: number
   cooldown: number

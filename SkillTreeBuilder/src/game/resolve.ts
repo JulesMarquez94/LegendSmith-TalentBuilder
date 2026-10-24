@@ -337,7 +337,10 @@ function resolveAbilityWith(
     ),
     text: '',
   }
-  if (weapon.combo && resolved.cost > 0) {
+  if (spec.spendsAll && resolved.cost > 0) {
+    const surplus = get('surplus').add
+    resolved.spendsAll = { surplus, atFull: spendStrength(stats.maxResource, resolved.cost, surplus) }
+  } else if (weapon.combo && resolved.cost > 0) {
     resolved.combo = {
       maxSteps: Math.max(1, Math.floor(stats.maxResource / resolved.cost + 1e-6)),
       perStep: 1 + stats.comboBonus / 100,
@@ -346,6 +349,13 @@ function resolveAbilityWith(
   resolved.text = spec.text(resolved) + comboText(resolved)
   return resolved
 }
+
+/**
+ * How many times its base strength an ability that spends all lands at: spending twice its cost is
+ * twice the strength, and `surplus` makes everything past the cost count for more.
+ */
+export const spendStrength = (spent: number, cost: number, surplus: number) =>
+  1 + (Math.max(0, spent - cost) / cost) * (1 + surplus / 100)
 
 /** How many times its base strength an ability lands at when it pays for `steps` steps. */
 export const comboStrength = (steps: number, perStep: number) => 1 + (Math.max(1, steps) - 1) * perStep

@@ -242,8 +242,9 @@ export function abilityLines(a: ResolvedAbility): NumberLine[] {
       value: a.cost,
       format: int,
       better: 'down',
-      detail:
-        a.combo && a.combo.maxSteps > 1
+      detail: a.spendsAll
+        ? `at least · spends all, ${pct(a.spendsAll.atFull)}× the effect with a full bar`
+        : a.combo && a.combo.maxSteps > 1
           ? `a step · up to ${a.combo.maxSteps} steps for ${pct(comboStrength(a.combo.maxSteps, a.combo.perStep))}× the effect`
           : undefined,
     })
@@ -280,7 +281,10 @@ export function abilityMeta(a: ResolvedAbility): string {
   const parts: string[] = []
   if (a.passive || a.effects.every((e) => e.type === 'aura')) parts.push('Passive')
   else parts.push(a.castTime > 0 ? `${sec(a.castTime)} sec cast` : 'Instant')
-  if (a.cost > 0) parts.push(`${counted(a.cost, a.resource)}${a.combo && a.combo.maxSteps > 1 ? ' a step' : ''}`)
+  if (a.cost > 0) {
+    const how = a.spendsAll ? ' or more, spends all' : a.combo && a.combo.maxSteps > 1 ? ' a step' : ''
+    parts.push(`${counted(a.cost, a.resource)}${how}`)
+  }
   if (a.cooldown > 0) parts.push(`${sec(a.cooldown)} sec ${a.charges > 1 ? `recharge · ${a.charges} charges` : 'cooldown'}`)
   if (a.range > 0) parts.push(`${yd(a.range)} yd`)
   return parts.join(' · ')

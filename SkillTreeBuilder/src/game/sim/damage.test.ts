@@ -162,15 +162,14 @@ describe('the daggers', () => {
   })
 
   it('pay a plain cost on a weapon without combo points', () => {
-    const arena = new Arena(noCrits(kitFor(book, ['doom-bolt', null, null, null, null, null])), DUMMIES, { seed: 1 })
+    const arena = new Arena(noCrits(kitFor(book, ['festering-rot', null, null, null, null, null])), DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 30 }
     arena.resource = 6
     cast(arena, 1)
-    expect(arena.resource).toBe(3)
-    expect(damageOf(arena, 'Doom Bolt')).toMatchObject({ hits: 1, damage: 2000 })
+    expect(arena.resource).toBe(5)
   })
 
-  it('pay for a spell in steps too (Doom Bolt costs 3: two steps at 6 combo points)', () => {
+  it('let Doom Bolt spend all their combo points too', () => {
     const kit = noCrits(kitFor(daggers, ['doom-bolt', null, null, null, null, null]))
     const arena = new Arena(kit, DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 30 }
@@ -204,7 +203,7 @@ describe('the bow', () => {
   it('has its own shots, and pays for shared spells in focus', () => {
     const onBow = kitFor(bow, ['aimed-shot', 'multi-shot', 'doom-bolt', null, null, null])
     expect(onBow.slots.slice(1, 4).map((a) => a!.cost)).toEqual([30, 20, 30])
-    expect(kitFor(book, ['doom-bolt', null, null, null, null, null]).slots[1]!.text).toContain('Costs 3 imps')
+    expect(kitFor(book, ['doom-bolt', null, null, null, null, null]).slots[1]!.text).toContain('Costs at least 3 imps')
 
     const arena = new Arena(noCrits(onBow), DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 40 }
@@ -224,6 +223,70 @@ describe('the bow', () => {
     // Talents in the bow's own tree add plain focus on top.
     const steady = kitFor(bow, [null, null, null, null, null, null], { 'ashwood-longbow': { 'steady-aim': 2 } })
     expect(steady.slots[0]!.effects.find((e) => e.type === 'restore')?.restore).toBe(14)
+  })
+})
+
+describe('Doom Bolt', () => {
+  const doomKit = (weapon: string, ranks: Record<string, number> = {}) =>
+    noCrits(kitFor(artifact(weapon), ['doom-bolt', 'plague', null, null, null, null], { 'doom-bolt': ranks }))
+  const ready = (kit: Kit, resource: number) => {
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = resource
+    return arena
+  }
+
+  it('spends all you have, at least its cost, and grows with it', () => {
+    const arena = ready(doomKit('tome-of-summoning'), 9)
+    cast(arena, 1)
+    expect(arena.resource).toBe(0)
+    // 9 imps against a cost of 3: three times the damage.
+    expect(damageOf(arena, 'Doom Bolt')).toMatchObject({ hits: 1, damage: 6000 })
+    expect(arena.use(1)).not.toBe('ok')
+  })
+
+  it('counts what it spends past its cost for more with Hunger', () => {
+    const kit = doomKit('ashwood-longbow', { hunger: 3 })
+    expect(kit.slots[1]!.spendsAll).toEqual({ surplus: 60, atFull: 1 + (70 / 30) * 1.6 })
+    const arena = ready(kit, 60)
+    cast(arena, 1)
+    // 60 focus against 30: 1 + 1 × 1.6 = 2.6 times.
+    expect(damageOf(arena, 'Doom Bolt')!.damage).toBeCloseTo(5200)
+  })
+
+  it('devours your DoTs on its target with Devour', () => {
+    const arena = ready(doomKit('tome-of-summoning', { hunger: 1, devour: 1 }), 3)
+    cast(arena, 2)
+    run(arena, 2)
+    const target = arena.enemies.find((e) => e.dots.length > 0)!
+    expect(target).toBeDefined()
+    cast(arena, 1)
+    expect(target.dots).toHaveLength(0)
+    expect(damageOf(arena, 'Devour')?.hits).toBe(1)
+  })
+
+  it('blasts around its target when it spends 3 times its cost (Cataclysm)', () => {
+    const ranks = { hunger: 1, devour: 1, cataclysm: 1 }
+    const small = ready(doomKit('tome-of-summoning', ranks), 6)
+    cast(small, 1)
+    expect(damageOf(small, 'Cataclysm')).toBeUndefined()
+    const big = ready(doomKit('tome-of-summoning', ranks), 9)
+    cast(big, 1)
+    expect(damageOf(big, 'Cataclysm')?.hits).toBeGreaterThanOrEqual(3)
+  })
+
+  it('takes time off its cooldown when you gain resource (Gathering Dark)', () => {
+    const ranks = { 'looming-end': 1, 'gathering-dark': 2 }
+    const arena = ready(doomKit('ashwood-longbow', ranks), 30)
+    cast(arena, 1)
+    const cd = arena.cooldowns.get('doom-bolt')!
+    const due = cd.rechargeAt!
+    for (let i = 0; i < 8; i++) {
+      cast(arena, 0)
+      run(arena, 1)
+    }
+    // Eight arrows, eight gains, each with a 30% chance at a second off.
+    expect(cd.rechargeAt === null || cd.rechargeAt <= due - 1).toBe(true)
   })
 })
 

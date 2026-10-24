@@ -1,5 +1,6 @@
 import { useId, type CSSProperties } from 'react'
-import { int, sec } from '../../game/format.ts'
+import { int, pct, sec } from '../../game/format.ts'
+import { spendStrength } from '../../game/resolve.ts'
 import type { Ally, Arena } from '../../game/sim/arena.ts'
 import type { TreeDef } from '../../talents/types.ts'
 import { ArtIcon } from '../ArtIcon.tsx'
@@ -136,8 +137,15 @@ export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readon
         const sweep = Math.max(waiting, gcd)
         const short = a !== null && arena.resource + 1e-6 < a.cost
         const left = cd && cd.charges < 1 && cd.rechargeAt !== null ? cd.rechargeAt - arena.time : 0
-        // Combo weapons pay in steps: show how many the next press would take.
-        const steps = a?.combo ? Math.floor((arena.resource + 1e-6) / a.cost) : 0
+        // What the next press would do: steps on a combo weapon, or how big a spend-all ability gets.
+        const growth =
+          !a || arena.resource + 1e-6 < a.cost
+            ? 1
+            : a.spendsAll
+              ? spendStrength(arena.resource, a.cost, a.spendsAll.surplus)
+              : a.combo
+                ? Math.floor((arena.resource + 1e-6) / a.cost)
+                : 1
         return (
           <button
             key={i}
@@ -162,7 +170,7 @@ export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readon
             <span className="action__key">{SLOT_KEYS[i]}</span>
             {cd && cd.max > 1 && <span className="action__charges">{cd.charges}</span>}
             {a && a.cost > 0 && <span className="action__cost">{int(a.cost)}</span>}
-            {steps > 1 && <span className="action__steps">×{steps}</span>}
+            {growth >= 1.05 && <span className="action__steps">×{pct(growth)}</span>}
             {a?.passive && <span className="action__cost">Passive</span>}
           </button>
         )

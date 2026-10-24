@@ -106,9 +106,19 @@ An ability can also be **made for** a weapon (`madeFor`: Harvest for the book). 
 picker shows it and lists the ones made for your weapon first. The Plague tree keeps its art and
 layout from the deck, with its X values filled in.
 
-**Doom Bolt** is the big single-target spell: a 2.5 sec cast for 2,000 damage on a 15 sec cooldown.
-Its tree adds damage, crit and charges, and ties it to damage over time (DoT crits shorten its
-cooldown, it hits harder per DoT on the target, and it powers up your DoTs for 8 sec).
+**Doom Bolt** is the big single-target spell, and it **spends all your resource**: its cost (3) is the
+minimum, and it grows with everything past it. Spending twice the cost is twice the damage, so 2,000
+becomes 10,000 with 15 imps, 6,667 with 100 focus or 4,000 with 6 combo points. Any ability can do
+this with `spendsAll`, and the action bar shows how big the next one would be (×4.7). Its tree plays
+with that:
+
+- **Hunger** makes what it spends past its cost count for more (`surplus`, +20/40/60%).
+- **Devour** ends your DoTs on its target and lands what they had left at once, plus 10/30/50%.
+- **Gathering Dark**: each time you gain resource, a chance to take 1 sec off its cooldown. A new
+  `gain` event fires on every gain, and once per 10% of your maximum you regenerate.
+- **Cataclysm** blasts around the target when it spends 3 times its cost or more.
+- **Residual Power** gives back part of what it spent; **Dread**, **Final Word** and **Inevitable** tie
+  it to your DoTs; and it has cast time, cooldown, crit and echo talents.
 
 **Raise Ghoul** is playable now (it was display-only): a 1.5 sec cast that raises a ghoul for 20 sec,
 hitting your target for 90 every 1.5 sec, up to 3 at once (another replaces the oldest). Ghouls are
