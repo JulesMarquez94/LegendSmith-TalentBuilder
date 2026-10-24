@@ -1,0 +1,217 @@
+import { describe, expect, it } from 'vitest'
+import type { Kit } from '../resolve.ts'
+import { healerKit } from '../testkit.ts'
+import { Arena } from './arena.ts'
+import { SCENARIOS, type Scenario } from './scenarios.ts'
+
+// A quiet room: the practice party at half health, nothing hitting anyone.
+// Ids: you 1 (30, 27), Tank 2 (30, 15.5), Blade 3 (25.5, 15), Archer 4 (37, 23).
+const QUIET: Scenario = { ...SCENARIOS[0], events: [], startHealth: 0.5 }
+
+const DT = 0.05
+const run = (arena: Arena, seconds: number) => {
+  for (let t = 0; t < seconds - 1e-9; t += DT) arena.step(DT)
+}
+const cast = (arena: Arena, slot: number) => {
+  arena.press(slot)
+  arena.step(DT)
+}
+const ally = (arena: Arena, name: string) => arena.allies.find((a) => a.name === name)!
+const hits = (arena: Arena, name: string) => arena.meter.rows.get(name)?.hits ?? 0
+
+function arenaWith(slots: (string | null)[], ranks = {}, scenario = QUIET): Arena {
+  return new Arena(healerKit(slots, ranks), scenario, { seed: 7 })
+}
+
+describe('mana', () => {
+  it('drains as you cast and comes back slowly', () => {
+    const arena = arenaWith(['mend', null, null, null, null])
+    cast(arena, 1)
+    expect(arena.mana).toBeCloseTo(950, 0)
+    run(arena, 2)
+    expect(arena.mana).toBeCloseTo(970, 0)
+  })
+
+  it('is restored by Radiant Bolt', () => {
+    const arena = arenaWith([null, null, null, null, null])
+    arena.mana = 500
+    cast(arena, 0)
+    expect(arena.mana).toBeCloseTo(520.5, 0)
+    expect(arena.meter.manaGained.get('Radiant Bolt')).toBe(20)
+  })
+
+  it("stops a cast you can't afford", () => {
+    const arena = arenaWith(['mend', null, null, null, null])
+    arena.mana = 10
+    cast(arena, 1)
+    expect(arena.cast).toBeNull()
+    expect(arena.notice?.text).toBe('Not enough mana')
+  })
+})
+
+describe('heals', () => {
+  it('land on the lowest-health ally when the cast finishes', () => {
+    const arena = arenaWith(['mend', null, null, null, null])
+    ally(arena, 'Tank').hp = 3000
+    cast(arena, 1)
+    expect(arena.cast?.ability.name).toBe('Mend')
+    run(arena, 1.5)
+    expect(ally(arena, 'Tank').hp).toBeGreaterThanOrEqual(4800)
+  })
+
+  it('tick a HoT once per interval for its whole duration', () => {
+    const arena = arenaWith(['renew', null, null, null, null])
+    cast(arena, 1)
+    run(arena, 13)
+    expect(hits(arena, 'Renew')).toBe(6)
+  })
+
+  it('jump a chain between allies close to each other', () => {
+    const arena = arenaWith(['chain-heal', null, null, null, null])
+    cast(arena, 1)
+    run(arena, 1.5)
+    // You (lowest by id), then the tank 11.5 yd away, then Blade; the archer is 14 yd from Blade.
+    expect(hits(arena, 'Chain Heal')).toBe(3)
+    expect(ally(arena, 'Archer').hp).toBe(8000)
+  })
+
+  it('heal only allies standing in a zone', () => {
+    const arena = arenaWith(['healing-rain', null, null, null, null])
+    cast(arena, 1)
+    run(arena, 10.5)
+    // Placed on you; the archer is 8.06 yd away, just outside its 8 yd.
+    expect(hits(arena, 'Healing Rain')).toBe(10)
+    expect(ally(arena, 'Archer').hp).toBe(8000)
+  })
+
+  it('make Bloom heal only allies your HoTs or zones touch, paying per ally', () => {
+    const arena = arenaWith(['renew', 'bloom', null, null, null])
+    cast(arena, 2)
+    expect(arena.notice?.text).toBe('Nobody has your HoTs or stands in your zones')
+    cast(arena, 1)
+    run(arena, 1)
+    const before = arena.mana
+    cast(arena, 2)
+    expect(hits(arena, 'Bloom')).toBe(1)
+    // 30 for the cast and 15 for the one ally, less the step's regeneration.
+    expect(before - arena.mana).toBeCloseTo(30 + 15 - 0.5, 1)
+  })
+
+  it("make Conduit heal when Radiant Bolt hits, as a passive", () => {
+    const arena = arenaWith(['conduit', null, null, null, null])
+    expect(arena.use(1)).toBe('Conduit is passive')
+    cast(arena, 0)
+    expect(hits(arena, 'Conduit')).toBe(1)
+  })
+
+  it('heal every ally for a large amount with Miracle', () => {
+    const arena = arenaWith([null, null, null, 'miracle', null])
+    cast(arena, 4)
+    expect(hits(arena, 'Miracle')).toBe(4)
+    expect(ally(arena, 'Tank').hp).toBeGreaterThanOrEqual(21000)
+  })
+})
+
+describe('cooldowns and charges', () => {
+  it('stop a second cast until the cooldown is over', () => {
+    const arena = arenaWith(['healing-rain', null, null, null, null])
+    cast(arena, 1)
+    run(arena, 1)
+    cast(arena, 1)
+    expect(arena.notice?.text).toBe("Healing Rain isn't ready yet")
+    run(arena, 9)
+    cast(arena, 1)
+    expect(arena.cooldowns.get('healing-rain')?.charges).toBe(0)
+    expect(arena.zones.at(-1)!.endsAt).toBeCloseTo(arena.time + 10, 1)
+  })
+
+  it('let a second charge go off right away', () => {
+    const arena = arenaWith(['healing-rain', null, null, null, null], { 'healing-rain': { 'twin-storms': 1 } })
+    cast(arena, 1)
+    run(arena, 1)
+    cast(arena, 1)
+    expect(arena.zones).toHaveLength(2)
+  })
+
+  it("never run out for abilities that have no cooldown", () => {
+    const arena = arenaWith(['mend', null, null, null, null])
+    for (let i = 0; i < 3; i++) {
+      cast(arena, 1)
+      run(arena, 1.6)
+    }
+    expect(arena.meter.casts.get('Mend')).toBe(3)
+  })
+
+  it('let a fresh press beat a held main attack', () => {
+    const arena = arenaWith(['renew', null, null, null, null])
+    const holdingAttack = { move: { x: 0, y: 0 }, aim: null, held: new Set([0]) }
+    arena.step(DT, holdingAttack)
+    run(arena, 1)
+    arena.press(1)
+    arena.step(DT, holdingAttack)
+    arena.step(DT, holdingAttack)
+    expect(arena.meter.casts.get('Renew')).toBe(1)
+  })
+
+  it('keep dashes off the global cooldown', () => {
+    const arena = arenaWith(['mend', null, null, null, 'dash'])
+    cast(arena, 1)
+    const start = { ...arena.player.pos }
+    arena.press(5)
+    arena.step(DT, { move: { x: 1, y: 0 }, aim: null, held: new Set() })
+    run(arena, 0.3)
+    expect(arena.cast?.ability.name).toBe('Mend')
+    expect(arena.player.pos.x - start.x).toBeCloseTo(10, 0)
+  })
+})
+
+describe('talent procs', () => {
+  it('make every 4th Mend free after 3 (Inner Focus)', () => {
+    const arena = arenaWith(['mend', null, null, null, null], { mend: { 'inner-focus': 1 } })
+    for (let i = 0; i < 3; i++) {
+      cast(arena, 1)
+      run(arena, 1.5)
+    }
+    const before = arena.mana
+    cast(arena, 1)
+    expect(arena.mana).toBeGreaterThanOrEqual(before)
+  })
+
+  it('leave Renew behind Lifetide (Ebb and Flow), even unslotted', () => {
+    const arena = arenaWith([null, null, null, 'lifetide', null], { lifetide: { moonpull: 1, 'slow-ebb': 2, 'ebb-and-flow': 3 } })
+    cast(arena, 4)
+    run(arena, 10.2)
+    expect(arena.allies.every((a) => a.hots.some((h) => h.key.startsWith('renew')))).toBe(true)
+  })
+
+  it('cast the whole ability again on Echo, for free', () => {
+    const base = healerKit(['renew', null, null, null, null])
+    const kit: Kit = { ...base, slots: base.slots.map((a) => a && { ...a, echo: 100 }) }
+    const arena = new Arena(kit, QUIET, { seed: 1 })
+    cast(arena, 1)
+    expect(arena.allies.filter((a) => a.hots.length > 0)).toHaveLength(2)
+    expect(arena.mana).toBeCloseTo(960, 0)
+  })
+})
+
+describe('a changed build', () => {
+  it('swaps in mid-fight, keeping health as a share', () => {
+    const arena = arenaWith(['mend', null, null, null, null])
+    arena.setKit(healerKit(['mend', null, null, null, null], {}, { Ring: { slot: 'Ring', rarity: 'epic', itemLevel: 120, stats: ['haste', 'crit'] } }))
+    expect(arena.player.maxHp).toBe(3540)
+    expect(arena.player.hp).toBeCloseTo(1770)
+  })
+})
+
+describe('the dungeon fight', () => {
+  it('runs to the end with a bot spamming heals', () => {
+    const arena = new Arena(healerKit(['mend', 'renew', 'healing-rain', 'miracle', 'dash']), SCENARIOS[1], { seed: 3 })
+    for (let t = 0; t < 200 && !arena.ended; t += DT) {
+      for (const slot of [4, 3, 2, 1]) arena.press(slot)
+      if (arena.mana < 200) arena.press(0)
+      arena.step(DT)
+    }
+    expect(arena.ended).not.toBeNull()
+    expect(arena.meter.rows.get('Mend')?.healing).toBeGreaterThan(0)
+  })
+})

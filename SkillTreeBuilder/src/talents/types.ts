@@ -1,8 +1,13 @@
+import type { AbilitySpec, CharStats, Mechanic } from '../game/types.ts'
+
 /** What an ability slot accepts. */
-export type AbilityKind = 'damage' | 'cooldown' | 'mobility'
+export type AbilityKind = 'damage' | 'heal' | 'cooldown' | 'mobility'
 
 /** Slot 1 holds the artifact; the rest hold abilities. */
 export type SlotKind = 'artifact' | AbilityKind
+
+/** The role an artifact gives you. Role and cooldown abilities belong to one role; mobility is shared. */
+export type Role = 'damage' | 'healer'
 
 /** An ability card, like the deck's ability slides. */
 export interface AbilityCard {
@@ -32,13 +37,17 @@ export interface TalentDef {
    * like WoW, the tooltip shows the value for the current (and next) rank.
    */
   description: string
+  /** What it does at a rank (1-based), for live numbers and the test arena. Leave out on display-only trees. */
+  effects?: (rank: number) => Mechanic[]
 }
 
 /** An ability that can go in a slot, with its talent tree. */
 export interface TreeDef {
   id: string
-  /** Which slots it fits. */
-  kind: AbilityKind
+  /** Which slots it fits. Artifact trees belong to an artifact and go in slot 1. */
+  kind: SlotKind
+  /** Role and cooldown abilities fit only artifacts of this role. Leave out to fit any (mobility). */
+  role?: Role
   ability: AbilityCard
   /** Abilities it applies, listed on its card — e.g. Plague's Pox, Blight and Malady. */
   effects?: AbilityCard[]
@@ -53,4 +62,24 @@ export interface TreeDef {
   /** Points that must be spent in the rows above to unlock each next row. */
   pointsPerRow: number
   talents: TalentDef[]
+  /** Numbers and behaviour for live tooltips and the test arena. Trees without one are display-only. */
+  spec?: AbilitySpec
+}
+
+/** The weapon in slot 1. It sets the role, and so which abilities fit the other slots. */
+export interface ArtifactDef {
+  id: string
+  name: string
+  color: string
+  role: Role
+  /** What the three role slots hold. */
+  roleKind: AbilityKind
+  /** Shown on the artifact card and in the picker. */
+  description: string
+  /** Its resource, e.g. "Mana". */
+  resource: string
+  /** What holding it adds to the character: the staff's mana pool and regeneration. */
+  stats?: Partial<CharStats>
+  /** Its main attack and talents. Leave out while the artifact is a placeholder. */
+  tree?: TreeDef
 }

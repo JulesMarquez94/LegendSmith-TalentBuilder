@@ -1,32 +1,45 @@
 import { useEffect, useId, useRef } from 'react'
-import type { SlotKind, TreeDef } from '../talents/types.ts'
 import { ArtIcon } from './ArtIcon.tsx'
-import { KIND_LABEL } from './labels.ts'
+
+/** One choice in the picker: an ability for a slot, or an artifact for slot 1. */
+export interface PickerOption {
+  id: string
+  name: string
+  color?: string
+  artFolder?: string
+  icon?: string
+  /** Cast time, cost, cooldown… on one line. */
+  meta: string
+  description: string
+  playtest?: boolean
+  displayOnly?: boolean
+  /** The slot it's in now (0-based), or -1. */
+  at: number
+}
 
 interface Props {
   slotIndex: number
-  kind: SlotKind
-  /** The trees that fit this slot. */
-  trees: readonly TreeDef[]
-  slots: readonly (string | null)[]
-  onPick: (treeId: string) => void
+  title: string
+  subtitle: string
+  options: readonly PickerOption[]
+  /** Whether the slot holds something, so picking a slotted option swaps rather than moves. */
+  slotFilled: boolean
+  onPick: (id: string) => void
   onClose: () => void
 }
 
-/** A modal list of the abilities that fit a slot. Escape, Cancel or a click outside closes it. */
-export function AbilityPicker({ slotIndex, kind, trees, slots, onPick, onClose }: Props) {
+/** A modal list of what fits a slot. Escape, Cancel or a click outside closes it. */
+export function AbilityPicker({ slotIndex, title, subtitle, options, slotFilled, onPick, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
-  const label = KIND_LABEL[kind].toLowerCase()
-  const slotFilled = slots[slotIndex] !== null
 
   useEffect(() => {
     const dialog = ref.current
     if (dialog && !dialog.open) dialog.showModal()
   }, [])
 
-  const choose = (treeId: string) => {
-    onPick(treeId)
+  const choose = (id: string) => {
+    onPick(id)
     ref.current?.close()
   }
 
@@ -42,40 +55,37 @@ export function AbilityPicker({ slotIndex, kind, trees, slots, onPick, onClose }
     >
       <div className="picker__body">
         <h2 id={titleId} className="picker__title">
-          Slot {slotIndex + 1} · {KIND_LABEL[kind]}
+          {title}
         </h2>
-        <p className="picker__sub">Choose a {label} ability. Its talent tree goes into the slot.</p>
+        <p className="picker__sub">{subtitle}</p>
 
         <ul className="picker__list">
-          {trees.map((tree) => {
-            const at = slots.indexOf(tree.id)
-            const here = at === slotIndex
-            const { ability } = tree
+          {options.map((option) => {
+            const here = option.at === slotIndex
             return (
-              <li key={tree.id}>
-                <button type="button" className="picker__option" disabled={here} onClick={() => choose(tree.id)}>
+              <li key={option.id}>
+                <button type="button" className="picker__option" disabled={here} onClick={() => choose(option.id)}>
                   <ArtIcon
-                    folder={tree.artFolder}
-                    icon={ability.icon}
-                    label={ability.name}
-                    tint={tree.color}
+                    folder={option.artFolder}
+                    icon={option.icon}
+                    label={option.name}
+                    tint={option.color}
                     className="picker__icon"
                   />
                   <span className="picker__text">
                     <span className="picker__name">
-                      {ability.name}
-                      {tree.playtest && <span className="tag">Playtest</span>}
+                      {option.name}
+                      {option.playtest && <span className="tag">Playtest</span>}
+                      {option.displayOnly && <span className="tag">Display only</span>}
                       {here && <span className="picker__note">In this slot</span>}
-                      {!here && at >= 0 && (
+                      {!here && option.at >= 0 && (
                         <span className="picker__note">
-                          In slot {at + 1} · {slotFilled ? 'swaps' : 'moves here'}
+                          In slot {option.at + 1} · {slotFilled ? 'swaps' : 'moves here'}
                         </span>
                       )}
                     </span>
-                    <span className="picker__meta">
-                      {[ability.castTime, ability.range, ability.cooldown].filter(Boolean).join(' · ')}
-                    </span>
-                    <span className="picker__desc">{ability.description}</span>
+                    <span className="picker__meta">{option.meta}</span>
+                    <span className="picker__desc">{option.description}</span>
                   </span>
                 </button>
               </li>

@@ -1,5 +1,8 @@
+import type { Mechanic } from '../game/types.ts'
 import { rankValueCounts } from './description.ts'
-import type { SlotKind, TreeDef } from './types.ts'
+import type { Loadout } from './loadout.ts'
+import { fits, slotKinds } from './slots.ts'
+import type { ArtifactDef, TreeDef } from './types.ts'
 
 /** Catches tree-data mistakes (typos in ids, overlapping cells, missing art) and lists them in plain words. */
 export function validateTree(tree: TreeDef, hasArt: (folder: string, name: string) => boolean): string[] {
@@ -31,6 +34,15 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
     for (const count of rankValueCounts(t.description)) {
       if (count !== t.maxRank) problems.push(`${t.name}: a {…} group has ${count} values but the talent has ${t.maxRank} ranks`)
     }
+    // A playable tree whose talent does nothing would quietly show wrong numbers in the arena.
+    if (tree.spec && !t.effects) problems.push(`${t.name}: no effects, so it does nothing in the test arena`)
+    for (let rank = 1; rank <= t.maxRank && t.effects; rank++) {
+      for (const m of t.effects(rank)) {
+        if (m.kind === 'mod' && m.when && m.key !== 'amount') {
+          problems.push(`${t.name}: only "amount" can have a condition, not "${m.key}"`)
+        }
+      }
+    }
     art(t.name, t.icon)
   }
 
@@ -44,25 +56,56 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
   return problems
 }
 
-/** Checks the tree list and the starting loadout against the slot layout. */
+/** Abilities a mechanic names by id: grants add to them, `fire` casts them. */
+function namedAbilities(m: Mechanic): string[] {
+  if (m.kind === 'grant') return [m.to]
+  if (m.kind === 'proc') return m.proc.actions.flatMap((a) => (a.do === 'fire' ? [a.ability] : []))
+  return []
+}
+
+/** Checks the trees and artifacts against each other, and the starting loadout against the slots. */
 export function validateCatalog(
   trees: readonly TreeDef[],
-  slots: readonly SlotKind[],
-  starting: readonly (string | null)[],
+  artifacts: readonly ArtifactDef[],
+  starting: Loadout,
 ): string[] {
   const problems: string[] = []
   const seen = new Set<string>()
   for (const tree of trees) {
     if (seen.has(tree.id)) problems.push(`Two trees use the id "${tree.id}"`)
     seen.add(tree.id)
+    if (tree.kind === 'artifact' && !artifacts.some((a) => a.tree === tree)) {
+      problems.push(`${tree.ability.name} is an artifact tree, but no artifact holds it`)
+    }
+    for (const t of tree.talents) {
+      for (const m of t.effects?.(t.maxRank) ?? []) {
+        for (const id of namedAbilities(m)) {
+          const target = trees.find((other) => other.id === id)
+          if (!target) problems.push(`${t.name} names "${id}", which isn't a tree`)
+          else if (!target.spec) problems.push(`${t.name} names ${target.ability.name}, which isn't playable`)
+        }
+      }
+    }
   }
-  if (starting.length !== slots.length) problems.push(`The starting loadout has ${starting.length} slots, not ${slots.length}`)
-  starting.forEach((id, i) => {
-    if (id === null) return
+  for (const artifact of artifacts) {
+    if (artifact.tree && artifact.tree.kind !== 'artifact') problems.push(`${artifact.name}'s tree must be an artifact tree`)
+    if (artifact.tree && !trees.includes(artifact.tree)) problems.push(`${artifact.name}'s tree isn't in the tree list`)
+  }
+
+  const artifact = artifacts.find((a) => a.id === starting.artifact)
+  if (!artifact) return [...problems, `The starting artifact "${starting.artifact}" isn't an artifact`]
+  const slots = slotKinds(artifact)
+  if (starting.slots.length !== slots.length) problems.push(`The starting loadout has ${starting.slots.length} slots, not ${slots.length}`)
+  if (starting.slots[0] !== (artifact.tree?.id ?? null)) problems.push(`Starting slot 1 must hold ${artifact.name}'s tree`)
+  starting.slots.forEach((id, i) => {
+    if (id === null || i === 0) return
     const tree = trees.find((t) => t.id === id)
     if (tree === undefined) problems.push(`Starting slot ${i + 1} holds "${id}", which isn't a tree`)
-    else if (tree.kind !== slots[i]) problems.push(`Starting slot ${i + 1} is a ${slots[i]} slot, but ${tree.ability.name} is ${tree.kind}`)
-    if (starting.indexOf(id) !== i) problems.push(`"${id}" starts in more than one slot`)
+    else if (!fits(tree, slots[i], artifact)) {
+      const what = tree.role && tree.kind !== slots[i] ? tree.kind : [tree.role, tree.kind].filter(Boolean).join(' ')
+      problems.push(`Starting slot ${i + 1} is a ${slots[i]} slot, but ${tree.ability.name} is ${what}`)
+    }
+    if (starting.slots.indexOf(id) !== i) problems.push(`"${id}" starts in more than one slot`)
   })
   return problems
 }

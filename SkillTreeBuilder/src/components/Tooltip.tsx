@@ -1,5 +1,8 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { abilityLines } from '../game/describe.ts'
+import { reach, type Kit } from '../game/resolve.ts'
+import type { ResolvedAbility } from '../game/types.ts'
 import { describeRank } from '../talents/description.ts'
 import {
   canLearn,
@@ -58,7 +61,7 @@ export function Tooltip({ id, anchor, children }: { id: string; anchor: HTMLElem
   )
 }
 
-function TipCard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+export function TipCard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
     <div className="tip">
       {icon}
@@ -79,14 +82,17 @@ interface TalentTooltipProps {
   pointsLeft: number
   /** Most points the tree can hold. */
   cap: number
+  /** The build's live kit, to show which slotted abilities the talent reaches. */
+  kit?: Kit
 }
 
-export function TalentTooltip({ tree, talent, ranks, pointsLeft, cap }: TalentTooltipProps) {
+export function TalentTooltip({ tree, talent, ranks, pointsLeft, cap, kit }: TalentTooltipProps) {
   const rank = rankOf(ranks, talent)
   const pre = prerequisite(tree, talent)
   const learnable = canLearn(tree, ranks, talent, pointsLeft)
   const unlearnable = canUnlearn(tree, ranks, talent)
   const atCap = pointsSpent(tree, ranks) >= cap && rank < talent.maxRank
+  const reaches = kit && talent.effects ? reach(talent.effects(Math.max(rank, 1)), kit) : []
   const icon = (
     <ArtIcon folder={tree.artFolder} icon={talent.icon} label={talent.name} tint={tree.color} className="tip__icon" />
   )
@@ -118,6 +124,11 @@ export function TalentTooltip({ tree, talent, ranks, pointsLeft, cap }: TalentTo
           <p className="tip__desc">{describeRank(talent.description, rank + 1)}</p>
         </>
       )}
+      {kit && talent.effects && (
+        <div className="tip__reach">
+          {reaches.length > 0 ? `Affects: ${reaches.join(', ')}` : 'Affects nothing you have slotted'}
+        </div>
+      )}
       {(learnable || unlearnable) && (
         <div className="tip__hints">
           {learnable && <div>Click to learn</div>}
@@ -129,11 +140,18 @@ export function TalentTooltip({ tree, talent, ranks, pointsLeft, cap }: TalentTo
 }
 
 /** The tree's ability card, with any abilities it applies listed underneath. */
-export function AbilityTooltip({ tree }: { tree: TreeDef }) {
+export function AbilityTooltip({ tree, live }: { tree: TreeDef; live?: ResolvedAbility | null }) {
   const { ability, effects = [] } = tree
   const icon = (
     <ArtIcon folder={tree.artFolder} icon={ability.icon} label={ability.name} tint={tree.color} className="tip__icon" />
   )
+  if (live) {
+    return (
+      <TipCard icon={icon} title={ability.name}>
+        <LiveAbility ability={live} />
+      </TipCard>
+    )
+  }
 
   return (
     <TipCard icon={icon} title={ability.name}>
@@ -163,5 +181,25 @@ export function AbilityTooltip({ tree }: { tree: TreeDef }) {
         </ul>
       )}
     </TipCard>
+  )
+}
+
+/** A playable ability's card with its live numbers: gear and talents already applied. */
+export function LiveAbility({ ability }: { ability: ResolvedAbility }) {
+  return (
+    <>
+      <p className="tip__desc">{ability.text}</p>
+      <dl className="tip__lines">
+        {abilityLines(ability).map((line) => (
+          <div key={line.key} className="tip__line">
+            <dt>{line.label}</dt>
+            <dd>
+              {line.format(line.value)}
+              {line.detail && <small> · {line.detail}</small>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </>
   )
 }

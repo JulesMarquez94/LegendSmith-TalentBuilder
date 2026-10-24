@@ -1,8 +1,10 @@
 import { canLearn, canUnlearn, pointsSpent, rankOf, type Ranks } from './rules.ts'
 import type { TalentDef, TreeDef } from './types.ts'
 
-/** Which tree sits in each slot (by id, null = empty), and the ranks learned in each tree. */
+/** The artifact held, which tree sits in each slot (by id, null = empty), and the ranks learned in each tree. */
 export interface Loadout {
+  artifact: string
+  /** Slot 1 holds the artifact's own tree, when it has one. */
   slots: readonly (string | null)[]
   ranks: Readonly<Record<string, Ranks>>
 }
@@ -57,7 +59,7 @@ export function slotTree(loadout: Loadout, index: number, treeId: string | null)
   slots[index] = treeId
   const ranks = { ...loadout.ranks }
   if (previous !== null && !slots.includes(previous)) delete ranks[previous]
-  return { slots, ranks }
+  return { ...loadout, slots, ranks }
 }
 
 export const resetTalents = (loadout: Loadout): Loadout => ({ ...loadout, ranks: {} })

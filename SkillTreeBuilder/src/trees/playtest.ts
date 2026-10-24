@@ -263,6 +263,7 @@ export const soulSiphon: TreeDef = {
 export const bloodFrenzy: TreeDef = {
   id: 'blood-frenzy',
   kind: 'cooldown',
+  role: 'damage',
   playtest: true,
   color: '#d4473f',
   columns: 4,
@@ -348,6 +349,7 @@ export const bloodFrenzy: TreeDef = {
 export const armyOfTheDead: TreeDef = {
   id: 'army-of-the-dead',
   kind: 'cooldown',
+  role: 'damage',
   playtest: true,
   color: '#4fb39a',
   columns: 4,

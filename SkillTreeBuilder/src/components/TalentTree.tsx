@@ -1,5 +1,7 @@
 import { useId, type CSSProperties, type KeyboardEvent } from 'react'
 import { artUrl } from '../art.ts'
+import type { Kit } from '../game/resolve.ts'
+import type { ResolvedAbility } from '../game/types.ts'
 import { pointsSpent, rankOf, talentState, type Ranks } from '../talents/rules.ts'
 import type { TalentDef, TreeDef } from '../talents/types.ts'
 import { ArtIcon } from './ArtIcon.tsx'
@@ -17,11 +19,14 @@ interface Props {
   cap: number
   onLearn: (talent: TalentDef) => void
   onUnlearn: (talent: TalentDef) => void
+  /** The ability with this build's numbers, for the header icon's card. */
+  live?: ResolvedAbility | null
+  kit?: Kit
 }
 
 const UNLEARN_KEYS = new Set(['-', 'Backspace', 'Delete'])
 
-export function TalentTree({ tree, ranks, pointsLeft, cap, onLearn, onUnlearn }: Props) {
+export function TalentTree({ tree, ranks, pointsLeft, cap, onLearn, onUnlearn, live, kit }: Props) {
   const tipId = useId()
   // `null` is the header icon.
   const [hover, hoverOn] = useHoverTarget<TalentDef | null>()
@@ -100,9 +105,9 @@ export function TalentTree({ tree, ranks, pointsLeft, cap, onLearn, onUnlearn }:
       {hover && (
         <Tooltip id={tipId} anchor={hover.el}>
           {hover.target ? (
-            <TalentTooltip tree={tree} talent={hover.target} ranks={ranks} pointsLeft={pointsLeft} cap={cap} />
+            <TalentTooltip tree={tree} talent={hover.target} ranks={ranks} pointsLeft={pointsLeft} cap={cap} kit={kit} />
           ) : (
-            <AbilityTooltip tree={tree} />
+            <AbilityTooltip tree={tree} live={live} />
           )}
         </Tooltip>
       )}
