@@ -100,6 +100,8 @@ export type EffectKey =
   | 'extraCost'
   /** Stacks a DoT adds per application. */
   | 'stacks'
+  /** How many of a summon can be up at once. */
+  | 'max'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -126,6 +128,8 @@ export type EffectType =
   | 'dot'
   /** One minion's attack. */
   | 'minion'
+  /** Raises a minion of its own (a ghoul) that hits your target for `amount` every `interval` sec for `duration` sec. */
+  | 'summon'
   | 'restore'
   | 'move'
   | 'buff'
@@ -221,6 +225,8 @@ export interface EffectSpec {
   rolling?: boolean
   /** Stacks added per application of a rolling DoT. Default 1. */
   stacks?: number
+  /** Summons: how many can be up at once; one more replaces the oldest. Default 1. */
+  max?: number
   /** Damage is multiplied by how many of your effects matching this the target has (Harvest's "per DoT"). */
   perEffect?: Match
   /** On a combo weapon, what grows with each step a cast pays for: its amount (default) or its duration (Rupture). */
@@ -393,6 +399,7 @@ export interface ResolvedEffect {
   speed: number
   extraCost: number
   stacks: number
+  max: number
   mode?: 'dash' | 'teleport'
   buff?: BuffSpec
   hostile?: boolean

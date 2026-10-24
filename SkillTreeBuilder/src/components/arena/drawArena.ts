@@ -161,6 +161,20 @@ export function drawArena(canvas: HTMLCanvasElement, arena: Arena, aim: Vec | nu
     g.fill()
   }
 
+  // Your summons (ghouls), in melee around their target, with a ring that runs down as their time does
+  for (const s of arena.summons) {
+    const p = arena.summonPos(s)
+    const left = Math.max(0, (s.endsAt - arena.time) / s.effect.duration)
+    g.fillStyle = rgba(s.effect.color, 0.9)
+    circle(p, 0.55)
+    g.fill()
+    g.strokeStyle = rgba(s.effect.color, 0.6)
+    g.lineWidth = 0.12
+    g.beginPath()
+    g.arc(p.x, p.y, 0.8, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2)
+    g.stroke()
+  }
+
   // Allies
   for (const a of arena.allies) {
     const color = a.isPlayer ? '#e7b725' : ROLE_COLOR[a.role]

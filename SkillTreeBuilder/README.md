@@ -110,6 +110,13 @@ layout from the deck, with its X values filled in.
 Its tree adds damage, crit and charges, and ties it to damage over time (DoT crits shorten its
 cooldown, it hits harder per DoT on the target, and it powers up your DoTs for 8 sec).
 
+**Raise Ghoul** is playable now (it was display-only): a 1.5 sec cast that raises a ghoul for 20 sec,
+hitting your target for 90 every 1.5 sec, up to 3 at once (another replaces the oldest). Ghouls are
+**summons**, a new effect type: minions of their own that fight in melee around your target and then
+fall, unlike the book's imps, which are its resource. They count for Minion power. Its tree: more
+minion damage and attack speed, longer-lasting ghouls, more at once (Horde), Grave Rot on their hits,
+pools of decay, a Ghoul Lord every 4th cast, and Corpse Explosion when one falls.
+
 The **Ashwood Longbow** shoots from 40 yd. Focus starts empty, up to 100, and only shooting fills it:
 each Swift Arrow gives 10 (hold the key to keep shooting). Focus counts in **tens**: an artifact can set
 a `unit`, and every ability's cost and gain is multiplied by it, so Harvest's cost of 2 is 20 focus

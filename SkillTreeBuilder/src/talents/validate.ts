@@ -128,7 +128,7 @@ const WEAPON_STATS: readonly CharStat[] = ['maxResource', 'resourceRegen', 'over
 function weaponProblems(tree: TreeDef, trees: readonly TreeDef[]): string[] {
   const problems: string[] = []
   const abilities = new Map(trees.map((t) => [t.id, t.ability.name]))
-  const ownMinion = tree.spec?.minion !== undefined
+  const ownMinion = tree.spec?.minion !== undefined || (tree.spec?.effects ?? []).some((e) => e.type === 'summon')
   for (const t of tree.talents) {
     const mechanics = t.effects?.(t.maxRank) ?? []
     for (const tag of new Set(mechanics.flatMap(aimedTags))) {

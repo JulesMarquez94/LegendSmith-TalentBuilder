@@ -41,6 +41,7 @@ describe('the artifact', () => {
     expect(fits(tree('harvest'), 'damage', twinDaggers)).toBe(true)
     expect(fits(tree('plague'), 'damage', ashwoodLongbow)).toBe(true)
     expect(fits(tree('doom-bolt'), 'damage', twinDaggers)).toBe(true)
+    expect(fits(tree('raise-ghoul'), 'damage', ashwoodLongbow)).toBe(true)
     // Weapon strikes and shots: only weapons that can make them.
     expect(fits(tree('backstab'), 'damage', twinDaggers)).toBe(true)
     expect(fits(tree('eviscerate'), 'damage', tomeOfSummoning)).toBe(false)

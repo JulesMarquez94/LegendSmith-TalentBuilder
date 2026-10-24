@@ -227,6 +227,42 @@ describe('the bow', () => {
   })
 })
 
+describe('Raise Ghoul', () => {
+  it('raises ghouls that fight on their own, up to 3, and fall when their time runs out', () => {
+    const kit = noCrits(kitFor(artifact('ashwood-longbow'), ['raise-ghoul', null, null, null, null, null]))
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 100
+    for (let i = 0; i < 4; i++) cast(arena, 1)
+    // The 4th replaced the oldest. Raise Ghoul costs 2, so 20 focus each on the bow.
+    expect(arena.summons).toHaveLength(3)
+    expect(arena.resource).toBe(20)
+    run(arena, 6)
+    expect(damageOf(arena, 'Ghoul')?.damage).toBeGreaterThan(0)
+    expect(damageOf(arena, 'Ghoul')!.damage % 90).toBe(0)
+    run(arena, 20)
+    expect(arena.summons).toHaveLength(0)
+  })
+
+  it('works its talents: more ghouls, Grave Rot, and Corpse Explosion when one falls', () => {
+    const kit = noCrits(
+      kitFor(book, ['raise-ghoul', null, null, null, null, null], {
+        'raise-ghoul': { 'grave-pact': 1, horde: 1, 'rotting-claws': 1, 'corpse-explosion': 1 },
+      }),
+    )
+    const ghoul = kit.slots[1]!.effects[0]
+    expect(ghoul).toMatchObject({ type: 'summon', max: 4, duration: 23 })
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 10
+    cast(arena, 1)
+    run(arena, 3)
+    expect(damageOf(arena, 'Grave Rot')?.hits).toBeGreaterThan(0)
+    run(arena, 21)
+    expect(damageOf(arena, 'Corpse Explosion')?.hits).toBeGreaterThan(0)
+  })
+})
+
 describe('group buffs and shared ultimates', () => {
   it('give the whole group their stats, you included', () => {
     const kit = kitFor(artifact('lifewarden-staff'), [null, null, null, null, null, 'vitality-aura'])

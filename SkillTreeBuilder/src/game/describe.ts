@@ -158,6 +158,18 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
         detail: `every ${seconds(e.interval)}, each`,
       })
       break
+    case 'summon':
+      out.push({
+        key: key('amount'),
+        label: `${name ?? 'Minion'} hit`,
+        value: e.amount,
+        format: amount,
+        better: 'up',
+        detail: `every ${seconds(e.interval)}, each`,
+      })
+      out.push({ key: key('duration'), label: 'Lasts', value: e.duration, format: seconds, better: 'up' })
+      out.push({ key: key('max'), label: 'At once', value: e.max, format: String, better: 'up', detail: 'one more replaces the oldest' })
+      break
     case 'aura':
       for (const [stat, n] of Object.entries(e.stats ?? {})) {
         out.push({

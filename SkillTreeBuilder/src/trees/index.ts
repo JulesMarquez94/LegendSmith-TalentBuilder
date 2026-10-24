@@ -13,7 +13,8 @@ import { dash, sprint, teleport } from './mobility.ts'
 import { ashfall, festeringRot, harvest, miasma, necroticExplosion } from './necro/spells.ts'
 import { tomeOfSummoning } from './necro/tome.ts'
 import { plague } from './plague.ts'
-import { armyOfTheDead, bloodFrenzy, boneSpear, raiseGhoul, shadowStep, soulSiphon, wraithWalk } from './playtest.ts'
+import { raiseGhoul } from './ghoul.ts'
+import { armyOfTheDead, bloodFrenzy, boneSpear, shadowStep, soulSiphon, wraithWalk } from './playtest.ts'
 
 /**
  * One talent point per level up to 60, and no more than 12 in any one tree, as in the overview's

@@ -145,6 +145,16 @@ export const dot = (
 ): EffectSpec => ({ type: 'dot', amount, duration, interval, target, ...extra })
 
 /** A zone that hurts enemies inside it. With `inflicts`, it also puts that DoT on them every tick. */
+/** A minion that fights on its own: `amount` every `interval` sec for `duration` sec, up to `max` at once. */
+export const summon = (amount: number, interval: number, duration: number, max: number, extra: Extra = {}): EffectSpec => ({
+  type: 'summon',
+  amount,
+  interval,
+  duration,
+  max,
+  ...extra,
+})
+
 export const hostileZone = (
   amount: number,
   duration: number,

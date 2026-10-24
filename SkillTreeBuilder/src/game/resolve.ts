@@ -30,6 +30,7 @@ export const FAMILY_OF: Record<EffectType, Family> = {
   damage: 'direct-damage',
   dot: 'dot',
   minion: 'minion',
+  summon: 'minion',
   restore: 'resource',
   move: 'movement',
   buff: 'buff',
@@ -203,7 +204,7 @@ const isSpell = (tree: TreeDef) => (tree.spec?.cost ?? 0) > 0
 function effectTags(tree: TreeDef, effect: EffectSpec): Set<Tag> {
   const family = FAMILY_OF[effect.type]
   // A minion's attack is its own: it doesn't carry the main attack's tags.
-  const abilityTags = effect.type === 'minion' ? [] : (tree.spec?.tags ?? [])
+  const abilityTags = FAMILY_OF[effect.type] === 'minion' ? [] : (tree.spec?.tags ?? [])
   const tags = new Set<Tag>([family, tree.id, tree.kind, ...abilityTags, ...(effect.tags ?? [])])
   if (effect.hostile) tags.add('damage').add('aoe')
   else if (HEALING.has(family)) tags.add('healing')
@@ -265,6 +266,7 @@ function resolveEffectWith(
     speed: Math.max(0, scaled(speedBase, get('speed'))),
     extraCost: Math.max(0, scaled((effect.extraCost ?? 0) * unit, get('extraCost'))),
     stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
+    max: Math.max(1, Math.round((effect.max ?? 1) + get('max').add)),
     mode: effect.mode,
     buff: effect.buff,
     hostile: effect.hostile,

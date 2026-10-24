@@ -184,6 +184,19 @@ export interface Imp {
   nextAttack: number
 }
 
+/** A minion an ability raised (a ghoul): it fights on its own until its time runs out. */
+export interface Summon {
+  id: number
+  /** The same for every one of a kind, so `max` counts them. */
+  key: string
+  name: string
+  effect: ResolvedEffect
+  endsAt: number
+  nextAttack: number
+  angle: number
+  depth: number
+}
+
 export interface ActiveBuff {
   id: string
   name: string
@@ -321,6 +334,7 @@ export class Arena {
   /** The artifact's resource: mana, imps, combo points. */
   resource: number
   imps: Imp[] = []
+  summons: Summon[] = []
   zones: Zone[] = []
   hazards: Hazard[] = []
   buffs: ActiveBuff[] = []
@@ -568,6 +582,7 @@ export class Arena {
     this.useRequested(input)
     this.syncImps()
     this.updateImps()
+    this.updateSummons()
     this.updateHots()
     this.updateDots()
     this.updateZones()
@@ -797,6 +812,9 @@ export class Arena {
           this.addBuff({ ...e.buff, stats, duration: e.duration }, false)
         }
         break
+      case 'summon':
+        this.summon(e, ctx, opts.label)
+        break
       case 'minion':
       case 'aura':
         break
@@ -859,7 +877,7 @@ export class Arena {
       let bonus = 0
       for (const c of e.conditionals) bonus += this.enemyBonus(c, enemy)
       // Minion power: more damage for each minion you command.
-      amount *= (1 + bonus / 100) * (1 + (this.stats().minionPower * this.imps.length) / 100)
+      amount *= (1 + bonus / 100) * (1 + (this.stats().minionPower * (this.imps.length + this.summons.length)) / 100)
       crit = this.rng() * 100 < e.critChance
       if (crit) amount *= e.critMultiplier
     }
@@ -1458,6 +1476,61 @@ export class Arena {
       if (!target) continue
       this.beam(this.impPos(imp), target.pos, '#ff8a5c')
       this.hitEnemy(target, e.amount, e, this.newContext(null, -1, 0), { label: e.name ?? 'Minion', quiet: true })
+    }
+  }
+
+  /** Raises a minion of your own. Past its `max`, the oldest one of its kind falls to make room. */
+  private summon(e: ResolvedEffect, ctx: CastContext, name: string) {
+    if (!this.player.alive || e.duration <= 0 || e.interval <= 0) return
+    const same = this.summons.filter((s) => s.key === e.key)
+    if (same.length >= e.max) this.dismiss(same[0])
+    const s: Summon = {
+      id: this.nextId++,
+      key: e.key,
+      name,
+      effect: e,
+      endsAt: this.time + e.duration,
+      nextAttack: this.time + 0.5,
+      angle: this.rng() * Math.PI * 2,
+      depth: ctx.depth,
+    }
+    this.summons.push(s)
+    this.ring(this.summonPos(s), 1.4, e.color)
+  }
+
+  /** A summon falls: its time ran out, a newer one took its place, or you died. */
+  private dismiss(s: Summon) {
+    this.summons = this.summons.filter((x) => x !== s)
+    const target = this.mainTarget(ENEMY_RANGE)
+    this.ring(this.summonPos(s), 1.2, s.effect.color)
+    this.emit({ kind: 'expire', tags: s.effect.tags, ctx: this.summonContext(s, target), enemy: target ?? undefined })
+  }
+
+  /** Where a summon stands: in melee around the enemy it's fighting, or beside you with nothing to fight. */
+  summonPos(s: Summon): Vec {
+    const target = this.mainTarget(ENEMY_RANGE)
+    const center = target?.pos ?? this.player.pos
+    const r = (target ? target.radius : 0) + 1.6
+    return { x: center.x + Math.cos(s.angle) * r, y: center.y + Math.sin(s.angle) * r }
+  }
+
+  private summonContext(s: Summon, target: Enemy | null): CastContext {
+    return { ...this.newContext(null, -1, 0, s.depth), eventEnemy: target ?? undefined, range: ENEMY_RANGE }
+  }
+
+  private updateSummons() {
+    for (const s of [...this.summons]) {
+      if (this.time >= s.endsAt || !this.player.alive) {
+        this.dismiss(s)
+        continue
+      }
+      while (this.time >= s.nextAttack) {
+        s.nextAttack += s.effect.interval
+        const target = this.mainTarget(ENEMY_RANGE)
+        if (!target) continue
+        this.beam(this.summonPos(s), target.pos, s.effect.color)
+        this.hitEnemy(target, s.effect.amount, s.effect, this.summonContext(s, target), { label: s.name, quiet: true })
+      }
     }
   }
 
