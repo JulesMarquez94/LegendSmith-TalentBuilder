@@ -161,6 +161,14 @@ one stat (150% of it, 50% of the other), so an epic Haste and Critical item is 4
 Lordly): "Quick Ring of Peerlessness". The unique rule still counts the pair, so a Quick and a Keen
 Peerlessness can't be worn together.
 
+The **Gear set** picker has prebuilt sets in two groups:
+
+- **Main stat** (epic, item level 120): one set per stat, Haste, Critical, Crit damage, Potency, Echo
+  and Minion power. Every item with that stat leans toward it (5 items, 4 for Echo and Minion power, at
+  6% each), and the other slots hold even items, so the main stat comes out on top (Haste main: +30%).
+- **Even split** (100% / 100% on every item): the **Even mix** (epic, item level 120: Haste and Potency
+  20%, Critical and Crit damage 16%, Echo and Minion power 12%), plus the older even sets.
+
 Every gear stat has an **icon** (Haste a lightning bolt, Critical a crosshair, Crit damage a burst,
 Potency an hourglass, Echo ripples, Minion power a skull). An equipped slot shows its two stats' icons,
 the leaned stat's bigger, and the icons also mark the item cards, the forge and the stat sheet.

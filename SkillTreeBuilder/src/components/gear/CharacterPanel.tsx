@@ -21,6 +21,9 @@ interface Props {
 
 type Hovered = { kind: 'slot'; slot: TrinketSlot } | { kind: 'stat'; stat: CharStat }
 
+/** The gear set picker's groups, in the order the presets list them. */
+const PRESET_GROUPS = [...new Set(GEAR_PRESETS.flatMap((p) => (p.group ? [p.group] : [])))]
+
 /**
  * The character third of the overview's character screen: 12 trinkets around Power, Health and the
  * resource, then the other stats in sections (secondary, defensive, extra).
@@ -112,10 +115,19 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
             }}
           >
             {presetId === '' && <option value="">Custom</option>}
-            {GEAR_PRESETS.map((p) => (
+            {GEAR_PRESETS.filter((p) => !p.group).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
+            ))}
+            {PRESET_GROUPS.map((group) => (
+              <optgroup key={group} label={group}>
+                {GEAR_PRESETS.filter((p) => p.group === group).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>

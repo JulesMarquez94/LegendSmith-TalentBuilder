@@ -1,3 +1,4 @@
+import { STAT_INFO } from './stats.ts'
 import type { CharStat, CharStats } from './types.ts'
 
 // Trinket rules from the overview's "Trinkets and item cards":
@@ -258,27 +259,76 @@ const leaning = (gear: Gear, order: readonly GearStat[]): Gear =>
     }),
   )
 
+/** Every pair a trinket can roll, in stat order: 14 of them (two special affixes never share an item). */
+const ALL_PAIRS: PairList = GEAR_STATS.flatMap((a, i) =>
+  GEAR_STATS.slice(i + 1)
+    .filter((b) => isValidPair(a, b))
+    .map((b) => [a, b] as const),
+)
+
+const specials = (pair: readonly [GearStat, GearStat]) => pair.filter((s) => SPECIAL_STATS.has(s)).length
+
+/**
+ * Twelve epic items built around one stat: every pair with it (5, or 4 for Echo and Minion power)
+ * leans toward it, and the other slots take even items, two ordinary stats before a special affix.
+ */
+function mainStatSet(stat: GearStat): Gear {
+  const withIt = ALL_PAIRS.filter((p) => p.includes(stat))
+  const rest = ALL_PAIRS.filter((p) => !p.includes(stat)).sort((a, b) => specials(a) - specials(b))
+  return leaning(fill('epic', 120, [...withIt, ...rest].slice(0, TRINKET_SLOTS.length)), [stat])
+}
+
+// Every stat split evenly: the six ordinary pairs, then three items each of Echo and Minion power,
+// so Haste and Potency sit on five items and Critical and Crit damage on four.
+const EVEN_MIX: PairList = [
+  ['haste', 'crit'],
+  ['haste', 'critDamage'],
+  ['haste', 'potency'],
+  ['crit', 'critDamage'],
+  ['crit', 'potency'],
+  ['critDamage', 'potency'],
+  ['haste', 'echo'],
+  ['crit', 'echo'],
+  ['potency', 'echo'],
+  ['haste', 'minionPower'],
+  ['critDamage', 'minionPower'],
+  ['potency', 'minionPower'],
+]
+
 export interface GearPreset {
   id: string
   name: string
+  /** Presets with the same group sit together in the picker. */
+  group?: string
   gear: Gear
 }
 
+const MAIN = 'Main stat · epic, item level 120, leaning 150% / 50%'
+const EVEN = 'Even split · 100% / 100%'
+
 export const GEAR_PRESETS: readonly GearPreset[] = [
   { id: 'none', name: 'Nothing equipped', gear: {} },
-  { id: 'common-crit', name: 'Critical and Haste · common, item level 60', gear: fill('common', 60, COMMON_CRIT_HASTE) },
+  ...GEAR_STATS.map((stat) => ({
+    id: `main-${stat}`,
+    name: `${STAT_INFO[stat].label} main`,
+    group: MAIN,
+    gear: mainStatSet(stat),
+  })),
+  { id: 'even-mix', name: 'Even mix · epic, item level 120', group: EVEN, gear: fill('epic', 120, EVEN_MIX) },
+  {
+    id: 'common-crit',
+    name: 'Critical and Haste · common, item level 60',
+    group: EVEN,
+    gear: fill('common', 60, COMMON_CRIT_HASTE),
+  },
   {
     id: 'common-potency',
     name: 'Potency and Haste · common, item level 60',
+    group: EVEN,
     gear: fill('common', 60, COMMON_POTENCY_HASTE),
   },
-  { id: 'overview', name: "The overview's example set", gear: OVERVIEW },
-  { id: 'rare-100', name: 'Haste and Potency · rare, item level 100', gear: fill('rare', 100, HASTE_POTENCY) },
-  { id: 'epic-hp', name: 'Haste and Potency · epic, item level 120', gear: fill('epic', 120, HASTE_POTENCY) },
-  { id: 'epic-crit', name: 'Critical · epic, item level 120', gear: fill('epic', 120, CRIT) },
-  {
-    id: 'epic-haste-lean',
-    name: 'Haste-heavy Haste and Potency · epic, item level 120',
-    gear: leaning(fill('epic', 120, HASTE_POTENCY), ['haste', 'potency']),
-  },
+  { id: 'rare-100', name: 'Haste and Potency · rare, item level 100', group: EVEN, gear: fill('rare', 100, HASTE_POTENCY) },
+  { id: 'epic-hp', name: 'Haste and Potency · epic, item level 120', group: EVEN, gear: fill('epic', 120, HASTE_POTENCY) },
+  { id: 'epic-crit', name: 'Critical · epic, item level 120', group: EVEN, gear: fill('epic', 120, CRIT) },
+  { id: 'overview', name: "The overview's example set", group: EVEN, gear: OVERVIEW },
 ]
