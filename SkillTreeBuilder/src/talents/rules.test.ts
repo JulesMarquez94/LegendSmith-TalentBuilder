@@ -27,9 +27,9 @@ describe('rows', () => {
 
 describe('prerequisites', () => {
   it('need the required talent at max rank', () => {
-    const ranks = { 'potent-plagues': 2, 'lasting-plagues': 2 }
+    const ranks = { 'potent-plagues': 1, 'lasting-plagues': 2, pandemic: 1 }
     expect(canLearn(plague, ranks, talent('aggravating'), 5)).toBe(false)
-    expect(canLearn(plague, { ...ranks, 'potent-plagues': 3 }, talent('aggravating'), 4)).toBe(true)
+    expect(canLearn(plague, { ...ranks, 'potent-plagues': 2 }, talent('aggravating'), 4)).toBe(true)
   })
 
   it('stop the required talent from being unlearned while used', () => {

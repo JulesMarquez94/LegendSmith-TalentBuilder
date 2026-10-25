@@ -158,6 +158,18 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
         detail: `every ${seconds(e.interval)}, each`,
       })
       break
+    case 'curse':
+      out.push({
+        key: key('amount'),
+        label: `${name ?? 'Curse'} per stack`,
+        value: e.amount,
+        format: amount,
+        better: 'up',
+        detail: 'each hit from your minions takes a stack',
+      })
+      out.push({ key: key('stacks'), label: 'Stacks', value: e.stacks, format: String, better: 'up' })
+      out.push({ key: key('duration'), label: 'Lasts', value: e.duration, format: seconds, better: 'up' })
+      break
     case 'summon':
       out.push({
         key: key('amount'),

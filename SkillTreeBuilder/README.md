@@ -42,6 +42,9 @@ already in another slot swaps the two and keeps both builds.
 
 - **60 talent points** (one per level) to spend anywhere, but **no more than 12 in any one tree**, as in
   the overview (`POINT_RULES` in `src/trees/index.ts`).
+- A tree's talents hold **18 ranks at most** in all (`TREE_RANKS`), so with 12 to spend you always leave
+  a third of it: 6, 12, 18. The data test fails on a tree with more. Talents that reach other abilities
+  (a whole family) or feed them (synergy) are favoured; tweaks to one ability's own numbers went first.
 - Inside a tree, a row unlocks once **2 points** (`pointsPerRow`) have been spent in the rows above it,
   in any mix: row 2 needs 2, row 3 needs 4, row 4 needs 6.
 - A talent at the end of an arrow needs the talent the arrow comes from at **max rank**.
@@ -113,12 +116,28 @@ this with `spendsAll`, and the action bar shows how big the next one would be (Ã
 with that:
 
 - **Hunger** makes what it spends past its cost count for more (`surplus`, +20/40/60%).
-- **Devour** ends your DoTs on its target and lands what they had left at once, plus 10/30/50%.
+- It **absorbs** everything else you have going, each worth 1/2% more damage per second it had left:
+  **Devour** your DoTs on its target, **Soul Feast** your summoned minions (ghouls fall, and set off
+  Corpse Explosion), **Collapse** your zones, **Drink Deep** your HoTs. A ghoul with 15 sec left adds 30%.
 - **Gathering Dark**: each time you gain resource, a chance to take 1 sec off its cooldown. A new
   `gain` event fires on every gain, and once per 10% of your maximum you regenerate.
 - **Cataclysm** blasts around the target when it spends 3 times its cost or more.
-- **Residual Power** gives back part of what it spent; **Dread**, **Final Word** and **Inevitable** tie
-  it to your DoTs; and it has cast time, cooldown, crit and echo talents.
+- **Residual Power** gives back part of what it spent, and **Final Word** adds damage per DoT on the
+  target (it counts them before Devour eats them).
+
+**Volley** (made for the bow, any damage weapon can cast it): for 10 sec, every ranged hit on a single
+enemy (Swift Arrow, Aimed Shot, Doom Bolt) also hits every enemy within 8 yd of it for 30% of the
+damage. Melee strikes and area damage don't splash. Its extra hits are tagged `splash` and `aoe`, so its
+talents (resource and cooldown per extra hit) and area-damage talents reach them.
+
+**Frenzy**: +15% haste for 8 sec, with no cooldown: you keep it up by paying for
+it again. Feeding Frenzy makes every ability you spend on extend it; other talents add crit, regen,
+stacking haste and haste for the group. Like every ability it grows in steps on the daggers (4 combo
+points: 30% haste).
+
+**Carrion Curse** (made for the book): curses the target with 8 stacks for 20 sec; each hit from one of
+your minions (imps, ghouls) takes a stack and deals 90 more damage. Its talents add stacks and damage,
+burst when it ends, give back resource or extend your DoTs per stack, and speed your minions up.
 
 **Raise Ghoul** is playable now (it was display-only): a 1.5 sec cast that raises a ghoul for 20 sec,
 hitting your target for 90 every 1.5 sec, up to 3 at once (another replaces the oldest). Ghouls are

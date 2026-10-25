@@ -35,15 +35,6 @@ const tree: TreeDef = {
   talents: [
     // Row 1
     talent({
-      id: 'keen-fletching',
-      name: 'Keen Fletching',
-      row: 0,
-      col: 0,
-      per: [5, 10, 15],
-      text: 'Swift Arrow deals {}% more damage.',
-      does: (v) => [more('amount', 'main-attack', v)],
-    }),
-    talent({
       id: 'quick-draw',
       name: 'Quick Draw',
       row: 0,
@@ -77,7 +68,6 @@ const tree: TreeDef = {
       name: 'Piercing Shot',
       row: 1,
       col: 0,
-      requires: 'keen-fletching',
       per: [5, 10],
       text: 'When Swift Arrow critically strikes, you gain {} more focus.',
       does: (v) => [proc('crit', { all: ['main-attack', 'direct-damage'] }, [restore(v)])],
@@ -87,18 +77,9 @@ const tree: TreeDef = {
       name: 'Eagle Eye',
       row: 1,
       col: 1,
-      per: [2, 4, 6],
+      per: [3, 6],
       text: 'You have +{}% critical chance.',
       does: (v) => [stat('crit', v)],
-    }),
-    talent({
-      id: 'volley',
-      name: 'Volley',
-      row: 1,
-      col: 2,
-      requires: 'quick-draw',
-      text: 'Every 3rd Swift Arrow fires twice.',
-      does: () => [proc('cast', 'main-attack', [{ do: 'recast' }], { every: 3 })],
     }),
     talent({
       id: 'retrieved-arrows',
@@ -124,15 +105,6 @@ const tree: TreeDef = {
           buff({ id: 'focused-fire', name: 'Focused Fire', duration: 5, mods: [more('amount', 'main-attack', v)] }),
         ]),
       ],
-    }),
-    talent({
-      id: 'light-step',
-      name: 'Light Step',
-      row: 2,
-      col: 1,
-      per: [5, 10],
-      text: 'You move {}% faster, so you can keep your distance.',
-      does: (v) => [stat('speed', v)],
     }),
     talent({
       id: 'rapid-fire',

@@ -9,12 +9,13 @@ const START: Loadout = { artifact: 'tome-of-summoning', slots: [null, 'plague', 
 const times = (n: number, id: string) => Array<string>(n).fill(id)
 // 17 clicks down the Plague tree in an order the row unlocks allow.
 const PATH = [
-  ...times(3, 'lasting-plagues'),
-  ...times(3, 'potent-plagues'),
+  ...times(2, 'lasting-plagues'),
+  ...times(2, 'potent-plagues'),
   'pandemic',
   ...times(3, 'volatile-plague'),
   'critical-condition',
-  ...times(3, 'aggravating'),
+  ...times(2, 'aggravating'),
+  ...times(3, 'convalescence'),
   ...times(3, 'terminal'),
 ]
 

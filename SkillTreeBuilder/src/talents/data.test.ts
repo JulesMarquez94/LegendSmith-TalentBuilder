@@ -5,7 +5,7 @@ import { more, proc, restore, talent } from '../trees/authoring.ts'
 import { harvest } from '../trees/necro/spells.ts'
 import { plague } from '../trees/plague.ts'
 import type { TreeDef } from './types.ts'
-import { validateCatalog, validateTree } from './validate.ts'
+import { TREE_RANKS, validateCatalog, validateTree } from './validate.ts'
 
 describe('tree data', () => {
   it.each(TREES.map((tree) => [tree.ability.name, tree] as const))('%s has no problems', (_, tree) => {
@@ -16,9 +16,11 @@ describe('tree data', () => {
     expect(validateCatalog(TREES, ARTIFACTS, STARTING_LOADOUT)).toEqual([])
   })
 
-  it('gives every tree more ranks than the per-tree cap, so the cap forces choices', () => {
+  it('gives every tree more ranks than the per-tree cap but no more than 18, so the cap forces choices', () => {
     for (const tree of TREES) {
-      expect(tree.talents.reduce((sum, t) => sum + t.maxRank, 0)).toBeGreaterThan(POINT_RULES.perTree)
+      const total = tree.talents.reduce((sum, t) => sum + t.maxRank, 0)
+      expect(total, tree.id).toBeGreaterThan(POINT_RULES.perTree)
+      expect(total, tree.id).toBeLessThanOrEqual(TREE_RANKS)
     }
   })
 
@@ -55,6 +57,7 @@ describe('tree data', () => {
     }
     expect(validateTree(broken, hasArt)).toEqual([
       'Pandemic and Pandemic are both in row 2, column 1',
+      "Plague's talents hold 19 ranks in all, more than 18",
       `Pandemic requires "nope", which isn't a talent in this tree`,
     ])
     expect(

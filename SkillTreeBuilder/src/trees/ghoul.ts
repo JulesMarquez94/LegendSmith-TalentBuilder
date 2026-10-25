@@ -53,7 +53,7 @@ export const raiseGhoul: TreeDef = {
       name: 'Grave Pact',
       row: 0,
       col: 2,
-      per: [3, 6, 9],
+      per: [4.5, 9],
       text: 'Your ghouls last {} sec longer.',
       does: (v) => [plus('duration', GHOULS, v)],
     }),

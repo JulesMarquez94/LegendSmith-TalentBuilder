@@ -136,6 +136,13 @@ export function drawArena(canvas: HTMLCanvasElement, arena: Arena, aim: Vec | nu
       g.fillStyle = enemy.isBoss ? '#ff6b6b' : '#c27be0'
       g.fillRect(enemy.pos.x - w / 2, top - 0.75, (w * enemy.hp) / enemy.maxHp, 0.4)
     }
+    enemy.curses.forEach((c, i) => {
+      const x = enemy.pos.x + enemy.radius + 0.5
+      const y = enemy.pos.y - enemy.radius + i * 0.9
+      g.fillStyle = c.effect.color
+      g.font = font(0.7, 900)
+      g.fillText(`${c.stacks}`, x, y)
+    })
     enemy.dots.forEach((d, i) => {
       const x = enemy.pos.x - ((enemy.dots.length - 1) * 0.7) / 2 + i * 0.7
       const y = enemy.pos.y + enemy.radius + 0.6

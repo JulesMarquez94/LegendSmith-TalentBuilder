@@ -172,9 +172,21 @@ export interface Enemy {
   alive: boolean
   isBoss: boolean
   dots: Dot[]
+  /** Your curses on it, each with stacks your minions take. */
+  curses: Curse[]
   /** Adds hit the tank for this every couple of seconds. */
   hits: number
   swingAt: number
+}
+
+/** A curse on an enemy: each hit from your minions takes a stack and deals the curse's damage. */
+export interface Curse {
+  key: string
+  name: string
+  effect: ResolvedEffect
+  stacks: number
+  endsAt: number
+  depth: number
 }
 
 /** One of your minions. Each point of a minion resource is one of these. */
@@ -314,6 +326,8 @@ interface GameEvent {
   hot?: Hot
   dot?: Dot
   zone?: Zone
+  /** The effect that hit (for talents that hit again with a share of it). */
+  effect?: ResolvedEffect
 }
 
 interface HitOptions {
@@ -321,7 +335,12 @@ interface HitOptions {
   /** An amount taken from another event (a share of a heal or overheal): no crit, no conditional bonuses. */
   fixed?: boolean
   quiet?: boolean
+  /** A splash or curse hit: it doesn't splash or set off curses again. */
+  secondary?: boolean
 }
+
+/** How far a ranged single-target hit splashes (Volley). */
+const SPLASH_RADIUS = 8
 
 export type UseResult = 'ok' | 'busy' | string
 
@@ -449,6 +468,7 @@ export class Arena {
       alive: true,
       isBoss,
       dots: [],
+      curses: [],
       hits,
       swingAt: this.time + ADD_SWING,
     }
@@ -685,7 +705,18 @@ export class Arena {
         const duration = e.duration * k
         return { ...e, duration, ticks: e.interval > 0 ? Math.floor(duration / e.interval + 1e-6) : 0 }
       }
-      return { ...e, amount: e.amount * k, inflicts: e.inflicts && { ...e.inflicts, amount: e.inflicts.amount * k } }
+      // A buff (Frenzy, Volley) grows in its stats.
+      const buff = e.buff?.stats && {
+        ...e.buff,
+        stats: Object.fromEntries(Object.entries(e.buff.stats).map(([stat, v]) => [stat, v * k])),
+      }
+      return {
+        ...e,
+        amount: e.amount * k,
+        speed: e.speed * k,
+        buff: buff ?? e.buff,
+        inflicts: e.inflicts && { ...e.inflicts, amount: e.inflicts.amount * k },
+      }
     })
     return { ...a, effects }
   }
@@ -742,7 +773,7 @@ export class Arena {
   // ---------- Effects ----------
 
   private hitsEnemy(e: ResolvedEffect) {
-    return e.type === 'damage' || e.type === 'dot' || (e.type === 'zone' && !!e.hostile)
+    return e.type === 'damage' || e.type === 'dot' || e.type === 'curse' || (e.type === 'zone' && !!e.hostile)
   }
 
   private applyEffect(e: ResolvedEffect, ctx: CastContext, opts: HitOptions, input?: ArenaInput) {
@@ -826,6 +857,9 @@ export class Arena {
       case 'summon':
         this.summon(e, ctx, opts.label)
         break
+      case 'curse':
+        for (const enemy of this.pickEnemies(e.target, ctx, e)) this.applyCurse(enemy, e, ctx, opts.label)
+        break
       case 'minion':
       case 'aura':
         break
@@ -839,11 +873,23 @@ export class Arena {
       const center = e.target === 'self' ? this.player.pos : victims[0]?.pos
       if (center) this.ring(center, e.radius, e.color)
     }
+    // Splash (Volley): a ranged hit on one target also hits everyone close to it, for a share.
+    const splash = e.radius === 0 && e.target === 'target' && ctx.range > 8 && !opts.secondary ? this.stats().splash : 0
     for (const enemy of victims) {
       if (e.target !== 'self') this.beam(this.player.pos, enemy.pos, e.color)
       const per = e.perEffect ? this.countEffects(enemy, e.perEffect) : 1
-      if (per > 0) this.hitEnemy(enemy, e.amount * per, e, ctx, opts)
+      const dealt = per > 0 ? this.hitEnemy(enemy, e.amount * per, e, ctx, opts) : 0
+      if (splash > 0 && dealt > 0) this.splashAround(enemy, (dealt * splash) / 100, e, ctx)
     }
+  }
+
+  /** Volley's extra hits, tagged 'splash' and 'aoe' so talents can aim at them. */
+  private splashAround(center: Enemy, amount: number, e: ResolvedEffect, ctx: CastContext) {
+    const near = this.enemies.filter((x) => x.alive && x !== center && dist(x.pos, center.pos) <= SPLASH_RADIUS + x.radius)
+    if (!near.length) return
+    this.ring(center.pos, SPLASH_RADIUS, e.color)
+    const tags = new Set([...e.tags, 'splash', 'aoe'])
+    for (const x of near) this.hitEnemy(x, amount, { ...e, tags }, ctx, { label: 'Volley', fixed: true, quiet: true, secondary: true })
   }
 
   private heal(target: Ally, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions) {
@@ -880,8 +926,8 @@ export class Arena {
   }
 
   /** Every hit you land on an enemy: direct damage, DoT ticks, minion attacks, damaging zones. */
-  private hitEnemy(enemy: Enemy, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions) {
-    if (!enemy.alive) return
+  private hitEnemy(enemy: Enemy, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions): number {
+    if (!enemy.alive) return 0
     let amount = base
     let crit = false
     if (!opts.fixed) {
@@ -904,10 +950,37 @@ export class Arena {
       const big = crit || e.family === 'direct-damage'
       this.text(enemy.pos, `${int(amount)}${crit ? '!' : ''}`, e.family === 'dot' ? e.color : '#ffd23f', big)
     }
-    const ev: GameEvent = { kind: 'hit', tags: e.tags, ctx: { ...ctx, eventEnemy: enemy }, enemy, amount, crit, before }
+    const ev: GameEvent = { kind: 'hit', tags: e.tags, ctx: { ...ctx, eventEnemy: enemy }, enemy, amount, crit, before, effect: e }
     this.emit(ev)
     if (crit) this.emit({ ...ev, kind: 'crit' })
     if (enemy.hp <= 0) this.killEnemy(enemy)
+    if (e.family === 'minion' && !opts.secondary) this.setOffCurse(enemy)
+    return amount
+  }
+
+  /** A minion's hit takes a stack of your curse on the enemy and deals the curse's damage. */
+  private setOffCurse(enemy: Enemy) {
+    const c = enemy.curses[0]
+    if (!c || !enemy.alive) return
+    c.stacks -= 1
+    if (c.stacks <= 0) this.endCurse(enemy, c)
+    this.hitEnemy(enemy, c.effect.amount, c.effect, this.curseContext(c, enemy), { label: c.name, quiet: true, secondary: true })
+  }
+
+  private endCurse(enemy: Enemy, c: Curse) {
+    enemy.curses = enemy.curses.filter((x) => x !== c)
+    if (enemy.alive) this.emit({ kind: 'expire', tags: c.effect.tags, ctx: this.curseContext(c, enemy), enemy })
+  }
+
+  private curseContext(c: Curse, enemy: Enemy): CastContext {
+    return { ...this.newContext(null, -1, 0, c.depth), eventEnemy: enemy, range: ENEMY_RANGE }
+  }
+
+  private applyCurse(enemy: Enemy, e: ResolvedEffect, ctx: CastContext, name: string) {
+    if (!enemy.alive || e.duration <= 0) return
+    const c = enemy.curses.find((x) => x.key === e.key)
+    if (c) Object.assign(c, { effect: e, stacks: e.stacks, endsAt: this.time + e.duration })
+    else enemy.curses.push({ key: e.key, name, effect: e, stacks: e.stacks, endsAt: this.time + e.duration, depth: ctx.depth })
   }
 
   private killEnemy(enemy: Enemy) {
@@ -915,6 +988,7 @@ export class Arena {
     enemy.alive = false
     enemy.hp = 0
     enemy.dots = []
+    enemy.curses = []
     this.ring(enemy.pos, enemy.radius + 1, '#ff6b6b')
     if (enemy.isBoss) {
       this.ended = 'victory'
@@ -1164,14 +1238,17 @@ export class Arena {
         if (action.scope === 'all') for (const z of this.zones) if (matches(action.match, z.effect.tags)) z.endsAt += action.seconds
         break
       }
-      case 'consume': {
+      case 'absorb': {
         const enemy = ev.enemy ?? ev.ctx.eventEnemy
-        if (!enemy?.alive) break
-        for (const d of enemy.dots.filter((x) => matches(action.match, x.effect.tags))) {
-          const amount = (this.tickOf(d) * this.ticksLeft(d) * action.pct) / 100
-          enemy.dots = enemy.dots.filter((x) => x !== d)
-          if (amount > 0) this.hitEnemy(enemy, amount, d.effect, this.dotContext(d), { label: name })
-        }
+        if (!enemy?.alive || !ev.effect) break
+        const seconds = this.absorbEffects(action.match, enemy)
+        const amount = ((ev.amount ?? 0) * action.pct * seconds) / 100
+        if (amount > 0) this.hitEnemy(enemy, amount, ev.effect, ctx, { label: name, fixed: true, secondary: true })
+        break
+      }
+      case 'extendBuff': {
+        const b = this.buffs.find((x) => x.id === action.buff)
+        if (b) b.endsAt += action.seconds
         break
       }
       case 'cooldown':
@@ -1277,10 +1354,32 @@ export class Arena {
     return tickAmount({ amount: x.amount, growth: x.effect.growth }, x.tick)
   }
 
-  /** Ticks a DoT still has to land; for a rolling one, every live stack's added up. */
-  private ticksLeft(d: Dot) {
-    const ends = d.stacks.length ? d.stacks : [d.endsAt]
-    return ends.reduce((n, end) => n + (d.nextTick <= end + 1e-6 ? Math.floor((end - d.nextTick) / d.interval + 1e-6) + 1 : 0), 0)
+  /**
+   * Ends your effects matching this and returns the seconds they had left, added up: DoTs (each live
+   * stack) on the enemy, HoTs on your allies, your zones and your summons (which fall, as if killed).
+   */
+  private absorbEffects(match: Match, enemy: Enemy): number {
+    const left = (end: number) => Math.max(0, end - this.time)
+    let seconds = 0
+    for (const d of enemy.dots.filter((x) => matches(match, x.effect.tags))) {
+      seconds += d.stacks.length ? d.stacks.reduce((n, end) => n + left(end), 0) : left(d.endsAt)
+      enemy.dots = enemy.dots.filter((x) => x !== d)
+    }
+    for (const ally of this.allies) {
+      for (const h of ally.hots.filter((x) => matches(match, x.effect.tags))) {
+        seconds += left(h.endsAt)
+        ally.hots = ally.hots.filter((x) => x !== h)
+      }
+    }
+    for (const z of this.zones.filter((x) => matches(match, x.effect.tags))) {
+      seconds += left(z.endsAt)
+      this.zones = this.zones.filter((x) => x !== z)
+    }
+    for (const s of this.summons.filter((x) => matches(match, x.effect.tags))) {
+      seconds += left(s.endsAt)
+      this.dismiss(s)
+    }
+    return seconds
   }
 
   private liveStacks(d: Dot) {
@@ -1332,7 +1431,8 @@ export class Arena {
   private enemyBonus(c: Conditional, enemy: Enemy): number {
     const when = c.when
     if (when.targetBelow !== undefined && (enemy.hp / enemy.maxHp) * 100 >= when.targetBelow) return 0
-    if (when.targetHas !== undefined && !enemy.dots.some((d) => matches(when.targetHas!, d.effect.tags))) return 0
+    const has = (m: Match) => enemy.dots.some((d) => matches(m, d.effect.tags)) || enemy.curses.some((c) => matches(m, c.effect.tags))
+    if (when.targetHas !== undefined && !has(when.targetHas)) return 0
     if (when.inZone && !this.enemyInZone(enemy)) return 0
     if (when.affected && !(enemy.dots.length > 0 || this.enemyInZone(enemy))) return 0
     if (when.targetSelf || when.overheal) return 0
@@ -1591,6 +1691,7 @@ export class Arena {
 
   private updateDots() {
     for (const enemy of this.enemies) {
+      for (const c of [...enemy.curses]) if (this.time >= c.endsAt || !enemy.alive) this.endCurse(enemy, c)
       for (const d of [...enemy.dots]) {
         while (d.nextTick <= d.endsAt + 1e-6 && d.nextTick <= this.time && enemy.alive) {
           const stacks = d.stacks.length ? d.stacks.filter((t) => t >= d.nextTick - 1e-6).length : 1

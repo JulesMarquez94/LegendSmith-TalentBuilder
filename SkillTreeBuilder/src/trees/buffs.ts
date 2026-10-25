@@ -70,7 +70,7 @@ export const vitalityAura: TreeDef = {
       row: 1,
       col: 0,
       requires: 'swelling-heart',
-      per: [4, 8, 12],
+      per: [6, 12],
       text: 'Your heals heal {}% more on allies below 50% health.',
       does: (v) => [more('amount', 'healing', v, { targetBelow: 50 })],
     }),

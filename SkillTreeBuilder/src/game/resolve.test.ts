@@ -100,11 +100,11 @@ describe('talents reach across trees by family', () => {
 
   it('reaches zones, costs, charges and cooldowns', () => {
     const kit = healerKit(['chain-heal', 'healing-rain', null, 'sanctuary', null], {
-      'healing-rain': { downpour: 3, 'gathering-clouds': 2, 'twin-storms': 1 },
+      'healing-rain': { downpour: 2, 'twin-storms': 1 },
       'chain-heal': {},
     })
     expect(abilityIn(kit, 'sanctuary').effects[0].amount).toBeCloseTo(708)
-    expect(abilityIn(kit, 'healing-rain')).toMatchObject({ charges: 2, cooldown: 6 })
+    expect(abilityIn(kit, 'healing-rain')).toMatchObject({ charges: 2, cooldown: 10 })
 
     const thrifty = healerKit(['mend', 'chain-heal', null, 'miracle', null], { mend: { 'efficient-prayers': 3 } })
     expect(abilityIn(thrifty, 'chain-heal').cost).toBeCloseTo(140.8)
@@ -122,8 +122,8 @@ describe('talents reach across trees by family', () => {
   })
 
   it('collects stat talents into the character sheet', () => {
-    const kit = healerKit(SLOTS, { 'lifewarden-staff': { 'deep-reserves': 2, meditation: 3 } })
-    expect(kit.character.stats.maxResource).toBe(1200)
+    const kit = healerKit(SLOTS, { 'lifewarden-staff': { 'deep-reserves': 2, meditation: 2 } })
+    expect(kit.character.stats.maxResource).toBe(1300)
     expect(kit.character.lines.resourceRegen).toMatchObject({ base: 8, talents: 3, total: 11 })
   })
 })

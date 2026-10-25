@@ -19,6 +19,7 @@ export const BASE_STATS: CharStats = {
   resourceRegen: 0,
   resourceRegenPct: 0,
   comboBonus: 0,
+  splash: 0,
   overhealToResource: 0,
   lowResourceRegen: 0,
   zoneResourceRegen: 0,
@@ -122,6 +123,12 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     unit: '%',
     help: 'More @resource per second, as a share of your maximum.',
   },
+  splash: {
+    label: 'Splash',
+    color: '#8fd3ff',
+    unit: '%',
+    help: 'Your ranged single-target hits also hit every enemy within 8 yd of their target for this share of the damage.',
+  },
   comboBonus: {
     label: 'Combo bonus',
     color: '#ff7a7a',
@@ -163,6 +170,7 @@ export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[
       'minionPower',
       'speed',
       'comboBonus',
+      'splash',
       'resourceRegenPct',
       'overhealToResource',
       'lowResourceRegen',
@@ -178,6 +186,7 @@ export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>([
   'zoneResourceRegen',
   'resourceRegenPct',
   'comboBonus',
+  'splash',
   'healthPct',
   'healingTaken',
 ])

@@ -276,7 +276,7 @@ describe('Doom Bolt', () => {
   })
 
   it('takes time off its cooldown when you gain resource (Gathering Dark)', () => {
-    const ranks = { 'looming-end': 1, 'gathering-dark': 2 }
+    const ranks = { 'gathering-dark': 2 }
     const arena = ready(doomKit('ashwood-longbow', ranks), 30)
     cast(arena, 1)
     const cd = arena.cooldowns.get('doom-bolt')!
@@ -287,6 +287,109 @@ describe('Doom Bolt', () => {
     }
     // Eight arrows, eight gains, each with a 30% chance at a second off.
     expect(cd.rechargeAt === null || cd.rechargeAt <= due - 1).toBe(true)
+  })
+})
+
+describe('Doom Bolt absorbing', () => {
+  it('eats your summoned minions with Soul Feast, for more damage the longer they had left', () => {
+    const kit = noCrits(kitFor(artifact('ashwood-longbow'), ['raise-ghoul', 'doom-bolt', null, null, null, null], {
+      'doom-bolt': { 'soul-feast': 2 },
+    }))
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 100
+    cast(arena, 1)
+    expect(arena.summons).toHaveLength(1)
+    arena.resource = 30
+    cast(arena, 2)
+    expect(arena.summons).toHaveLength(0)
+    // 2% of the bolt for each second the ghoul had left (about 20 sec minus the bolt's cast).
+    const bolt = damageOf(arena, 'Doom Bolt')!.damage
+    const feast = damageOf(arena, 'Soul Feast')!.damage
+    expect(feast / bolt).toBeGreaterThan(0.3)
+    expect(feast / bolt).toBeLessThan(0.4)
+  })
+
+  it('eats your zones with Collapse', () => {
+    const kit = noCrits(kitFor(book, ['ashfall', 'doom-bolt', null, null, null, null], { 'doom-bolt': { collapse: 1 } }))
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 10
+    cast(arena, 1)
+    run(arena, 1)
+    expect(arena.zones).toHaveLength(1)
+    cast(arena, 2)
+    expect(arena.zones).toHaveLength(0)
+    expect(damageOf(arena, 'Collapse')?.hits).toBe(1)
+  })
+})
+
+describe('Volley', () => {
+  it('splashes ranged single-target hits onto every enemy near the target, for 30%', () => {
+    const kit = noCrits(kitFor(artifact('ashwood-longbow'), ['volley', null, null, null, null, null]))
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 20
+    cast(arena, 0)
+    expect(damageOf(arena, 'Volley')).toBeUndefined()
+    run(arena, 1)
+    cast(arena, 1)
+    expect(arena.stats().splash).toBe(30)
+    cast(arena, 0)
+    const splash = damageOf(arena, 'Volley')!
+    expect(splash.hits).toBeGreaterThanOrEqual(3)
+    expect(splash.damage / splash.hits).toBeCloseTo(220 * 0.3)
+  })
+
+  it("doesn't splash melee strikes", () => {
+    const kit = noCrits(kitFor(daggers, ['volley', null, null, null, null, null]))
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 16 }
+    arena.resource = 2
+    cast(arena, 1)
+    cast(arena, 0)
+    expect(damageOf(arena, 'Quick Strike')?.hits).toBe(1)
+    expect(damageOf(arena, 'Volley')).toBeUndefined()
+  })
+})
+
+describe('Frenzy', () => {
+  it('gives 15% haste, and spending on other abilities keeps it up (Feeding Frenzy)', () => {
+    const kit = kitFor(book, ['frenzy', 'festering-rot', null, null, null, null], { frenzy: { bloodrush: 1, 'feeding-frenzy': 2 } })
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 6
+    cast(arena, 1)
+    expect(arena.stats().haste).toBe(18)
+    run(arena, 1)
+    const until = arena.buffs.find((b) => b.id === 'frenzy')!.endsAt
+    cast(arena, 2)
+    expect(arena.buffs.find((b) => b.id === 'frenzy')!.endsAt).toBeCloseTo(until + 1)
+  })
+
+  it('grows with combo steps on the daggers', () => {
+    const arena = new Arena(kitFor(daggers, ['frenzy', null, null, null, null, null]), DUMMIES, { seed: 1 })
+    arena.resource = 4
+    cast(arena, 1)
+    expect(arena.resource).toBe(0)
+    expect(arena.stats().haste).toBe(30)
+  })
+})
+
+describe('Carrion Curse', () => {
+  it("lets each minion hit take a stack for extra damage, until they're gone", () => {
+    const kit = noCrits(kitFor(book, ['carrion-curse', null, null, null, null, null]))
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 10
+    cast(arena, 1)
+    const target = arena.enemies.find((e) => e.curses.length > 0)!
+    expect(target.curses[0].stacks).toBe(8)
+    run(arena, 6)
+    const curse = damageOf(arena, 'Carrion Curse')!
+    expect(curse.hits).toBe(8)
+    expect(curse.damage).toBeCloseTo(8 * 90)
+    expect(target.curses).toHaveLength(0)
   })
 })
 
@@ -314,14 +417,14 @@ describe('Raise Ghoul', () => {
       }),
     )
     const ghoul = kit.slots[1]!.effects[0]
-    expect(ghoul).toMatchObject({ type: 'summon', max: 4, duration: 23 })
+    expect(ghoul).toMatchObject({ type: 'summon', max: 4, duration: 24.5 })
     const arena = new Arena(kit, DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 30 }
     arena.resource = 10
     cast(arena, 1)
     run(arena, 3)
     expect(damageOf(arena, 'Grave Rot')?.hits).toBeGreaterThan(0)
-    run(arena, 21)
+    run(arena, 22)
     expect(damageOf(arena, 'Corpse Explosion')?.hits).toBeGreaterThan(0)
   })
 })

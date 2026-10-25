@@ -31,6 +31,7 @@ export const FAMILY_OF: Record<EffectType, Family> = {
   dot: 'dot',
   minion: 'minion',
   summon: 'minion',
+  curse: 'debuff',
   restore: 'resource',
   move: 'movement',
   buff: 'buff',
@@ -38,7 +39,7 @@ export const FAMILY_OF: Record<EffectType, Family> = {
 }
 
 const HEALING: ReadonlySet<Family> = new Set<Family>(['direct-heal', 'hot', 'zone'])
-const DAMAGING: ReadonlySet<Family> = new Set<Family>(['direct-damage', 'dot', 'minion'])
+const DAMAGING: ReadonlySet<Family> = new Set<Family>(['direct-damage', 'dot', 'debuff', 'minion'])
 /** Power raises every damage, heal and shield number. */
 const POWERED: ReadonlySet<Family> = new Set<Family>([
   'direct-heal',
@@ -47,10 +48,11 @@ const POWERED: ReadonlySet<Family> = new Set<Family>([
   'shield',
   'direct-damage',
   'dot',
+  'debuff',
   'minion',
 ])
 /** Potency lengthens these durations. A dash isn't made longer by it. */
-const POTENT: ReadonlySet<Family> = new Set<Family>(['hot', 'dot', 'zone', 'shield', 'buff'])
+const POTENT: ReadonlySet<Family> = new Set<Family>(['hot', 'dot', 'debuff', 'zone', 'shield', 'buff'])
 
 /** The heal green from the overview's colour key. */
 const DEFAULT_COLOR = '#8fe3a0'
@@ -198,6 +200,12 @@ function sum(mods: readonly ModMechanic[], key: ValueKey, tags: ReadonlySet<Tag>
 
 const scaled = (base: number, s: Sums) => (base + s.add) * (1 + s.pct / 100)
 
+/** A buff's stats with `strength` talents added to each. */
+function strengthen(stats: Partial<CharStats> | undefined, s: Sums): Partial<CharStats> | undefined {
+  if (!stats || (s.add === 0 && s.pct === 0)) return stats
+  return Object.fromEntries(Object.entries(stats).map(([k, v]) => [k, k === 'speed' ? v : scaled(v, s)]))
+}
+
 /** Abilities that cost resource are spells; so are their effects, for talents like Overdrive. */
 const isSpell = (tree: TreeDef) => (tree.spec?.cost ?? 0) > 0
 
@@ -268,7 +276,8 @@ function resolveEffectWith(
     stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
     max: Math.max(1, Math.round((effect.max ?? 1) + get('max').add)),
     mode: effect.mode,
-    buff: effect.buff,
+    // A buff's stats grow with `strength` talents (Frenzy's haste, Volley's splash); speed has its own key.
+    buff: effect.buff && { ...effect.buff, stats: strengthen(effect.buff.stats, get('strength')) },
     hostile: effect.hostile,
     inflicts: effect.inflicts
       ? resolveEffectWith(tree, effect.inflicts, index, stats, mods, effect.inflicts.name ?? 'inflicts')

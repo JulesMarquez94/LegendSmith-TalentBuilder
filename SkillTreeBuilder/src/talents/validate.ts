@@ -4,6 +4,12 @@ import type { Loadout } from './loadout.ts'
 import { canMake, fits, NEEDS_LABEL, slotKinds } from './slots.ts'
 import type { ArtifactDef, TreeDef } from './types.ts'
 
+/**
+ * The most ranks a tree's talents may hold in all. With 12 points to spend per tree, a tree of 18
+ * makes you leave a third of it: 6, 12, 18.
+ */
+export const TREE_RANKS = 18
+
 /** Catches tree-data mistakes (typos in ids, overlapping cells, missing art) and lists them in plain words. */
 export function validateTree(tree: TreeDef, hasArt: (folder: string, name: string) => boolean): string[] {
   const problems: string[] = []
@@ -47,6 +53,9 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
     art(t.name, t.icon)
   }
 
+  const total = tree.talents.reduce((sum, t) => sum + t.maxRank, 0)
+  if (total > TREE_RANKS) problems.push(`${tree.ability.name}'s talents hold ${total} ranks in all, more than ${TREE_RANKS}`)
+
   for (const t of tree.talents) {
     if (t.requires === undefined) continue
     const pre = tree.talents.find((p) => p.id === t.requires)
@@ -72,7 +81,7 @@ function actionTags(a: Action): string[] {
     case 'cooldown':
     case 'pulse':
     case 'spread':
-    case 'consume':
+    case 'absorb':
       return tagsOf(a.match)
     case 'buff':
       return buffTags(a.buff)
@@ -98,6 +107,9 @@ function aimedTags(m: Mechanic): string[] {
       return []
   }
 }
+
+const withoutAbsorb = (m: Mechanic): Mechanic =>
+  m.kind === 'proc' ? { ...m, proc: { ...m.proc, actions: m.proc.actions.filter((a) => a.do !== 'absorb') } } : m
 
 /** The stats a mechanic gives, its buffs' included. */
 function givenStats(m: Mechanic): CharStat[] {
@@ -129,13 +141,17 @@ const WEAPON_STATS: readonly CharStat[] = ['maxResource', 'resourceRegen', 'over
 function weaponProblems(tree: TreeDef, trees: readonly TreeDef[]): string[] {
   const problems: string[] = []
   const abilities = new Map(trees.map((t) => [t.id, t.ability.name]))
-  const ownMinion = tree.spec?.minion !== undefined || (tree.spec?.effects ?? []).some((e) => e.type === 'summon')
+  // A tree whose ability raises minions, or curses that minions set off, may talk about minions.
+  const ownMinion =
+    tree.spec?.minion !== undefined || (tree.spec?.effects ?? []).some((e) => e.type === 'summon' || e.type === 'curse')
   for (const t of tree.talents) {
     const mechanics = t.effects?.(t.maxRank) ?? []
+    // Absorbing your minions (Doom Bolt's Soul Feast) works on any weapon: no minions, nothing absorbed.
+    const minionAims = new Set(mechanics.map(withoutAbsorb).flatMap(aimedTags))
     for (const tag of new Set(mechanics.flatMap(aimedTags))) {
       const other = tag === tree.id ? undefined : abilities.get(tag)
       if (other) problems.push(`${t.name} (${tree.ability.name}) aims at ${other}: talents aim at their own ability or at families`)
-      if (tree.kind !== 'artifact' && tag === 'minion' && !ownMinion) {
+      if (tree.kind !== 'artifact' && tag === 'minion' && minionAims.has('minion') && !ownMinion) {
         problems.push(`${t.name} (${tree.ability.name}) aims at minions, but not every weapon has them`)
       }
     }

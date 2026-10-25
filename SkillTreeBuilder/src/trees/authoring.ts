@@ -155,6 +155,16 @@ export const summon = (amount: number, interval: number, duration: number, max: 
   ...extra,
 })
 
+/** Curses an enemy with `stacks` stacks; each hit from your minions takes one for `amount` more damage. */
+export const curse = (amount: number, stacks: number, duration: number, extra: Extra = {}): EffectSpec => ({
+  type: 'curse',
+  amount,
+  stacks,
+  duration,
+  target: 'target',
+  ...extra,
+})
+
 export const hostileZone = (
   amount: number,
   duration: number,

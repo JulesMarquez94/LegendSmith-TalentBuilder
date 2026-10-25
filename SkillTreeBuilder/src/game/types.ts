@@ -12,6 +12,8 @@ export type Family =
   | 'shield'
   | 'direct-damage'
   | 'dot'
+  /** A curse on an enemy that something else sets off (Carrion Curse: your minions' hits). */
+  | 'debuff'
   /** Damage your minions deal (the pillars' Construct). */
   | 'minion'
   | 'resource'
@@ -67,6 +69,11 @@ export type CharStat =
    * +20% land at 1 + 2 × 1.2 = 3.4 times the ability's strength.
    */
   | 'comboBonus'
+  /**
+   * Your ranged single-target direct damage also hits every enemy within 8 yd of its target for this %
+   * of what it dealt (Volley).
+   */
+  | 'splash'
   /** % of overhealing stored, then given back as resource by the next main attack. */
   | 'overhealToResource'
   /** % stronger resource regeneration while below 30% of the maximum. */
@@ -111,6 +118,8 @@ export type EffectKey =
   | 'stacks'
   /** How many of a summon can be up at once. */
   | 'max'
+  /** A buff's stats: talents make them bigger (Frenzy's haste, Volley's splash). */
+  | 'strength'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -140,6 +149,8 @@ export type EffectType =
   | 'minion'
   /** Raises a minion of its own (a ghoul) that hits your target for `amount` every `interval` sec for `duration` sec. */
   | 'summon'
+  /** Curses an enemy with `stacks` stacks: each hit from your minions takes one and deals `amount` more damage. */
+  | 'curse'
   | 'restore'
   | 'move'
   | 'buff'
@@ -325,8 +336,13 @@ export type Action =
   | { do: 'recast' }
   /** When a HoT ends: it jumps to the most injured ally in range without it (once). */
   | { do: 'jump'; range: number }
-  /** Ends your DoTs matching this on the event's enemy, landing `pct`% of the damage they had left at once. */
-  | { do: 'consume'; match: Match; pct: number }
+  /**
+   * Ends your effects matching this (DoTs on the event's enemy, HoTs on your allies, your zones and
+   * summons) and hits the event's enemy for `pct`% of the event's damage per second they had left.
+   */
+  | { do: 'absorb'; match: Match; pct: number }
+  /** Adds seconds to one of your buffs while it's up (Frenzy, fed by spending). */
+  | { do: 'extendBuff'; buff: string; seconds: number }
   /** Copies a matching DoT from the event's target to the nearest enemy in range that doesn't have it. */
   | { do: 'spread'; match: Match; range: number }
   /** Fires another ability's effects, slotted or not. */

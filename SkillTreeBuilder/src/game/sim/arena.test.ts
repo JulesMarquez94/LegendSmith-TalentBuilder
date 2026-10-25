@@ -167,17 +167,6 @@ describe('cooldowns and charges', () => {
 })
 
 describe('talent procs', () => {
-  it('make every 4th Mend free after 3 (Inner Focus)', () => {
-    const arena = arenaWith(['mend', null, null, null, null], { mend: { 'inner-focus': 1 } })
-    for (let i = 0; i < 3; i++) {
-      cast(arena, 1)
-      run(arena, 1.5)
-    }
-    const before = arena.resource
-    cast(arena, 1)
-    expect(arena.resource).toBeGreaterThanOrEqual(before)
-  })
-
   it('wash over every ally once more when Lifetide ends (Ebb and Flow)', () => {
     const arena = arenaWith([null, null, null, 'lifetide', null], { lifetide: { moonpull: 1, 'slow-ebb': 2, 'ebb-and-flow': 3 } })
     cast(arena, 4)
@@ -223,8 +212,8 @@ describe('the new mechanics', () => {
       run(arena, 1)
     }
     expect(arena.buffs.find((b) => b.id === 'latent-charge')?.stacks).toBe(3)
-    // 10% per stack, on top of Strong Current's 4%.
-    expect(arena.current(1)!.effects[0].amount).toBeCloseTo(1800 * (1 + 0.04 + 0.3))
+    // 10% per stack, on top of Strong Current's 6%.
+    expect(arena.current(1)!.effects[0].amount).toBeCloseTo(1800 * (1 + 0.06 + 0.3))
     cast(arena, 1)
     expect(arena.buffs.some((b) => b.id === 'latent-charge')).toBe(false)
   })

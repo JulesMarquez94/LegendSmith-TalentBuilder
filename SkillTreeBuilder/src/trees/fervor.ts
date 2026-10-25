@@ -90,15 +90,6 @@ export const fervor: TreeDef = {
       does: (v) => [proc('cast', 'fervor', [during('steadfast', 'Steadfast', { stats: { damageReduction: v } })])],
     }),
     talent({
-      id: 'fleet-step',
-      name: 'Fleet Step',
-      row: 2,
-      col: 2,
-      per: [15, 30],
-      text: 'While Fervor lasts, you move {}% faster.',
-      does: (v) => [proc('cast', 'fervor', [during('fleet-step', 'Fleet Step', { stats: { speed: v } })])],
-    }),
-    talent({
       id: 'unending-fervor',
       name: 'Unending Fervor',
       row: 3,
