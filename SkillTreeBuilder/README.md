@@ -139,6 +139,13 @@ points: 30% haste).
 your minions (imps, ghouls) takes a stack and deals 90 more damage. Its talents add stacks and damage,
 burst when it ends, give back resource or extend your DoTs per stack, and speed your minions up.
 
+**Festering Wound** (any damage weapon): hits for 350 and adds a stack of **Wound Rot**, 35 damage per
+stack every second for 6 sec. It's a **stacking DoT** (`maxStacks`): each cast adds a stack, up to 10,
+and refreshes them all, so casting it again within 6 sec holds it at full (350 a second). Unlike Festering
+Rot's rolling stacks, they all run out together. Its talents raise the cap, add 2 stacks a cast, make
+the hit stronger per stack (Twist the Knife), add stacks from any direct damage (Infected), burst the
+stacks when they run out, spread one to a neighbour, and make all your DoTs stronger per stack.
+
 **Raise Ghoul** is playable now (it was display-only): a 1.5 sec cast that raises a ghoul for 20 sec,
 hitting your target for 90 every 1.5 sec, up to 3 at once (another replaces the oldest). Ghouls are
 **summons**, a new effect type: minions of their own that fight in melee around your target and then

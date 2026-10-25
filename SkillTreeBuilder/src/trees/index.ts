@@ -7,6 +7,7 @@ import { carrionCurse } from './curse.ts'
 import { doomBolt } from './doom.ts'
 import { frenzy } from './frenzy.ts'
 import { volley } from './volley.ts'
+import { festeringWound } from './wound.ts'
 import { backstab, eviscerate, fanOfKnives, rupture, twinDaggers } from './daggers.ts'
 import { fervor } from './fervor.ts'
 import { bloom, chainHeal, conduit, healingRain, mend, renew } from './healer/heals.ts'
@@ -58,6 +59,7 @@ export const TREES: readonly TreeDef[] = [
   volley,
   frenzy,
   carrionCurse,
+  festeringWound,
   // Daggers
   eviscerate,
   rupture,

@@ -109,7 +109,8 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
         better: 'up',
         detail:
           `${e.ticks} ticks${e.instantTicks ? ` + ${e.instantTicks} on landing` : ''}` +
-          (e.rolling && e.stacks > 1 ? ` · ${e.stacks} stacks a cast` : ''),
+          (e.rolling && e.stacks > 1 ? ` · ${e.stacks} stacks a cast` : '') +
+          (e.maxStacks > 0 ? ` · stacks up to ${e.maxStacks}${e.stacks > 1 ? `, ${e.stacks} a cast` : ''}` : ''),
       })
       if (e.type === 'zone') {
         out.push({

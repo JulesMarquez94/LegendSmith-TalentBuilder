@@ -100,6 +100,8 @@ export interface Dot {
   depth: number
   /** For rolling DoTs, each stack's own end time; ticks hit once per live stack. Empty otherwise. */
   stacks: number[]
+  /** Stacks of a stacking DoT (Festering Wound); 1 for an ordinary one. */
+  count: number
 }
 
 export interface Shield {
@@ -1024,7 +1026,10 @@ export class Arena {
     for (let i = 0; i < e.instantTicks; i++) this.heal(target, hot.amount, e, this.hotContext(hot), { label: name })
   }
 
-  /** Puts a DoT on an enemy. Ordinary DoTs refresh; rolling ones add stacks that each keep their own timer. */
+  /**
+   * Puts a DoT on an enemy. Ordinary DoTs refresh; stacking ones add a stack up to their cap and
+   * refresh them all; rolling ones add stacks that each keep their own timer.
+   */
   private applyDot(enemy: Enemy, e: ResolvedEffect, ctx: CastContext, name: string) {
     if (!enemy.alive || e.duration <= 0 || e.interval <= 0) return
     let d = enemy.dots.find((x) => x.key === e.key)
@@ -1043,6 +1048,7 @@ export class Arena {
         tick: 0,
         depth: ctx.depth,
         stacks: [],
+        count: 0,
       }
       enemy.dots.push(d)
     } else Object.assign(d, { effect: e, amount: e.amount, interval: e.interval, duration: e.duration })
@@ -1050,6 +1056,7 @@ export class Arena {
       for (let i = 0; i < e.stacks; i++) d.stacks.push(this.time + e.duration)
       d.endsAt = Math.max(...d.stacks)
     } else {
+      d.count = e.maxStacks > 0 ? Math.min(e.maxStacks, d.count + e.stacks) : 1
       d.endsAt = this.time + e.duration
       d.tick = 0
     }
@@ -1291,7 +1298,7 @@ export class Arena {
         }
         if (ev.dot) {
           const d = ev.dot
-          const amount = this.tickOf(d) * Math.max(1, d.stacks.length) * (action.seconds / d.interval)
+          const amount = this.tickOf(d) * this.liveStacks(d) * (action.seconds / d.interval)
           this.hitEnemy(d.target, amount, d.effect, this.dotContext(d), { label: name })
         }
         if (ev.zone) this.zoneBurst(ev.zone, action.seconds, name)
@@ -1362,7 +1369,7 @@ export class Arena {
     const left = (end: number) => Math.max(0, end - this.time)
     let seconds = 0
     for (const d of enemy.dots.filter((x) => matches(match, x.effect.tags))) {
-      seconds += d.stacks.length ? d.stacks.reduce((n, end) => n + left(end), 0) : left(d.endsAt)
+      seconds += d.stacks.length ? d.stacks.reduce((n, end) => n + left(end), 0) : left(d.endsAt) * d.count
       enemy.dots = enemy.dots.filter((x) => x !== d)
     }
     for (const ally of this.allies) {
@@ -1383,7 +1390,7 @@ export class Arena {
   }
 
   private liveStacks(d: Dot) {
-    return d.stacks.length ? d.stacks.filter((t) => t > this.time).length : 1
+    return d.stacks.length ? d.stacks.filter((t) => t > this.time).length : d.count
   }
 
   private zoneBurst(z: Zone, seconds: number, label: string) {
@@ -1694,7 +1701,7 @@ export class Arena {
       for (const c of [...enemy.curses]) if (this.time >= c.endsAt || !enemy.alive) this.endCurse(enemy, c)
       for (const d of [...enemy.dots]) {
         while (d.nextTick <= d.endsAt + 1e-6 && d.nextTick <= this.time && enemy.alive) {
-          const stacks = d.stacks.length ? d.stacks.filter((t) => t >= d.nextTick - 1e-6).length : 1
+          const stacks = d.stacks.length ? d.stacks.filter((t) => t >= d.nextTick - 1e-6).length : d.count
           if (stacks > 0) this.hitEnemy(enemy, this.tickOf(d) * stacks, d.effect, this.dotContext(d), { label: d.name, quiet: true })
           d.tick += 1
           d.nextTick += d.interval

@@ -393,6 +393,28 @@ describe('Carrion Curse', () => {
   })
 })
 
+describe('Festering Wound', () => {
+  it('hits hard and stacks a DoT up to 10, refreshing every stack each time', () => {
+    const kit = noCrits(kitFor(artifact('ashwood-longbow'), ['festering-wound', null, null, null, null, null]))
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    for (let i = 0; i < 12; i++) {
+      arena.resource = 100
+      cast(arena, 1)
+      run(arena, 1)
+    }
+    expect(damageOf(arena, 'Festering Wound')).toMatchObject({ hits: 12, damage: 12 * 350 })
+    const wound = arena.enemies.flatMap((e) => e.dots).find((d) => d.name === 'Wound Rot')!
+    expect(wound.count).toBe(10)
+    // Ten stacks tick for 10 × 35 each second, and they all run out together 6 sec after the last cast.
+    const before = damageOf(arena, 'Wound Rot')!.damage
+    run(arena, 1)
+    expect(damageOf(arena, 'Wound Rot')!.damage - before).toBeCloseTo(350)
+    run(arena, 6)
+    expect(arena.enemies.flatMap((e) => e.dots)).toHaveLength(0)
+  })
+})
+
 describe('Raise Ghoul', () => {
   it('raises ghouls that fight on their own, up to 3, and fall when their time runs out', () => {
     const kit = noCrits(kitFor(artifact('ashwood-longbow'), ['raise-ghoul', null, null, null, null, null]))

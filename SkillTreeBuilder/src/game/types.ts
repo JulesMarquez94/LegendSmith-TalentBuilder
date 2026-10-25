@@ -118,6 +118,8 @@ export type EffectKey =
   | 'stacks'
   /** How many of a summon can be up at once. */
   | 'max'
+  /** How many stacks a stacking DoT can reach. */
+  | 'maxStacks'
   /** A buff's stats: talents make them bigger (Frenzy's haste, Volley's splash). */
   | 'strength'
 
@@ -244,8 +246,13 @@ export interface EffectSpec {
   inflicts?: EffectSpec
   /** Each application is its own stack with its own timer; ticks hit once per live stack. */
   rolling?: boolean
-  /** Stacks added per application of a rolling DoT. Default 1. */
+  /** Stacks added per application of a rolling or stacking DoT. Default 1. */
   stacks?: number
+  /**
+   * A stacking DoT (Festering Wound): each application adds `stacks` up to this many and refreshes
+   * them all, and each tick hits once per stack. Leave out for a DoT that only refreshes.
+   */
+  maxStacks?: number
   /** Summons: how many can be up at once; one more replaces the oldest. Default 1. */
   max?: number
   /** Damage is multiplied by how many of your effects matching this the target has (Harvest's "per DoT"). */
@@ -436,6 +443,8 @@ export interface ResolvedEffect {
   speed: number
   extraCost: number
   stacks: number
+  /** A stacking DoT's cap; 0 for any other effect. */
+  maxStacks: number
   max: number
   mode?: 'dash' | 'teleport'
   buff?: BuffSpec

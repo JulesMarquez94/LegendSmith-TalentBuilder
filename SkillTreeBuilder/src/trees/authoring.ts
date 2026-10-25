@@ -135,7 +135,10 @@ export const damage = (amount: number, target: TargetRule = 'target', extra: Ext
   ...extra,
 })
 
-/** Damage over time on an enemy. Add `rolling: true` for stacks that each keep their own timer. */
+/**
+ * Damage over time on an enemy. Add `maxStacks` for one that stacks up to a cap and refreshes, or
+ * `rolling: true` for stacks that each keep their own timer.
+ */
 export const dot = (
   amount: number,
   duration: number,

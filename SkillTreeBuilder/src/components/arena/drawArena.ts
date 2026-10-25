@@ -149,10 +149,11 @@ export function drawArena(canvas: HTMLCanvasElement, arena: Arena, aim: Vec | nu
       g.fillStyle = d.effect.color
       circle({ x, y }, 0.28)
       g.fill()
-      if (d.stacks.length > 1) {
+      const n = d.stacks.length || d.count
+      if (n > 1) {
         g.fillStyle = '#fff'
         g.font = font(0.5, 900)
-        g.fillText(String(d.stacks.length), x, y + 0.65)
+        g.fillText(String(n), x, y + 0.65)
       }
     })
   }
