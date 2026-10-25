@@ -60,7 +60,8 @@ const validTrinket = (t: Trinket | undefined, slot: string): t is Trinket =>
   t.itemLevel > 0 &&
   Array.isArray(t.stats) &&
   t.stats.every((s) => GEAR_STATS.includes(s)) &&
-  isValidPair(t.stats[0], t.stats[1])
+  isValidPair(t.stats[0], t.stats[1]) &&
+  (t.lean === undefined || t.lean === 0 || t.lean === 1)
 
 export function savedGear(): Gear {
   const gear = read().gear ?? {}

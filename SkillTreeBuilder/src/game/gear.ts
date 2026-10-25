@@ -3,8 +3,11 @@ import type { CharStat, CharStats } from './types.ts'
 // Trinket rules from the overview's "Trinkets and item cards":
 // - item level sets Power (a %) and Health (flat), always on the item;
 // - two stats, no more; Echo and Minion power are special affixes that take one of the two;
-// - rarity sets the stats' values (common 1% … epic 4%);
-// - the name comes from the stat pair, and you can't wear two items with the same name.
+// - rarity sets the stats' values (common 1% … epic 4%); an item can split them evenly (100% of the
+//   value each) or lean toward one stat (150% of it, 50% of the other);
+// - the name comes from the stat pair, and you can't wear two items with the same name. A leaning
+//   item's name starts with its stat's word ("Quick Ring of Peerlessness"), but the rule still
+//   counts the pair: a Quick and a Keen Peerlessness can't be worn together.
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic'
 
@@ -42,11 +45,29 @@ export const TRINKET_SLOTS = [
 
 export type TrinketSlot = (typeof TRINKET_SLOTS)[number]
 
+/** Which of its two stats an item leans toward: index 0 or 1. Leave it out for an even split. */
+export type Lean = 0 | 1
+
 export interface Trinket {
   slot: TrinketSlot
   rarity: Rarity
   itemLevel: number
   stats: readonly [GearStat, GearStat]
+  /** The stat that gets 150% of the rarity's value; the other gets 50%. Absent: 100% each. */
+  lean?: Lean
+}
+
+/** Share of the rarity's value each stat gets: even, or leaning toward one. */
+export const LEAN_SHARE = { even: 1, heavy: 1.5, light: 0.5 } as const
+
+/** The word a leaning item's name starts with, from the stat it leans toward. */
+const LEAN_WORD: Record<GearStat, string> = {
+  haste: 'Quick',
+  crit: 'Keen',
+  critDamage: 'Brutal',
+  potency: 'Enduring',
+  echo: 'Echoing',
+  minionPower: 'Lordly',
 }
 
 /** Equipped trinkets by slot. */
@@ -82,15 +103,20 @@ export function isValidPair(a: GearStat, b: GearStat): boolean {
 /** "Peerlessness" — the part of the name the unique rule checks. */
 export const uniqueName = (t: Trinket) => PAIR_NAMES[pairKey(...t.stats)] ?? 'Oddity'
 
-export const trinketName = (t: Trinket) => `${t.slot} of ${uniqueName(t)}`
+export const trinketName = (t: Trinket) =>
+  `${t.lean === undefined ? '' : `${LEAN_WORD[t.stats[t.lean]]} `}${t.slot} of ${uniqueName(t)}`
 
 /** Power % from item level, as on the overview's item cards. */
 export const trinketPower = (t: Trinket) => Math.round(t.itemLevel * 0.105 * 10) / 10
 
 export const trinketHealth = (t: Trinket) => Math.round(t.itemLevel * 9.5)
 
-/** Each of the two stats gets the rarity's value. */
-export const trinketStatValue = (t: Trinket) => RARITY_INFO[t.rarity].value
+/** The two stats' values: the rarity's value each, or 150% and 50% of it on a leaning item. */
+export function trinketStatValues(t: Trinket): [number, number] {
+  const value = RARITY_INFO[t.rarity].value
+  const share = (i: Lean) => (t.lean === undefined ? LEAN_SHARE.even : t.lean === i ? LEAN_SHARE.heavy : LEAN_SHARE.light)
+  return [value * share(0), value * share(1)]
+}
 
 /** Separate from item level: past level 60 the item level keeps climbing and this stays at 60. */
 export const requiredLevel = (itemLevel: number) =>
@@ -123,7 +149,8 @@ export function gearTotals(gear: Gear): Partial<CharStats> {
     if (!t) continue
     add('power', trinketPower(t))
     add('health', trinketHealth(t))
-    for (const stat of t.stats) add(stat, trinketStatValue(t))
+    const values = trinketStatValues(t)
+    t.stats.forEach((stat, i) => add(stat, values[i]))
   }
   return totals
 }
@@ -222,6 +249,15 @@ const OVERVIEW: Gear = Object.fromEntries(
   ).map(([slot, rarity, itemLevel, stats]) => [slot, { slot, rarity, itemLevel, stats }]),
 )
 
+/** Every item leans toward the first stat of `order` it has; items with none of them stay even. */
+const leaning = (gear: Gear, order: readonly GearStat[]): Gear =>
+  Object.fromEntries(
+    Object.entries(gear).map(([slot, t]) => {
+      const i = order.map((stat) => t.stats.indexOf(stat)).find((at) => at >= 0)
+      return [slot, i === undefined ? t : { ...t, lean: i as Lean }]
+    }),
+  )
+
 export interface GearPreset {
   id: string
   name: string
@@ -240,4 +276,9 @@ export const GEAR_PRESETS: readonly GearPreset[] = [
   { id: 'rare-100', name: 'Haste and Potency · rare, item level 100', gear: fill('rare', 100, HASTE_POTENCY) },
   { id: 'epic-hp', name: 'Haste and Potency · epic, item level 120', gear: fill('epic', 120, HASTE_POTENCY) },
   { id: 'epic-crit', name: 'Critical · epic, item level 120', gear: fill('epic', 120, CRIT) },
+  {
+    id: 'epic-haste-lean',
+    name: 'Haste-heavy Haste and Potency · epic, item level 120',
+    gear: leaning(fill('epic', 120, HASTE_POTENCY), ['haste', 'potency']),
+  },
 ]

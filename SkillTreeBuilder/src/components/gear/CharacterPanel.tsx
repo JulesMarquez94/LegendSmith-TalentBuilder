@@ -6,6 +6,7 @@ import { SHEET_SECTIONS, STAT_INFO, TALENT_ONLY, withResource } from '../../game
 import type { CharStat } from '../../game/types.ts'
 import type { ArtifactDef } from '../../talents/types.ts'
 import { ArtIcon } from '../ArtIcon.tsx'
+import { StatIcon } from '../StatIcon.tsx'
 import { Tooltip } from '../Tooltip.tsx'
 import { useHoverTarget } from '../useHoverTarget.ts'
 import { ForgeDialog } from './ForgeDialog.tsx'
@@ -47,8 +48,20 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
         onClick={() => setForging(slot)}
         {...hoverOn({ kind: 'slot', slot })}
       >
-        <span className="trinket__type">{t ? slot[0] : slot}</span>
-        {t && <span className="trinket__ilvl">{t.itemLevel}</span>}
+        {t ? (
+          <>
+            <span className="trinket__slot">{slot[0]}</span>
+            {/* The stat an item leans toward gets the bigger icon. */}
+            <span className="trinket__icons">
+              {t.stats.map((stat, i) => (
+                <StatIcon key={stat} stat={stat} size={t.lean === undefined ? 18 : t.lean === i ? 22 : 13} />
+              ))}
+            </span>
+            <span className="trinket__ilvl">{t.itemLevel}</span>
+          </>
+        ) : (
+          <span className="trinket__type">{slot}</span>
+        )}
       </button>
     )
   }
@@ -116,7 +129,10 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
               .filter((stat) => !TALENT_ONLY.has(stat) || stats[stat] !== 0)
               .map((stat) => (
                 <div key={stat} className="stats__row" tabIndex={0} {...hoverOn({ kind: 'stat', stat })}>
-                  <dt style={{ color: STAT_INFO[stat].color }}>{label(stat)}</dt>
+                  <dt style={{ color: STAT_INFO[stat].color }}>
+                    <StatIcon stat={stat} size={13} />
+                    {label(stat)}
+                  </dt>
                   <dd>{statValue(stat, stats[stat])}</dd>
                 </div>
               ))}

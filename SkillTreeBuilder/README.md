@@ -155,6 +155,16 @@ stats (common 1% … epic 4%), Echo and Minion power take one of the two, and th
 pair, so you can't wear two "of Peerlessness" at once. Click a slot to make a test trinket, or pick a
 **Gear set** preset. Hover a stat for where it comes from.
 
+Each trinket also has a **balance**: even (100% of the rarity's value on both stats) or leaning toward
+one stat (150% of it, 50% of the other), so an epic Haste and Critical item is 4% / 4%, 6% / 2% or
+2% / 6%. A leaning item's name starts with its stat's word (Quick, Keen, Brutal, Enduring, Echoing,
+Lordly): "Quick Ring of Peerlessness". The unique rule still counts the pair, so a Quick and a Keen
+Peerlessness can't be worn together.
+
+Every gear stat has an **icon** (Haste a lightning bolt, Critical a crosshair, Crit damage a burst,
+Potency an hourglass, Echo ripples, Minion power a skull). An equipped slot shows its two stats' icons,
+the leaned stat's bigger, and the icons also mark the item cards, the forge and the stat sheet.
+
 - **Power** raises every heal, shield and damage number.
 - **Haste** speeds casts, the global cooldown and ticks. It never shortens a duration, so HoTs and zones fit in more ticks.
 - **Critical** and **Crit damage** set crit chance and size (crits land for 150% plus Crit damage).

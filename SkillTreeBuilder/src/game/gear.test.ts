@@ -8,6 +8,7 @@ import {
   trinketHealth,
   trinketName,
   trinketPower,
+  trinketStatValues,
   uniqueName,
   type Trinket,
 } from './gear.ts'
@@ -34,6 +35,22 @@ describe('trinkets', () => {
   it('add up, with rarity setting the two stats', () => {
     const totals = gearTotals({ Ring: ring, Necklace: { slot: 'Necklace', rarity: 'common', itemLevel: 50, stats: ['haste', 'potency'] } })
     expect(totals).toMatchObject({ haste: 5, crit: 4, potency: 1, power: 17.7 })
+  })
+})
+
+describe('leaning trinkets', () => {
+  it('split the rarity value 150% / 50% toward one stat, either way', () => {
+    expect(trinketStatValues(ring)).toEqual([4, 4])
+    expect(trinketStatValues({ ...ring, lean: 0 })).toEqual([6, 2])
+    expect(trinketStatValues({ ...ring, lean: 1 })).toEqual([2, 6])
+    expect(gearTotals({ Ring: { ...ring, lean: 0 } })).toMatchObject({ haste: 6, crit: 2 })
+  })
+
+  it("start their name with the stat they lean toward, but share the pair's unique name", () => {
+    expect(trinketName({ ...ring, lean: 0 })).toBe('Quick Ring of Peerlessness')
+    expect(trinketName({ ...ring, lean: 1 })).toBe('Keen Ring of Peerlessness')
+    const necklace: Trinket = { ...ring, slot: 'Necklace', lean: 1 }
+    expect(equip({ Ring: { ...ring, lean: 0 } }, necklace)).toEqual({ gear: { Necklace: necklace }, cleared: 'Ring' })
   })
 })
 

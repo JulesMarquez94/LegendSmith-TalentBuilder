@@ -3,6 +3,7 @@ import {
   equip,
   GEAR_STATS,
   isValidPair,
+  type Lean,
   RARITIES,
   RARITY_INFO,
   SPECIAL_STATS,
@@ -14,6 +15,7 @@ import {
   type TrinketSlot,
 } from '../../game/gear.ts'
 import { STAT_INFO } from '../../game/stats.ts'
+import { StatIcon } from '../StatIcon.tsx'
 import { ItemCard } from './ItemCard.tsx'
 
 interface Props {
@@ -45,6 +47,11 @@ export function ForgeDialog({ slot, gear, onSave, onClose }: Props) {
     stats[i] = stat
     setDraft({ ...draft, stats })
   }
+  const setLean = (lean: Lean | undefined) => {
+    const next: Trinket = { ...draft, lean }
+    if (lean === undefined) delete next.lean
+    setDraft(next)
+  }
   // A stat can't pair with itself, and Echo and Minion power can't share an item.
   const allowed = (i: 0 | 1, stat: GearStat) => {
     const other = draft.stats[i === 0 ? 1 : 0]
@@ -65,7 +72,10 @@ export function ForgeDialog({ slot, gear, onSave, onClose }: Props) {
         <h2 id={titleId} className="picker__title">
           {slot}
         </h2>
-        <p className="picker__sub">Make a test trinket. Rarity sets the two stats, item level sets Power and Health.</p>
+        <p className="picker__sub">
+          Make a test trinket. Rarity sets the two stats, item level sets Power and Health, and the balance splits
+          the stats evenly or leans toward one.
+        </p>
 
         <div className="forge__grid">
           <div className="forge__form">
@@ -114,12 +124,31 @@ export function ForgeDialog({ slot, gear, onSave, onClose }: Props) {
                       style={{ '--sc': STAT_INFO[stat].color } as CSSProperties}
                       onClick={() => setStat(i, stat)}
                     >
+                      <StatIcon stat={stat} size={13} plain />
                       {STAT_INFO[stat].label}
                     </button>
                   ))}
                 </div>
               </fieldset>
             ))}
+
+            <fieldset className="forge__field">
+              <legend>Balance</legend>
+              <div className="segmented">
+                {([undefined, 0, 1] as const).map((lean) => (
+                  <button
+                    key={String(lean)}
+                    type="button"
+                    className="segmented__btn"
+                    aria-pressed={draft.lean === lean}
+                    style={{ '--rc': lean === undefined ? '#d9e2e4' : STAT_INFO[draft.stats[lean]].color } as CSSProperties}
+                    onClick={() => setLean(lean)}
+                  >
+                    {lean === undefined ? 'Even · 100% / 100%' : `More ${STAT_INFO[draft.stats[lean]].label} · 150% / 50%`}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
           </div>
 
           <div className="forge__preview">

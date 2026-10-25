@@ -1016,6 +1016,39 @@ img {
   color: var(--rc);
 }
 
+.trinket__icons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.trinket__slot {
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--rc);
+  opacity: 0.85;
+}
+
+.stat-icon {
+  flex: none;
+}
+
+.stats__row dt,
+.item__stats > div > span,
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.item__lean {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
 .trinket__ilvl {
   position: absolute;
   right: 3px;
