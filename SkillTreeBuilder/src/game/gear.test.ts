@@ -47,29 +47,39 @@ describe('leaning trinkets', () => {
     expect(gearTotals({ Ring: { ...ring, lean: 0 } })).toMatchObject({ haste: 6, crit: 2 })
   })
 
-  it("start their name with the stat they lean toward, but share the pair's unique name", () => {
+  it('start their name with the stat they lean toward, and count as their own item', () => {
     expect(trinketName({ ...ring, lean: 0 })).toBe('Quick Ring of Peerlessness')
     expect(trinketName({ ...ring, lean: 1 })).toBe('Keen Ring of Peerlessness')
-    const necklace: Trinket = { ...ring, slot: 'Necklace', lean: 1 }
-    expect(equip({ Ring: { ...ring, lean: 0 } }, necklace)).toEqual({ gear: { Necklace: necklace }, cleared: 'Ring' })
+    expect(uniqueName({ ...ring, lean: 0 })).toBe('Quick Peerlessness')
+    // A Quick, an even and a Keen Peerlessness stack…
+    const quick = equip({}, { ...ring, lean: 0 }).gear
+    const even = equip(quick, { ...ring, slot: 'Band' }).gear
+    const all = equip(even, { ...ring, slot: 'Necklace', lean: 1 })
+    expect(all.cleared).toBeUndefined()
+    expect(gearTotals(all.gear)).toMatchObject({ haste: 12, crit: 12 })
+    // …but two Quick ones don't.
+    expect(equip(all.gear, { ...ring, slot: 'Idol', lean: 0 }).cleared).toBe('Ring')
   })
 })
 
 describe('the prebuilt sets', () => {
   const totals = (id: string) => gearTotals(GEAR_PRESETS.find((p) => p.id === id)!.gear)
 
-  it('build one set around each stat, leaning every item that has it toward it', () => {
+  it('build one set around each stat, stacking its pairs leaning, even and the other way', () => {
     for (const stat of GEAR_STATS) {
       const set = GEAR_PRESETS.find((p) => p.id === `main-${stat}`)!
       const items = TRINKET_SLOTS.map((s) => set.gear[s]!)
-      expect(items).toHaveLength(12)
-      for (const t of items) expect(t.lean === undefined ? null : t.stats[t.lean]).toBe(t.stats.includes(stat) ? stat : null)
+      expect(items.every((t) => t.stats.includes(stat)), stat).toBe(true)
+      const leaningToward = items.filter((t) => t.lean !== undefined && t.stats[t.lean] === stat)
+      expect(leaningToward).toHaveLength(stat === 'echo' || stat === 'minionPower' ? 4 : 5)
       // The main stat comes out on top.
       const sums = totals(set.id)
       for (const other of GEAR_STATS) if (other !== stat) expect(sums[stat]!, `${stat} over ${other}`).toBeGreaterThan(sums[other] ?? 0)
     }
-    expect(totals('main-haste')).toMatchObject({ haste: 30 })
-    expect(totals('main-echo')).toMatchObject({ echo: 24 })
+    // Haste: 5 leaning (6% each), 5 even (4%) and 2 leaning the other way (2%).
+    expect(totals('main-haste')).toMatchObject({ haste: 54 })
+    // Echo: its 4 pairs, three times each.
+    expect(totals('main-echo')).toMatchObject({ echo: 48 })
   })
 
   it('keep the even mix at 100% / 100% on every item', () => {

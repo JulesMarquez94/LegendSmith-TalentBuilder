@@ -158,14 +158,16 @@ pair, so you can't wear two "of Peerlessness" at once. Click a slot to make a te
 Each trinket also has a **balance**: even (100% of the rarity's value on both stats) or leaning toward
 one stat (150% of it, 50% of the other), so an epic Haste and Critical item is 4% / 4%, 6% / 2% or
 2% / 6%. A leaning item's name starts with its stat's word (Quick, Keen, Brutal, Enduring, Echoing,
-Lordly): "Quick Ring of Peerlessness". The unique rule still counts the pair, so a Quick and a Keen
-Peerlessness can't be worn together.
+Lordly): "Quick Ring of Peerlessness". Each balance is **its own item** for the unique rule, so a
+Quick, an even and a Keen Peerlessness can all be worn together (stacking Haste 6 + 4 + 2 and Critical
+2 + 4 + 6 on epic items); only two of the very same one can't.
 
 The **Gear set** picker has prebuilt sets in two groups:
 
 - **Main stat** (epic, item level 120): one set per stat, Haste, Critical, Crit damage, Potency, Echo
-  and Minion power. Every item with that stat leans toward it (5 items, 4 for Echo and Minion power, at
-  6% each), and the other slots hold even items, so the main stat comes out on top (Haste main: +30%).
+  and Minion power. All 12 items carry the stat: every pair with it leaning toward it (6% each), then
+  even (4%), then leaning the other way (2%) to fill the slots. Haste main gives +54% Haste; Echo main
+  wears Echo's 4 pairs three times each for +48%.
 - **Even split** (100% / 100% on every item): the **Even mix** (epic, item level 120: Haste and Potency
   20%, Critical and Crit damage 16%, Echo and Minion power 12%), plus the older even sets.
 
@@ -185,8 +187,9 @@ The stat sheet shows Power and Health together at the top with the resource, the
 (Haste, Critical, Crit damage, Potency), **Defensive** (Damage reduction, Dodge) and **Extra** (Echo,
 Minion power, Speed and anything only talents give).
 
-Because no two worn trinkets can share a name, each stat pair can be worn once, so no stat sits on more
-than 5 of the 12 trinkets. The common "Critical and Haste" and "Potency and Haste" sets differ by 1%.
+Because no two worn trinkets can share a name, each balance of a stat pair can be worn once. An even
+set holds each pair once, so no stat sits on more than 5 of its 12 trinkets, and the common "Critical
+and Haste" and "Potency and Haste" sets differ by 1%. Mixing balances lets one stat sit on all 12.
 
 **Ability numbers**, under the trees, shows every number on every slotted ability. Numbers flash green
 when they improve and red when they drop, with the base (nothing equipped or learned) in grey.

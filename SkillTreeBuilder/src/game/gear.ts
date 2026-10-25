@@ -7,8 +7,8 @@ import type { CharStat, CharStats } from './types.ts'
 // - rarity sets the stats' values (common 1% … epic 4%); an item can split them evenly (100% of the
 //   value each) or lean toward one stat (150% of it, 50% of the other);
 // - the name comes from the stat pair, and you can't wear two items with the same name. A leaning
-//   item's name starts with its stat's word ("Quick Ring of Peerlessness"), but the rule still
-//   counts the pair: a Quick and a Keen Peerlessness can't be worn together.
+//   item's name starts with its stat's word ("Quick Ring of Peerlessness"), and each balance is its
+//   own item: a Quick, an even and a Keen Peerlessness can all be worn together, two Quick ones can't.
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic'
 
@@ -102,10 +102,15 @@ export function isValidPair(a: GearStat, b: GearStat): boolean {
 }
 
 /** "Peerlessness" — the part of the name the unique rule checks. */
-export const uniqueName = (t: Trinket) => PAIR_NAMES[pairKey(...t.stats)] ?? 'Oddity'
+const pairName = (t: Trinket) => PAIR_NAMES[pairKey(...t.stats)] ?? 'Oddity'
 
-export const trinketName = (t: Trinket) =>
-  `${t.lean === undefined ? '' : `${LEAN_WORD[t.stats[t.lean]]} `}${t.slot} of ${uniqueName(t)}`
+/** "Quick " on a Haste-leaning item, nothing on an even one. */
+const leanWord = (t: Trinket) => (t.lean === undefined ? '' : `${LEAN_WORD[t.stats[t.lean]]} `)
+
+/** "Peerlessness", "Quick Peerlessness": what the unique rule checks. Each balance of a pair is its own item. */
+export const uniqueName = (t: Trinket) => `${leanWord(t)}${pairName(t)}`
+
+export const trinketName = (t: Trinket) => `${leanWord(t)}${t.slot} of ${pairName(t)}`
 
 /** Power % from item level, as on the overview's item cards. */
 export const trinketPower = (t: Trinket) => Math.round(t.itemLevel * 0.105 * 10) / 10
@@ -165,8 +170,8 @@ const fill = (rarity: Rarity, itemLevel: number, pairs: PairList): Gear =>
     TRINKET_SLOTS.map((slot, i) => [slot, { slot, rarity, itemLevel, stats: pairs[i] } satisfies Trinket]),
   )
 
-// The unique-name rule means 12 slots need 12 different pairs out of 14, so every full set
-// carries at least two Minion power or other off-role pairs.
+// Even sets: the unique-name rule lets each even pair be worn once, so 12 slots need 12 different
+// pairs out of 14 and every full even set carries at least two Minion power or other off-role pairs.
 const HASTE_POTENCY: PairList = [
   ['haste', 'potency'],
   ['haste', 'crit'],
@@ -250,15 +255,6 @@ const OVERVIEW: Gear = Object.fromEntries(
   ).map(([slot, rarity, itemLevel, stats]) => [slot, { slot, rarity, itemLevel, stats }]),
 )
 
-/** Every item leans toward the first stat of `order` it has; items with none of them stay even. */
-const leaning = (gear: Gear, order: readonly GearStat[]): Gear =>
-  Object.fromEntries(
-    Object.entries(gear).map(([slot, t]) => {
-      const i = order.map((stat) => t.stats.indexOf(stat)).find((at) => at >= 0)
-      return [slot, i === undefined ? t : { ...t, lean: i as Lean }]
-    }),
-  )
-
 /** Every pair a trinket can roll, in stat order: 14 of them (two special affixes never share an item). */
 const ALL_PAIRS: PairList = GEAR_STATS.flatMap((a, i) =>
   GEAR_STATS.slice(i + 1)
@@ -266,16 +262,22 @@ const ALL_PAIRS: PairList = GEAR_STATS.flatMap((a, i) =>
     .map((b) => [a, b] as const),
 )
 
-const specials = (pair: readonly [GearStat, GearStat]) => pair.filter((s) => SPECIAL_STATS.has(s)).length
-
 /**
- * Twelve epic items built around one stat: every pair with it (5, or 4 for Echo and Minion power)
- * leans toward it, and the other slots take even items, two ordinary stats before a special affix.
+ * Twelve epic items that all carry one stat. Each balance is its own item, so every pair with the
+ * stat (5, or 4 for Echo and Minion power) can be worn three times: the set takes them all leaning
+ * toward the stat, then all even, then leaning the other way until the 12 slots are full.
  */
 function mainStatSet(stat: GearStat): Gear {
   const withIt = ALL_PAIRS.filter((p) => p.includes(stat))
-  const rest = ALL_PAIRS.filter((p) => !p.includes(stat)).sort((a, b) => specials(a) - specials(b))
-  return leaning(fill('epic', 120, [...withIt, ...rest].slice(0, TRINKET_SLOTS.length)), [stat])
+  const toward = (p: readonly [GearStat, GearStat]) => p.indexOf(stat) as Lean
+  const items: Omit<Trinket, 'slot' | 'rarity' | 'itemLevel'>[] = [
+    ...withIt.map((stats) => ({ stats, lean: toward(stats) })),
+    ...withIt.map((stats) => ({ stats })),
+    ...withIt.map((stats) => ({ stats, lean: (1 - toward(stats)) as Lean })),
+  ]
+  return Object.fromEntries(
+    TRINKET_SLOTS.map((slot, i) => [slot, { slot, rarity: 'epic', itemLevel: 120, ...items[i] } satisfies Trinket]),
+  )
 }
 
 // Every stat split evenly: the six ordinary pairs, then three items each of Echo and Minion power,
@@ -303,7 +305,7 @@ export interface GearPreset {
   gear: Gear
 }
 
-const MAIN = 'Main stat · epic, item level 120, leaning 150% / 50%'
+const MAIN = 'Main stat · epic, item level 120: leaning, even and the other way'
 const EVEN = 'Even split · 100% / 100%'
 
 export const GEAR_PRESETS: readonly GearPreset[] = [
