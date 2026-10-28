@@ -292,6 +292,45 @@ describe("the summoning book's tree", () => {
   })
 })
 
+describe('Blood Frenzy', () => {
+  const frenzyKit = (ranks: Record<string, number> = {}) =>
+    kitFor(book, [null, null, null, 'blood-frenzy', null, null], { 'blood-frenzy': ranks })
+  const buffOf = (kit: Kit) => kitBuff(kit.slots[4]!)
+  const kitBuff = (a: NonNullable<Kit['slots'][number]>) => a.effects[0]
+
+  it('gives 20% haste for 30 sec, instantly, for free, every 3 min', () => {
+    const frenzy = frenzyKit().slots[4]!
+    expect(frenzy).toMatchObject({ cost: 0, castTime: 0, cooldown: 180, charges: 1 })
+    expect(buffOf(frenzyKit())).toMatchObject({ duration: 30, buff: { stats: { haste: 20 } } })
+    const arena = new Arena(frenzyKit(), DUMMIES, { seed: 1 })
+    cast(arena, 4)
+    expect(arena.stats().haste).toBe(20)
+  })
+
+  it('grows, lasts and comes back sooner with its talents', () => {
+    const kit = frenzyKit({ bloodlust: 2, 'lingering-rage': 2, 'quickened-pulse': 2 })
+    expect(buffOf(kit)).toMatchObject({ duration: 40, buff: { stats: { haste: 30 } } })
+    expect(kit.slots[4]!.cooldown).toBe(120)
+  })
+
+  it('holds 2 charges at half the duration with Twin Frenzy', () => {
+    const kit = frenzyKit({ 'twin-frenzy': 1 })
+    expect(kit.slots[4]!.charges).toBe(2)
+    expect(buffOf(kit).duration).toBe(15)
+  })
+
+  it('lasts longer with every ability you use, with Endless Frenzy', () => {
+    const arena = new Arena(frenzyKit({ 'endless-frenzy': 2 }), DUMMIES, { seed: 1 })
+    cast(arena, 4)
+    // Blood Frenzy is an ability too: its own cast already added 0.4.
+    const end = arena.buffs.find((b) => b.id === 'blood-frenzy')!.endsAt
+    expect(end - arena.time).toBeCloseTo(30.4, 1)
+    run(arena, 1)
+    cast(arena, 0)
+    expect(arena.buffs.find((b) => b.id === 'blood-frenzy')!.endsAt).toBeCloseTo(end + 0.4)
+  })
+})
+
 describe("Miasma's tree", () => {
   const miasmaKit = (ranks: Record<string, number>) => {
     const kit = noCrits(kitFor(book, ['miasma', null, null, null, null, null], { miasma: ranks }))

@@ -1,8 +1,8 @@
 import { GEAR_STATS, isValidPair, RARITIES, TRINKET_SLOTS, type Gear, type Trinket } from './game/gear.ts'
-import type { Loadout } from './talents/loadout.ts'
+import { capFor, type Loadout } from './talents/loadout.ts'
 import { setArtifact } from './talents/slots.ts'
 import { validateCatalog } from './talents/validate.ts'
-import { ARTIFACTS, STARTING_LOADOUT, TREES } from './trees/index.ts'
+import { ARTIFACTS, POINT_RULES, STARTING_LOADOUT, TREES } from './trees/index.ts'
 
 // The build and gear are kept in this browser between visits, so a test setup survives a reload.
 // Anything that no longer matches the tree data (a renamed tree, a removed talent) is dropped.
@@ -46,7 +46,9 @@ export function savedLoadout(): Loadout {
         const talent = tree.talents.find((t) => t.id === id)
         return talent !== undefined && Number.isInteger(rank) && rank > 0 && rank <= talent.maxRank
       })
-      return [[treeId, Object.fromEntries(kept)]]
+      // A tree whose points no longer fit its cap (an ultimate's went down to 6) starts over.
+      const spent = kept.reduce((sum, [, rank]) => sum + rank, 0)
+      return [[treeId, spent > capFor(tree, POINT_RULES) ? {} : Object.fromEntries(kept)]]
     }),
   )
   return { ...loadout, ranks }

@@ -10,6 +10,12 @@ import type { ArtifactDef, TreeDef } from './types.ts'
  */
 export const TREE_RANKS = 18
 
+/** An ultimate's smaller tree: about 5 talents and 9 ranks, for its 6 points. */
+export const ULTIMATE_RANKS = 9
+
+/** The ranks a tree must hold: 9 for an ultimate, 18 for the rest. */
+export const ranksFor = (tree: TreeDef) => (tree.kind === 'cooldown' ? ULTIMATE_RANKS : TREE_RANKS)
+
 /** A tree's ranks in all, counting each choice pair once, at the bigger of the two. */
 export function treeRanks(tree: TreeDef): number {
   let total = tree.talents.reduce((sum, t) => sum + t.maxRank, 0)
@@ -69,7 +75,7 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
   }
 
   const total = treeRanks(tree)
-  if (total !== TREE_RANKS) problems.push(`${tree.ability.name}'s talents hold ${total} ranks in all, not ${TREE_RANKS}`)
+  if (total !== ranksFor(tree)) problems.push(`${tree.ability.name}'s talents hold ${total} ranks in all, not ${ranksFor(tree)}`)
 
   for (const t of tree.talents) {
     if (t.excludes === undefined) continue

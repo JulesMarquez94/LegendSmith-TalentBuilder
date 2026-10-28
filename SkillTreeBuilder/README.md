@@ -63,7 +63,9 @@ below with its role.
 
 - **60 talent points** (one per level) to spend anywhere, but **no more than 12 in any one tree**, as in
   the overview (`POINT_RULES` in `src/trees/index.ts`).
-- Every tree's talents hold **exactly 18 ranks** in all (`TREE_RANKS`), so with 12 to spend you always
+- **Ultimates** (the cooldown slot) have smaller trees: **6 points at most** (`perUltimate`), about 5
+  talents and **exactly 9 ranks** (`ULTIMATE_RANKS`), in the top three rows so 6 points reach them all.
+- Every other tree's talents hold **exactly 18 ranks** in all (`TREE_RANKS`), so with 12 to spend you always
   leave a third of it: 6, 12, 18. The data test fails on a tree with more or fewer. Talents that reach
   other abilities (a whole family) or feed them (synergy) are favoured; tweaks to one ability's own
   numbers went first.
@@ -96,8 +98,8 @@ Talents aim at **families and tags**, never at another ability: a talent may nam
 ("Healing Rain's crits…") or a family ("your heal-over-time effects…"), and a data test fails if one
 names another ability or leans on one weapon (minions, flat resource). Every tree's "heals more" talent lifts a
 whole family: Mend's and Miracle's lift direct heals, Chain Heal's chain heals, Healing Rain's and
-Sanctuary's zones, Renew's and Lifetide's HoTs. Each ultimate also has a talent that cuts its cooldown
-when you crit with its family. A talent's tooltip lists what it
+Sanctuary's zones, Renew's and Lifetide's HoTs. Miracle and Sanctuary also have a talent that cuts
+their cooldown when you crit with their family. A talent's tooltip lists what it
 reaches ("Affects: Renew, Lifetide"). The families are direct heal, HoT, zone, shield, direct damage,
 DoT, minion, resource, movement, buff and aura, plus `healing` on every heal, `damage` on every hit,
 `aoe` on area damage, slot kinds (`heal`, `cooldown`…) and the ability's own id.
@@ -146,7 +148,7 @@ The new mechanics behind it:
 | Slot | Choices |
 | --- | --- |
 | Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (instant, 5 imps, no cooldown; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (5 imps, 30 sec cooldown; a 3 sec cloud that gives everyone inside a stack of Pox every second), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
-| Ultimate | Fervor (you and your group gain 30% haste for 20 sec) |
+| Ultimate | Fervor (you and your group gain 30% haste for 20 sec), Blood Frenzy (+20% haste for you for 30 sec, 3 min cooldown) |
 
 The **Twin Daggers** build combo points (up to 6) with Quick Strike: hold the key to keep striking.
 Fan of Knives and Backstab build them too. **Combo points pay in steps**: an ability that costs 2
@@ -237,6 +239,12 @@ with that:
 enemy (Swift Arrow, Aimed Shot, Doom Bolt) also hits every enemy within 8 yd of it for 30% of the
 damage. Melee strikes and area damage don't splash. Its extra hits are tagged `splash` and `aoe`, so its
 talents (resource and cooldown per extra hit) and area-damage talents reach them.
+
+**Blood Frenzy** is the damage dealer's ultimate: instant, free, a 3 min cooldown, and +20% haste for
+you for 30 sec (`src/trees/blood.ts`). Its tree: Bloodlust (+5/10% more haste), Lingering Rage (+5/10
+sec), Quickened Pulse (cooldown 30/60 sec shorter), Endless Frenzy (every ability you use while it's
+up adds 0.2/0.4 sec, needs Lingering Rage) and Twin Frenzy (2 charges at half the duration, needs
+Quickened Pulse).
 
 **Frenzy**: +15% haste for 8 sec, with no cooldown: you keep it up by paying for
 it again. Feeding Frenzy makes every ability you spend on extend it; other talents add crit, regen,

@@ -34,6 +34,7 @@ export const fervor: TreeDef = {
     },
   },
   talents: [
+    // Row 1
     talent({
       id: 'lasting-fervor',
       name: 'Lasting Fervor',
@@ -44,33 +45,16 @@ export const fervor: TreeDef = {
       does: (v) => [plus('duration', 'fervor', v)],
     }),
     talent({
-      id: 'rekindled',
-      name: 'Rekindled',
-      row: 0,
-      col: 1,
-      per: [15, 30, 45],
-      text: "Fervor's cooldown is {} sec shorter.",
-      does: (v) => [plus('cooldown', 'fervor', -v)],
-    }),
-    talent({
-      id: 'battle-focus',
-      name: 'Battle Focus',
-      row: 0,
-      col: 3,
-      per: [5, 10],
-      text: 'While Fervor lasts, you also have +{}% critical chance.',
-      does: (v) => [proc('cast', 'fervor', [during('battle-focus', 'Battle Focus', { stats: { crit: v } })])],
-    }),
-    talent({
       id: 'zeal',
       name: 'Zeal',
-      row: 1,
+      row: 0,
       col: 1,
-      requires: 'rekindled',
       per: [0.2, 0.4],
       text: "Each of your critical hits and heals takes {} sec off Fervor's cooldown.",
       does: (v) => [proc('crit', '*', [cooldown('fervor', v)])],
     }),
+
+    // Row 2
     talent({
       id: 'valor',
       name: 'Valor',
@@ -81,33 +65,24 @@ export const fervor: TreeDef = {
       does: (v) => [proc('cast', 'fervor', [during('valor', 'Valor', { mods: [more('amount', '*', v)] })])],
     }),
     talent({
-      id: 'steadfast',
-      name: 'Steadfast',
-      row: 2,
-      col: 0,
-      per: [10, 20],
-      text: 'While Fervor lasts, you take {}% less damage.',
-      does: (v) => [proc('cast', 'fervor', [during('steadfast', 'Steadfast', { stats: { damageReduction: v } })])],
+      id: 'battle-focus',
+      name: 'Battle Focus',
+      row: 1,
+      col: 3,
+      per: [10],
+      text: 'While Fervor lasts, you also have +{}% critical chance.',
+      does: (v) => [proc('cast', 'fervor', [during('battle-focus', 'Battle Focus', { stats: { crit: v } })])],
     }),
+
+    // Row 3
     talent({
       id: 'unending-fervor',
       name: 'Unending Fervor',
-      row: 3,
+      row: 2,
       col: 1,
       requires: 'zeal',
       text: 'Fervor holds 2 charges.',
       does: () => [plus('charges', 'fervor', 1)],
-    }),
-    talent({
-      id: 'battle-trance',
-      name: 'Battle Trance',
-      row: 3,
-      col: 3,
-      per: [10, 20, 30],
-      text: 'While Fervor lasts, your heals and damage over time tick {}% faster.',
-      does: (v) => [
-        proc('cast', 'fervor', [during('battle-trance', 'Battle Trance', { mods: [more('tickRate', ['hot', 'dot'], v)] })]),
-      ],
     }),
   ],
 }

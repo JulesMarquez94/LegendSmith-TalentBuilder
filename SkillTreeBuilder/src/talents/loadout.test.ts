@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { bloodFrenzy } from '../trees/blood.ts'
 import { plague } from '../trees/plague.ts'
-import { learn, pointsLeftFor, ranksIn, slotTree, totalSpent, type Loadout, type PointRules } from './loadout.ts'
+import { capFor, learn, pointsLeftFor, ranksIn, slotTree, totalSpent, type Loadout, type PointRules } from './loadout.ts'
 import { pointsSpent } from './rules.ts'
 
 const RULES: PointRules = { total: 80, perTree: 15 }
@@ -33,6 +34,17 @@ describe('talent points', () => {
   it('stop when the shared pool runs out', () => {
     const l = click(START, PATH, { total: 5, perTree: 15 })
     expect(totalSpent(l)).toBe(5)
+  })
+
+  it('stop at 6 in an ultimate', () => {
+    const rules: PointRules = { total: 60, perTree: 12, perUltimate: 6 }
+    const loadout: Loadout = { ...START, slots: [null, null, null, null, 'blood-frenzy', null], ranks: {} }
+    const path = ['bloodlust', 'bloodlust', 'lingering-rage', 'lingering-rage', 'quickened-pulse', 'quickened-pulse', 'twin-frenzy']
+    const l = path.reduce((acc, id) => learn(acc, bloodFrenzy, bloodFrenzy.talents.find((t) => t.id === id)!, rules), loadout)
+    expect(pointsSpent(bloodFrenzy, ranksIn(l, bloodFrenzy))).toBe(6)
+    expect(ranksIn(l, bloodFrenzy)['twin-frenzy']).toBeUndefined()
+    expect(capFor(bloodFrenzy, rules)).toBe(6)
+    expect(capFor(plague, rules)).toBe(12)
   })
 })
 

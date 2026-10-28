@@ -168,7 +168,7 @@ describe('cooldowns and charges', () => {
 
 describe('talent procs', () => {
   it('wash over every ally once more when Lifetide ends (Ebb and Flow)', () => {
-    const arena = arenaWith([null, null, null, 'lifetide', null], { lifetide: { moonpull: 1, 'slow-ebb': 2, 'ebb-and-flow': 3 } })
+    const arena = arenaWith([null, null, null, 'lifetide', null], { lifetide: { moonpull: 1, 'slow-ebb': 2, 'ebb-and-flow': 2 } })
     cast(arena, 4)
     run(arena, 10.2)
     expect(hits(arena, 'Ebb and Flow')).toBe(arena.allies.length)
