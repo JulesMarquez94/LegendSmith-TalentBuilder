@@ -6,6 +6,7 @@ import { SHEET_SECTIONS, STAT_INFO, TALENT_ONLY, withResource } from '../../game
 import type { CharStat } from '../../game/types.ts'
 import type { ArtifactDef } from '../../talents/types.ts'
 import { ArtIcon } from '../ArtIcon.tsx'
+import { seatOf } from '../labels.ts'
 import { StatIcon } from '../StatIcon.tsx'
 import { Tooltip } from '../Tooltip.tsx'
 import { useHoverTarget } from '../useHoverTarget.ts'
@@ -78,7 +79,8 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
         <div>
           <div className="char__title">Hero · Level 60</div>
           <div className="char__sub">
-            {artifact.role === 'healer' ? 'Healer' : 'Damage'} · {artifact.name}
+            {seatOf(artifact)} · {artifact.name}
+            {artifact.firstVersion && ' · First version'}
           </div>
         </div>
       </header>

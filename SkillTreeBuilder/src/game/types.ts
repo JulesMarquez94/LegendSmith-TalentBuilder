@@ -53,6 +53,8 @@ export type CharStat =
   | 'damageReduction'
   /** % chance to avoid a hit completely. */
   | 'dodge'
+  /** % chance to turn aside an enemy's melee swing (the boss's, an add's), so it does nothing. */
+  | 'parry'
   /** % more healing received. */
   | 'healingTaken'
   | 'speed'
@@ -64,6 +66,10 @@ export type CharStat =
   | 'resourceRegen'
   /** Extra regeneration as a % of your maximum resource per second, so it means the same on any weapon. */
   | 'resourceRegenPct'
+  /** Resource you gain each time an enemy's hit lands on you (Rage). In the weapon's own units. */
+  | 'resourceWhenHit'
+  /** Resource you gain each time you parry. In the weapon's own units. */
+  | 'resourceOnParry'
   /**
    * Combo weapons: each step past the first adds this % on top of its usual 100%, so three steps at
    * +20% land at 1 + 2 × 1.2 = 3.4 times the ability's strength.
@@ -122,6 +128,8 @@ export type EffectKey =
   | 'maxStacks'
   /** A buff's stats: talents make them bigger (Frenzy's haste, Volley's splash). */
   | 'strength'
+  /** Seconds a hit taunts its enemies for. */
+  | 'taunt'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -261,6 +269,8 @@ export interface EffectSpec {
   grows?: 'amount' | 'duration'
   /** For aura effects: the stats you and your group get. */
   stats?: Partial<CharStats>
+  /** Direct damage that taunts: every enemy it hits attacks only you for this many seconds. */
+  taunt?: number
 }
 
 /** When a conditional bonus applies. Every field set must hold. */
@@ -305,9 +315,10 @@ export interface ModMechanic {
  * on every heal that lands (HoT ticks too), `hit` on every damage that lands (DoT ticks and minion
  * attacks too; `crit` again when it crits), `tick` once per zone tick, and `expire` when a HoT,
  * DoT or zone runs out. `gain` fires when you gain resource: once per gain from an ability or talent,
- * and once for every 10% of your maximum you regenerate.
+ * and once for every 10% of your maximum you regenerate. `parry` fires when you parry a swing; its
+ * enemy is the one that swung.
  */
-export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire' | 'gain'
+export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire' | 'gain' | 'parry'
 
 export type Action =
   /**
@@ -454,6 +465,8 @@ export interface ResolvedEffect {
   perEffect?: Match
   grows?: 'amount' | 'duration'
   stats?: Partial<CharStats>
+  /** Seconds the enemies it hits attack only you; 0 for an effect that doesn't taunt. */
+  taunt: number
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
   granted?: string

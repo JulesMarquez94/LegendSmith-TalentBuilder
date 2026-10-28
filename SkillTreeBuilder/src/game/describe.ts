@@ -147,6 +147,9 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
         better: 'up',
         detail: [e.perEffect !== undefined && 'per DoT on each', where].filter(Boolean).join(' · '),
       })
+      if (e.taunt > 0) {
+        out.push({ key: key('taunt'), label: 'Taunt', value: e.taunt, format: seconds, better: 'up', detail: 'they attack only you' })
+      }
       break
     }
     case 'minion':

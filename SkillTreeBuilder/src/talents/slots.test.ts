@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { lifewardenStaff } from '../trees/healer/staff.ts'
-import { ashwoodLongbow, STARTING_LOADOUT, tomeOfSummoning, TREES, twinDaggers } from '../trees/index.ts'
+import {
+  ashwoodLongbow,
+  greatsword,
+  spear,
+  STARTING_LOADOUT,
+  swordAndShield,
+  tomeOfDawn,
+  tomeOfSummoning,
+  TREES,
+  twinDaggers,
+} from '../trees/index.ts'
 import { fits, setArtifact, slotKinds } from './slots.ts'
 
 const tree = (id: string) => TREES.find((t) => t.id === id)!
@@ -9,6 +19,7 @@ describe('the artifact', () => {
   it('decides what the role slots hold', () => {
     expect(slotKinds(lifewardenStaff)).toEqual(['artifact', 'heal', 'heal', 'heal', 'cooldown', 'mobility', 'buff', 'outdoor'])
     expect(slotKinds(tomeOfSummoning)).toEqual(['artifact', 'damage', 'damage', 'damage', 'cooldown', 'mobility', 'buff', 'outdoor'])
+    expect(slotKinds(swordAndShield)).toEqual(['artifact', 'tank', 'tank', 'tank', 'cooldown', 'mobility', 'buff', 'outdoor'])
   })
 
   it('clears abilities and group buffs that no longer fit when it changes, keeping shared mobility', () => {
@@ -53,5 +64,31 @@ describe('the artifact', () => {
     expect(fits(tree('fervor'), 'cooldown', tomeOfSummoning)).toBe(true)
     expect(fits(tree('war-cadence'), 'buff', lifewardenStaff)).toBe(false)
     expect(fits(tree('vitality-aura'), 'buff', lifewardenStaff)).toBe(true)
+  })
+
+  it('fills a tank: tank abilities, Fervor, mobility and the tank group buffs', () => {
+    for (const weapon of [swordAndShield, greatsword]) {
+      const fitting = (kind: 'tank' | 'cooldown' | 'buff') => TREES.filter((t) => fits(t, kind, weapon)).map((t) => t.id)
+      expect(fitting('cooldown')).toEqual(['fervor'])
+      expect(fitting('buff')).toEqual(['stoneskin', 'evasion-drill', 'forced-march'])
+      expect(fits(tree('dash'), 'mobility', weapon)).toBe(true)
+      expect(fits(tree('plague'), 'damage', weapon)).toBe(false)
+    }
+    // Shield Block needs a shield; the other tank abilities fit any tank weapon.
+    expect(TREES.filter((t) => fits(t, 'tank', swordAndShield)).map((t) => t.id)).toEqual([
+      'provoke',
+      'stand-firm',
+      'tremor',
+      'shield-block',
+    ])
+    expect(TREES.filter((t) => fits(t, 'tank', greatsword)).map((t) => t.id)).toEqual(['provoke', 'stand-firm', 'tremor'])
+  })
+
+  it('gives the new healer the shared heals and the spear the spells, but no blade strikes', () => {
+    expect(fits(tree('mend'), 'heal', tomeOfDawn)).toBe(true)
+    expect(fits(tree('healing-rain'), 'heal', tomeOfDawn)).toBe(true)
+    expect(fits(tree('doom-bolt'), 'damage', spear)).toBe(true)
+    expect(fits(tree('backstab'), 'damage', spear)).toBe(false)
+    expect(fits(tree('fan-of-knives'), 'damage', spear)).toBe(false)
   })
 })

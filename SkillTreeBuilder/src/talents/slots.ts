@@ -28,6 +28,7 @@ export const NEEDS_LABEL: Record<WeaponTrait, string> = {
   bow: 'a bow',
   staff: 'a staff',
   book: 'a book',
+  shield: 'a shield',
 }
 
 /** A tree is the right kind for a slot, and belongs to the artifact's role or to every role. */

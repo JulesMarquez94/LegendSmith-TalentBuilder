@@ -187,6 +187,7 @@ export const twinDaggers: ArtifactDef = {
   color: '#c8404f',
   role: 'damage',
   roleKind: 'damage',
+  reach: 'melee',
   resource: 'Combo points',
   resourceStart: 0,
   combo: true,

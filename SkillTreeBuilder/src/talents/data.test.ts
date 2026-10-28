@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { hasArt } from '../art.ts'
+import { SEATS, seatOf } from '../components/labels.ts'
 import { ARTIFACTS, POINT_RULES, STARTING_LOADOUT, TREES } from '../trees/index.ts'
 import { more, proc, restore, talent } from '../trees/authoring.ts'
 import { harvest } from '../trees/necro/spells.ts'
@@ -10,6 +11,10 @@ import { TREE_RANKS, validateCatalog, validateTree } from './validate.ts'
 describe('tree data', () => {
   it.each(TREES.map((tree) => [tree.ability.name, tree] as const))('%s has no problems', (_, tree) => {
     expect(validateTree(tree, hasArt)).toEqual([])
+  })
+
+  it('has two artifacts for every seat: tank, healer, melee and ranged damage', () => {
+    for (const seat of SEATS) expect(ARTIFACTS.filter((a) => seatOf(a) === seat), seat).toHaveLength(2)
   })
 
   it('fits the slots it starts in', () => {
