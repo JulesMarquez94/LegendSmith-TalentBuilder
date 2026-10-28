@@ -209,6 +209,8 @@ export interface BuffSpec {
   maxStacks?: number
   /** Your whole group gets its stats, not only you (Fervor's haste). */
   group?: boolean
+  /** Lost as soon as you use an ability that doesn't match this (Rapid Fire: anything but the main attack). */
+  lostUnless?: Match
 }
 
 /** One piece of what an ability does. Only the fields its type uses matter. */
@@ -271,6 +273,11 @@ export interface EffectSpec {
   stats?: Partial<CharStats>
   /** Direct damage that taunts: every enemy it hits attacks only you for this many seconds. */
   taunt?: number
+  /**
+   * A DoT whose every tick, per stack, gives you this % of the resource your main attack gives
+   * (Barbed Arrows: 20%, so a 5 sec bleed gives back an arrow's worth, and a longer one more).
+   */
+  mainAttackShare?: number
 }
 
 /** When a conditional bonus applies. Every field set must hold. */
@@ -316,9 +323,10 @@ export interface ModMechanic {
  * attacks too; `crit` again when it crits), `tick` once per zone tick, and `expire` when a HoT,
  * DoT or zone runs out. `gain` fires when you gain resource: once per gain from an ability or talent,
  * and once for every 10% of your maximum you regenerate. `parry` fires when you parry a swing; its
- * enemy is the one that swung.
+ * enemy is the one that swung. `second` fires once every second of the fight while you're alive,
+ * so a proc with `every: 5` goes off every 5 sec.
  */
-export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire' | 'gain' | 'parry'
+export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire' | 'gain' | 'parry' | 'second'
 
 export type Action =
   /**
@@ -467,6 +475,7 @@ export interface ResolvedEffect {
   stats?: Partial<CharStats>
   /** Seconds the enemies it hits attack only you; 0 for an effect that doesn't taunt. */
   taunt: number
+  mainAttackShare?: number
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
   granted?: string

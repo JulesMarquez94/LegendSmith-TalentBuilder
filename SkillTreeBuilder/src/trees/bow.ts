@@ -1,11 +1,24 @@
-import { int, yd } from '../game/format.ts'
+import { int, ranks, yd } from '../game/format.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
-import { apply, buff, damage, dot, more, plus, proc, refund, restore, stat, talent } from './authoring.ts'
+import { apply, buff, damage, dot, more, plus, proc, restore, stat, talent } from './authoring.ts'
 
-// The archer's artifact. Focus starts empty and only shooting fills it: every Swift Arrow gives 10.
-// Focus counts in tens (`unit: 10`), so the shared damage abilities keep their small costs and mean
-// the same here as anywhere: Harvest's 2 is 20 focus, Backstab's 2 is 20 focus back. This is the
-// bow's own tree, so it talks in focus outright.
+// The archer's artifact. Focus starts empty and only shooting fills it: every Swift Arrow, a 1.5 sec
+// cast, gives 10. Focus counts in tens (`unit: 10`), so the shared damage abilities keep their small
+// costs and mean the same here as anywhere: Harvest's 2 is 20 focus, Backstab's 2 is 20 focus back.
+// This is the bow's own tree, so it talks in focus outright.
+
+/** Swift Arrow's cast time, which Steady Aim's bonuses are in proportion to. */
+const CAST = 1.5
+
+/** Swift Arrow's hit, not the bleed Barbed Arrows leaves. */
+const ARROW = { all: ['main-attack', 'direct-damage'] } as const
+
+/** The focus Swift Arrow gives. */
+const ARROW_FOCUS = { all: ['main-attack', 'resource'] } as const
+
+/** Steady Aim's extra cast time per rank, and the % more damage and focus that buys. */
+const STEADY = [0.25, 0.5]
+const steadyPct = (seconds: number) => (seconds / CAST) * 100
 
 const tree: TreeDef = {
   id: 'ashwood-longbow',
@@ -17,16 +30,16 @@ const tree: TreeDef = {
 
   ability: {
     name: 'Swift Arrow',
-    castTime: 'Instant',
+    castTime: '1.5 sec cast',
     range: '40 range',
     description: 'Shoot the enemy nearest your crosshair, dealing damage and gaining focus. Hold the key to keep shooting.',
   },
   spec: {
-    // Holding the main-attack key repeats it every global cooldown: the bow's auto attack.
+    // Holding the main-attack key shoots again as soon as each cast ends: the bow's auto attack.
     tags: ['main-attack', 'ranged'],
     range: 40,
-    gcd: 1,
-    effects: [damage(220), { type: 'restore', restore: 1 }],
+    castTime: CAST,
+    effects: [damage(330), { type: 'restore', restore: 1 }],
     text: (a) =>
       `Shoot the enemy nearest your crosshair within ${yd(a.range)} yd for ${int(a.effects[0].amount)} damage. ` +
       `Gives ${int(a.effects[1].restore)} ${a.resource}.`,
@@ -35,31 +48,31 @@ const tree: TreeDef = {
   talents: [
     // Row 1
     talent({
-      id: 'quick-draw',
-      name: 'Quick Draw',
+      id: 'sharp-eye',
+      name: 'Sharp Eye',
       row: 0,
-      col: 1,
-      per: [0.1, 0.2],
-      text: "Swift Arrow's global cooldown is {} sec shorter, so you gain focus faster.",
-      does: (v) => [plus('gcd', 'main-attack', -v)],
+      col: 0,
+      per: [3, 6],
+      text: 'You have +{}% critical chance.',
+      does: (v) => [stat('crit', v)],
     }),
     talent({
       id: 'deep-quiver',
       name: 'Deep Quiver',
       row: 0,
       col: 2,
-      per: [10, 20],
+      per: [20, 40],
       text: 'You can hold {} more focus.',
       does: (v) => [stat('maxResource', v)],
     }),
     talent({
-      id: 'steady-aim',
-      name: 'Steady Aim',
+      id: 'fletching',
+      name: 'Fletching',
       row: 0,
       col: 3,
       per: [2, 4],
       text: 'Swift Arrow gives {} more focus.',
-      does: (v) => [plus('restore', { all: ['main-attack', 'resource'] }, v)],
+      does: (v) => [plus('restore', ARROW_FOCUS, v)],
     }),
 
     // Row 2
@@ -68,55 +81,66 @@ const tree: TreeDef = {
       name: 'Piercing Shot',
       row: 1,
       col: 0,
-      per: [5, 10],
-      text: 'When Swift Arrow critically strikes, you gain {} more focus.',
-      does: (v) => [proc('crit', { all: ['main-attack', 'direct-damage'] }, [restore(v)])],
+      requires: 'sharp-eye',
+      per: [1, 2],
+      text: 'Each critical hit you deal, from any of your damage, gives you {} focus.',
+      does: (v) => [proc('crit', 'damage', [restore(v)])],
     }),
     talent({
-      id: 'eagle-eye',
-      name: 'Eagle Eye',
+      id: 'steady-aim',
+      name: 'Steady Aim',
       row: 1,
       col: 1,
-      per: [3, 6],
-      text: 'You have +{}% critical chance.',
-      does: (v) => [stat('crit', v)],
+      per: STEADY,
+      text:
+        'Swift Arrow takes {} sec longer to cast, and deals and gives ' +
+        `${ranks(STEADY.map(steadyPct))}% more damage and focus in proportion.`,
+      does: (v) => [
+        plus('castTime', 'main-attack', v),
+        more('amount', ARROW, steadyPct(v)),
+        more('restore', ARROW_FOCUS, steadyPct(v)),
+      ],
     }),
     talent({
-      id: 'retrieved-arrows',
-      name: 'Retrieved Arrows',
+      id: 'double-nock',
+      name: 'Double Nock',
       row: 1,
       col: 3,
-      requires: 'steady-aim',
-      per: [10, 20],
-      text: 'Spending focus has a {}% chance to give half of it back.',
-      does: (v) => [proc('cast', 'spell', [refund(50)], { chance: v })],
+      per: [5, 10],
+      text: 'You have +{}% echo: the chance to cast an ability again for free.',
+      does: (v) => [stat('echo', v)],
     }),
 
     // Row 3
     talent({
-      id: 'focused-fire',
-      name: 'Focused Fire',
+      id: 'rapid-fire',
+      name: 'Rapid Fire',
       row: 2,
-      col: 0,
-      per: [15, 30],
-      text: 'After you spend focus, Swift Arrow deals {}% more damage for 5 sec.',
+      col: 1,
+      requires: 'steady-aim',
+      per: [0.25, 0.5],
+      text: 'When Swift Arrow hits, it casts {} sec faster until you use any other ability.',
       does: (v) => [
-        proc('cast', 'spell', [
-          buff({ id: 'focused-fire', name: 'Focused Fire', duration: 5, mods: [more('amount', 'main-attack', v)] }),
+        proc('hit', ARROW, [
+          buff({
+            id: 'rapid-fire',
+            name: 'Rapid Fire',
+            duration: Infinity,
+            lostUnless: 'main-attack',
+            mods: [plus('castTime', 'main-attack', -v)],
+          }),
         ]),
       ],
     }),
     talent({
-      id: 'rapid-fire',
-      name: 'Rapid Fire',
+      id: 'focused-mind',
+      name: 'Focused Mind',
       row: 2,
       col: 2,
-      requires: 'eagle-eye',
-      per: [3, 6],
-      text: 'Spending focus gives you {}% haste for 6 sec.',
-      does: (v) => [
-        proc('cast', 'spell', [buff({ id: 'rapid-fire', name: 'Rapid Fire', duration: 6, stats: { haste: v } })]),
-      ],
+      requires: 'deep-quiver',
+      per: [5, 10],
+      text: 'Every 5 sec, you gain {} focus.',
+      does: (v) => [proc('second', 'second', [restore(v)], { every: 5 })],
     }),
 
     // Row 4
@@ -124,21 +148,25 @@ const tree: TreeDef = {
       id: 'overdraw',
       name: 'Overdraw',
       row: 3,
-      col: 0,
-      requires: 'focused-fire',
-      text: 'Your abilities cost 50% more focus and deal 35% more damage.',
-      does: () => [more('cost', 'spell', 50), more('amount', { all: ['spell', 'damage'] }, 35)],
+      col: 1,
+      requires: 'rapid-fire',
+      text: 'Your abilities cost 50% more focus and deal 50% more damage.',
+      does: () => [more('cost', 'spell', 50), more('amount', { all: ['spell', 'damage'] }, 50)],
     }),
     talent({
       id: 'barbed-arrows',
       name: 'Barbed Arrows',
       row: 3,
-      col: 3,
-      requires: 'retrieved-arrows',
-      text: 'Swift Arrow leaves a bleed on its target: 25 damage every sec for 6 sec.',
-      // Only the arrow itself, not the bleed's own ticks.
+      col: 2,
+      requires: 'focused-mind',
+      text:
+        'Swift Arrow also leaves a bleed on its target: 25 damage every sec for 5 sec. Each tick gives you a fifth ' +
+        'of the focus Swift Arrow gives (2 of its 10), so a bleed that lasts longer gives more. Every arrow’s bleed ' +
+        'runs on its own.',
       does: () => [
-        proc('hit', { all: ['main-attack', 'direct-damage'] }, [apply(dot(25, 6, 1, 'event', { name: 'Barbed Arrow' }))]),
+        proc('hit', ARROW, [
+          apply(dot(25, 5, 1, 'event', { name: 'Barbed Arrow', rolling: true, mainAttackShare: 20 })),
+        ]),
       ],
     }),
   ],

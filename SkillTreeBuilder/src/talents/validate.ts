@@ -73,7 +73,7 @@ const conditionTags = (c: Condition | undefined): string[] =>
   c ? [...tagsOf(c.targetHas), ...tagsOf(c.each), ...tagsOf(c.stacksOf)] : []
 
 const buffTags = (b: BuffSpec | undefined): string[] =>
-  b ? [...tagsOf(b.consumeOn), ...(b.mods ?? []).flatMap(aimedTags)] : []
+  b ? [...tagsOf(b.consumeOn), ...tagsOf(b.lostUnless), ...(b.mods ?? []).flatMap(aimedTags)] : []
 
 function actionTags(a: Action): string[] {
   switch (a.do) {

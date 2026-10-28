@@ -223,6 +223,8 @@ export interface ActiveBuff {
   stats: Partial<CharStats>
   mods: readonly ModMechanic[]
   consumeOn?: Match
+  /** Lost when you use an ability that doesn't match this. */
+  lostUnless?: Match
   /** Its stats and mods count once per stack. */
   stacks: number
   /** Your whole group gets its stats. */
@@ -233,6 +235,8 @@ export interface ActiveBuff {
 const GAIN_TAGS: ReadonlySet<Tag> = new Set<Tag>(['resource'])
 /** The tags a `parry` event carries. */
 const PARRY_TAGS: ReadonlySet<Tag> = new Set<Tag>(['parry'])
+/** The tags a `second` event carries. */
+const SECOND_TAGS: ReadonlySet<Tag> = new Set<Tag>(['second'])
 
 export interface Casting {
   slot: number
@@ -378,6 +382,8 @@ export class Arena {
   private regenPool = 0
   /** True while a `gain` event runs, so a talent that gives resource on a gain can't loop. */
   private gaining = false
+  /** When the next `second` event fires. */
+  private nextSecond = 1
   facing: Vec = { x: 0, y: -1 }
   aim: Vec | null = null
   dashing: { from: Vec; to: Vec; start: number } | null = null
@@ -620,6 +626,9 @@ export class Arena {
     this.movePlayer(dt, input)
     this.moveBots(dt)
     if (this.player.alive) this.gainResource(this.resourceRegen() * dt, 'Regeneration', true)
+    for (; this.time >= this.nextSecond; this.nextSecond += 1) {
+      if (this.player.alive) this.emit({ kind: 'second', tags: SECOND_TAGS, ctx: this.newContext(null, -1, 0) })
+    }
     if (this.cast && this.time >= this.cast.end) {
       const c = this.cast
       this.cast = null
@@ -684,8 +693,11 @@ export class Arena {
       return 'Nobody has your HoTs or stands in your zones'
     }
 
-    // Buffs that change this cast are used up by it (Surge of Light, Momentum, Latent Charge…).
-    this.buffs = this.buffs.filter((b) => !(b.consumeOn && matches(b.consumeOn, a.tags)))
+    // Buffs that change this cast are used up by it (Surge of Light, Momentum, Latent Charge…), and
+    // buffs kept only by one kind of ability (Rapid Fire) are lost to any other.
+    this.buffs = this.buffs.filter(
+      (b) => !(b.consumeOn && matches(b.consumeOn, a.tags)) && !(b.lostUnless && !matches(b.lostUnless, a.tags)),
+    )
     let cost = a.cost
     let steps = 1
     if (a.spendsAll) {
@@ -1165,6 +1177,7 @@ export class Arena {
       stats: spec.stats ?? {},
       mods: spec.mods ?? [],
       consumeOn: spec.consumeOn,
+      lostUnless: spec.lostUnless,
       stacks,
       group: !!spec.group,
     })
@@ -1614,6 +1627,12 @@ export class Arena {
     this.gaining = false
   }
 
+  /** What your main attack gives back right now, buffs and talents included (Swift Arrow: 10 focus). */
+  private mainAttackGain(): number {
+    const a = this.current(0)
+    return a ? a.effects.reduce((sum, e) => (e.type === 'restore' ? sum + e.restore : sum), 0) : 0
+  }
+
   private spend(n: number, source: string) {
     if (n <= 0) return
     this.resource = Math.max(0, this.resource - n)
@@ -1734,6 +1753,10 @@ export class Arena {
         while (d.nextTick <= d.endsAt + 1e-6 && d.nextTick <= this.time && enemy.alive) {
           const stacks = d.stacks.length ? d.stacks.filter((t) => t >= d.nextTick - 1e-6).length : d.count
           if (stacks > 0) this.hitEnemy(enemy, this.tickOf(d) * stacks, d.effect, this.dotContext(d), { label: d.name, quiet: true })
+          // Barbed Arrows: each tick of each stack gives back a share of what your main attack gives.
+          if (stacks > 0 && d.effect.mainAttackShare) {
+            this.gainResource((this.mainAttackGain() * d.effect.mainAttackShare * stacks) / 100, d.name, true)
+          }
           d.tick += 1
           d.nextTick += d.interval
         }

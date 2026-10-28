@@ -197,7 +197,7 @@ describe('the bow', () => {
     expect(arena.maxResource).toBe(100)
     cast(arena, 0)
     expect(arena.resource).toBe(10)
-    expect(damageOf(arena, 'Swift Arrow')).toMatchObject({ hits: 1, damage: 220 })
+    expect(damageOf(arena, 'Swift Arrow')).toMatchObject({ hits: 1, damage: 330 })
   })
 
   it('has its own shots, and pays for shared spells in focus', () => {
@@ -221,8 +221,90 @@ describe('the bow', () => {
     expect(kit.slots[3]!.cost).toBe(10)
     expect(kit.slots[1]!.text).toContain('Costs 20 focus')
     // Talents in the bow's own tree add plain focus on top.
-    const steady = kitFor(bow, [null, null, null, null, null, null], { 'ashwood-longbow': { 'steady-aim': 2 } })
-    expect(steady.slots[0]!.effects.find((e) => e.type === 'restore')?.restore).toBe(14)
+    const fletched = kitFor(bow, [null, null, null, null, null, null], { 'ashwood-longbow': { fletching: 2 } })
+    expect(fletched.slots[0]!.effects.find((e) => e.type === 'restore')?.restore).toBe(14)
+  })
+})
+
+describe("the bow's tree", () => {
+  const bow = artifact('ashwood-longbow')
+  const bowKit = (ranks: Record<string, number>, slots: (string | null)[] = [null, null, null, null, null, null]) =>
+    noCrits(kitFor(bow, slots, { 'ashwood-longbow': ranks }))
+  const ready = (kit: Kit) => {
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 40 }
+    return arena
+  }
+  const restoreOf = (kit: Kit) => kit.slots[0]!.effects.find((e) => e.type === 'restore')!.restore
+  const gained = (arena: Arena, source: string) => arena.meter.resourceGained.get(source) ?? 0
+
+  it('casts Swift Arrow in 1.5 sec for 10 focus', () => {
+    const arena = ready(bowKit({}))
+    arena.press(0)
+    run(arena, 1.4)
+    expect(arena.resource).toBe(0)
+    run(arena, 0.15)
+    expect(arena.resource).toBe(10)
+  })
+
+  it('makes Swift Arrow slower with Steady Aim, and stronger in proportion', () => {
+    const kit = bowKit({ 'steady-aim': 2, fletching: 2 })
+    const arrow = kit.slots[0]!
+    expect(arrow.castTime).toBe(2)
+    expect(arrow.effects[0].amount).toBeCloseTo((330 * 2) / 1.5)
+    // Fletching's 4 more focus grows in proportion too: (10 + 4) × 2 / 1.5.
+    expect(restoreOf(kit)).toBeCloseTo((14 * 2) / 1.5)
+  })
+
+  it('casts faster with Rapid Fire after each hit, until you use another ability', () => {
+    const arena = ready(bowKit({ 'steady-aim': 2, 'rapid-fire': 2 }, ['multi-shot', null, null, null, null, null]))
+    expect(arena.current(0)!.castTime).toBe(2)
+    cast(arena, 0)
+    expect(arena.current(0)!.castTime).toBe(1.5)
+    arena.resource = 20
+    cast(arena, 1)
+    expect(damageOf(arena, 'Multi-Shot')).toBeDefined()
+    expect(arena.buffs.some((b) => b.id === 'rapid-fire')).toBe(false)
+    expect(arena.current(0)!.castTime).toBe(2)
+  })
+
+  it('gives focus every 5 sec with Focused Mind', () => {
+    const arena = ready(bowKit({ 'focused-mind': 2 }))
+    run(arena, 4.9)
+    expect(arena.resource).toBe(0)
+    run(arena, 5.2)
+    expect(gained(arena, 'Focused Mind')).toBe(20)
+  })
+
+  it('gives focus on every critical hit with Piercing Shot', () => {
+    const base = bowKit({ 'piercing-shot': 2 })
+    const kit: Kit = { ...base, slots: base.slots.map((a) => a && { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 100 })) }) }
+    const arena = ready(kit)
+    cast(arena, 0)
+    expect(gained(arena, 'Piercing Shot')).toBe(2)
+  })
+
+  it("gives a fifth of an arrow's focus every tick of Barbed Arrows, per arrow, and more when it lasts longer", () => {
+    const arena = ready(bowKit({ 'barbed-arrows': 1 }))
+    cast(arena, 0)
+    cast(arena, 0)
+    run(arena, 6)
+    // Two arrows, each bleeding 5 ticks of 2 focus on its own timer.
+    expect(gained(arena, 'Swift Arrow')).toBe(20)
+    expect(gained(arena, 'Barbed Arrow')).toBeCloseTo(20)
+
+    // 20% Potency makes it a 6 sec bleed: one more tick.
+    const base = bowKit({ 'barbed-arrows': 1 })
+    const potent = ready({ ...base, character: { ...base.character, stats: { ...base.character.stats, potency: 20 } } })
+    cast(potent, 0)
+    run(potent, 7)
+    expect(gained(potent, 'Barbed Arrow')).toBeCloseTo(12)
+  })
+
+  it('makes abilities cost and deal 50% more with Overdraw, and adds echo with Double Nock', () => {
+    const kit = bowKit({ overdraw: 1, 'double-nock': 2 }, ['harvest', null, null, null, null, null])
+    expect(kit.slots[1]!.cost).toBe(30)
+    expect(kit.character.stats.echo).toBe(10)
   })
 })
 
@@ -338,7 +420,7 @@ describe('Volley', () => {
     cast(arena, 0)
     const splash = damageOf(arena, 'Volley')!
     expect(splash.hits).toBeGreaterThanOrEqual(3)
-    expect(splash.damage / splash.hits).toBeCloseTo(220 * 0.3)
+    expect(splash.damage / splash.hits).toBeCloseTo(330 * 0.3)
   })
 
   it("doesn't splash melee strikes", () => {
