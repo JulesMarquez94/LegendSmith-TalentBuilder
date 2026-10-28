@@ -195,7 +195,7 @@ export const multiShot: TreeDef = {
       name: 'True Fletching',
       row: 0,
       col: 3,
-      per: [5, 10],
+      per: [5, 10, 15],
       text: 'Your area damage has +{}% critical chance.',
       does: (v) => [plus('critChance', 'aoe', v)],
     }),

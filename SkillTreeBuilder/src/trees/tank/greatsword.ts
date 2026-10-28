@@ -58,7 +58,7 @@ const tree: TreeDef = {
       name: 'Blade Dance',
       row: 0,
       col: 1,
-      per: [3, 6],
+      per: [3, 6, 9],
       text: 'You have +{}% parry.',
       does: (v) => [stat('parry', v)],
     }),

@@ -639,7 +639,7 @@ export const backstab: TreeDef = {
       name: 'Find the Gap',
       row: 0,
       col: 3,
-      per: [3, 6],
+      per: [3, 6, 9],
       text: 'Your direct damage has +{}% critical chance.',
       does: (v) => [plus('critChance', 'direct-damage', v)],
     }),

@@ -86,7 +86,7 @@ export const miracle: TreeDef = {
       name: 'Answered Prayers',
       row: 1,
       col: 3,
-      per: [0.5, 1],
+      per: [0.5, 1, 1.5],
       text: "Each critical heal from your direct heals takes {} sec off Miracle's cooldown.",
       does: (v) => [proc('crit', 'direct-heal', [cooldown('miracle', v)])],
     }),

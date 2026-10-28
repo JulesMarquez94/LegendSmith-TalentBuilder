@@ -61,7 +61,7 @@ export const festeringWound: TreeDef = {
       name: 'Lingering Wounds',
       row: 0,
       col: 3,
-      per: [1, 2],
+      per: [1, 2, 3],
       text: 'Your damage-over-time effects last {} sec longer.',
       does: (v) => [plus('duration', 'dot', v)],
     }),

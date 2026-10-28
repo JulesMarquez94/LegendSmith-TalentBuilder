@@ -5,10 +5,25 @@ import { canMake, fits, NEEDS_LABEL, slotKinds } from './slots.ts'
 import type { ArtifactDef, TreeDef } from './types.ts'
 
 /**
- * The most ranks a tree's talents may hold in all. With 12 points to spend per tree, a tree of 18
- * makes you leave a third of it: 6, 12, 18.
+ * The ranks every tree's talents hold in all. With 12 points to spend per tree, a tree of 18 makes
+ * you leave a third of it: 6, 12, 18.
  */
 export const TREE_RANKS = 18
+
+/** A tree's ranks in all, counting each choice pair once, at the bigger of the two. */
+export function treeRanks(tree: TreeDef): number {
+  let total = tree.talents.reduce((sum, t) => sum + t.maxRank, 0)
+  const counted = new Set<string>()
+  for (const t of tree.talents) {
+    const other = tree.talents.find((p) => p !== t && (p.id === t.excludes || p.excludes === t.id))
+    if (!other) continue
+    const pair = [t.id, other.id].sort().join('|')
+    if (counted.has(pair)) continue
+    counted.add(pair)
+    total -= Math.min(t.maxRank, other.maxRank)
+  }
+  return total
+}
 
 /** Catches tree-data mistakes (typos in ids, overlapping cells, missing art) and lists them in plain words. */
 export function validateTree(tree: TreeDef, hasArt: (folder: string, name: string) => boolean): string[] {
@@ -53,8 +68,15 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
     art(t.name, t.icon)
   }
 
-  const total = tree.talents.reduce((sum, t) => sum + t.maxRank, 0)
-  if (total > TREE_RANKS) problems.push(`${tree.ability.name}'s talents hold ${total} ranks in all, more than ${TREE_RANKS}`)
+  const total = treeRanks(tree)
+  if (total !== TREE_RANKS) problems.push(`${tree.ability.name}'s talents hold ${total} ranks in all, not ${TREE_RANKS}`)
+
+  for (const t of tree.talents) {
+    if (t.excludes === undefined) continue
+    const other = tree.talents.find((p) => p.id === t.excludes)
+    if (other === undefined) problems.push(`${t.name} is a choice with "${t.excludes}", which isn't a talent in this tree`)
+    else if (other === t) problems.push(`${t.name} is a choice with itself`)
+  }
 
   for (const t of tree.talents) {
     if (t.requires === undefined) continue

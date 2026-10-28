@@ -134,14 +134,17 @@ describe('the summoning book', () => {
     expect(arena.boss.dots[0].stacks).toHaveLength(2)
   })
 
-  it('makes every enemy inside Miasma sick', () => {
+  it('gives every enemy inside Miasma a stack of Pox every second for 3 sec', () => {
     const arena = new Arena(kitFor(book, ['miasma', null, null, null, null, null]), DUMMIES, { seed: 1 })
-    cast(arena, 0)
-    cast(arena, 0)
+    expect(arena.kit.slots[1]).toMatchObject({ cost: 5, cooldown: 30, castTime: 0 })
+    arena.resource = 5
     cast(arena, 1)
-    run(arena, 1.5)
-    // The big dummy and the two small ones nearest it are within 8 yd.
-    expect(arena.enemies.filter((e) => e.dots.some((d) => d.name === 'Sickness')).length).toBeGreaterThanOrEqual(3)
+    run(arena, 4)
+    // The big dummy and the small ones around it are within 8 yd: three stacks each, 20 sec apiece.
+    const poxed = arena.enemies.map((e) => e.dots.find((d) => d.name === 'Pox')).filter((d) => d !== undefined)
+    expect(poxed.length).toBeGreaterThanOrEqual(3)
+    for (const d of poxed) expect(d.stacks).toHaveLength(3)
+    expect(arena.zones).toHaveLength(0)
   })
 
   it('hits the target and everything around it with Necrotic Explosion', () => {
@@ -289,6 +292,77 @@ describe("the summoning book's tree", () => {
   })
 })
 
+describe("Miasma's tree", () => {
+  const miasmaKit = (ranks: Record<string, number>) => {
+    const kit = noCrits(kitFor(book, ['miasma', null, null, null, null, null], { miasma: ranks }))
+    return { ...kit, character: { ...kit.character, stats: { ...kit.character.stats, crit: 0 } } }
+  }
+  const ready = (kit: Kit) => {
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 15
+    return arena
+  }
+  const poxOn = (arena: Arena) => arena.boss.dots.find((d) => d.name === 'Pox')
+
+  it('stacks Pox faster with Thick Pox, longer with Lingering Pox, harder with Virulent Pox', () => {
+    const kit = miasmaKit({ 'thick-pox': 2, 'lingering-pox': 3, 'virulent-pox': 3 })
+    const p = kit.slots[1]!.effects[0].inflicts!
+    expect(p).toMatchObject({ stacks: 3, duration: 32 })
+    expect(p.amount).toBeCloseTo(30 * 1.3)
+  })
+
+  it('widens and follows with Clinging Cloud, and lasts longer with Thickening Fog', () => {
+    const zone = miasmaKit({ 'clinging-cloud': 2, 'thickening-fog': 1 }).slots[1]!.effects[0]
+    expect(zone).toMatchObject({ radius: 12, follow: 1, duration: 4 })
+  })
+
+  it('bursts when placed with Noxious Burst, harder for each Pox stack with Choking Burst', () => {
+    const arena = ready(miasmaKit({ 'noxious-burst': 2, 'choking-burst': 2 }))
+    cast(arena, 1)
+    expect(damageOf(arena, 'Noxious Burst')!.damage / damageOf(arena, 'Noxious Burst')!.hits).toBeCloseTo(400)
+    run(arena, 4)
+    // Three stacks on the boss now: the next burst deals 8% more for each.
+    arena.cooldowns.get('miasma')!.charges = 1
+    const before = damageOf(arena, 'Noxious Burst')!.damage
+    const hits = damageOf(arena, 'Noxious Burst')!.hits
+    cast(arena, 1)
+    const row = damageOf(arena, 'Noxious Burst')!
+    expect(row.hits).toBeGreaterThan(hits)
+    expect(row.damage - before).toBeGreaterThan(400 * 1.24 * (row.hits - hits) - 1)
+  })
+
+  it('gives Pox twice as often with Quickening Pulse', () => {
+    const arena = ready(miasmaKit({ 'quickening-pulse': 1 }))
+    cast(arena, 1)
+    run(arena, 4)
+    expect(poxOn(arena)!.stacks).toHaveLength(6)
+  })
+
+  it('emanates from you every 10 sec instead of being cast with Emanation', () => {
+    const arena = ready(miasmaKit({ emanation: 1 }))
+    arena.player.pos = { x: 30, y: 17 }
+    arena.press(1)
+    arena.step(DT)
+    expect(arena.notice?.text).toBe('Miasma goes off on its own')
+    run(arena, 10.2)
+    expect(arena.zones).toHaveLength(0)
+    expect(poxOn(arena)!.stacks).toHaveLength(1)
+    expect(arena.resource).toBe(15)
+  })
+
+  it('takes cooldown off on DoT ticks with Restless Fog', () => {
+    const base = miasmaKit({ 'restless-fog': 2 })
+    const kit: Kit = { ...base, procs: base.procs.map((p) => ({ ...p, proc: { ...p.proc, chance: 100 } })) }
+    const arena = ready(kit)
+    cast(arena, 1)
+    run(arena, 3.05)
+    // Three ticks of Pox on several enemies, each a second off the 30.
+    const cd = arena.cooldowns.get('miasma')!
+    expect(cd.rechargeAt! - arena.time).toBeLessThan(30 - 3 - 3)
+  })
+})
+
 describe("Harvest's tree", () => {
   // Plague puts Pox on the big dummy; the four small ones around it have nothing.
   /** No crits at all: buffs make the arena resolve abilities again, from your stats. */
@@ -341,7 +415,7 @@ describe("Harvest's tree", () => {
   })
 
   it('grows with every DoT tick with Reaping, and uses the stacks up', () => {
-    const arena = plagued(harvestKit({ reaping: 1 }))
+    const arena = plagued(harvestKit({ reaping: 2 }))
     run(arena, 2.5)
     // Pox ticks once a second: one tick during setup, two more since.
     const stacks = arena.buffs.find((b) => b.id === 'reaping')!.stacks

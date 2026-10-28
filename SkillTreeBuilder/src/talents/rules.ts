@@ -30,6 +30,17 @@ export function prerequisite(tree: TreeDef, talent: TalentDef): TalentDef | unde
   return talent.requires === undefined ? undefined : tree.talents.find((t) => t.id === talent.requires)
 }
 
+/** The talent it's a choice with (either side may declare it), if any. */
+export function rival(tree: TreeDef, talent: TalentDef): TalentDef | undefined {
+  return tree.talents.find((t) => t !== talent && (t.id === talent.excludes || t.excludes === talent.id))
+}
+
+/** A choice talent can't be learned while its rival has points. */
+export function isRivalTaken(tree: TreeDef, ranks: Ranks, talent: TalentDef): boolean {
+  const other = rival(tree, talent)
+  return other !== undefined && rankOf(ranks, other) > 0
+}
+
 /** Like WoW, a talent behind an arrow needs its prerequisite fully ranked. */
 export function isPrerequisiteMet(tree: TreeDef, ranks: Ranks, talent: TalentDef): boolean {
   const pre = prerequisite(tree, talent)
@@ -41,7 +52,8 @@ export function canLearn(tree: TreeDef, ranks: Ranks, talent: TalentDef, pointsL
     pointsLeft > 0 &&
     rankOf(ranks, talent) < talent.maxRank &&
     isRowUnlocked(tree, ranks, talent.row) &&
-    isPrerequisiteMet(tree, ranks, talent)
+    isPrerequisiteMet(tree, ranks, talent) &&
+    !isRivalTaken(tree, ranks, talent)
   )
 }
 

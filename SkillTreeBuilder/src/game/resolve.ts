@@ -291,6 +291,7 @@ function resolveEffectWith(
     taunt: effect.taunt ? Math.max(0, scaled(effect.taunt, get('taunt'))) : 0,
     splash: Math.max(0, scaled(effect.splash ?? 0, get('splash'))),
     soloSplash: Math.max(0, get('soloSplash').add + get('soloSplash').pct),
+    auto: effect.auto,
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))
       .map((m) => ({

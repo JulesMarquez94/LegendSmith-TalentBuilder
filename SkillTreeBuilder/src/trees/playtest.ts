@@ -281,8 +281,8 @@ export const armyOfTheDead: TreeDef = {
       name: 'Endless Ranks',
       row: 0,
       col: 1,
-      maxRank: 2,
-      description: 'Army of the Dead summons {1/2} more ghouls.',
+      maxRank: 3,
+      description: 'Army of the Dead summons {1/2/3} more ghouls.',
     },
     {
       id: 'dread-legion',

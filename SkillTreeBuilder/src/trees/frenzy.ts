@@ -46,7 +46,7 @@ export const frenzy: TreeDef = {
       name: 'Lasting Frenzy',
       row: 0,
       col: 1,
-      per: [2, 4],
+      per: [2, 4, 6],
       text: 'Frenzy lasts {} sec longer.',
       does: (v) => [plus('duration', 'frenzy', v)],
     }),

@@ -286,6 +286,11 @@ export interface EffectSpec {
   taunt?: number
   /** % of each hit splashed onto every other enemy within 8 yd of the one it hit (Harvest's talents). */
   splash?: number
+  /**
+   * Fires only when its ability goes off on its own (`autocast`), and then instead of the others:
+   * Emanation turns Miasma's zone into a Pox around you every 10 sec.
+   */
+  auto?: boolean
   /** Potency and duration talents don't lengthen it (Barbed Arrows' bleed always lasts 5 sec). */
   fixedDuration?: boolean
   /**
@@ -522,6 +527,7 @@ export interface ResolvedEffect {
   taunt: number
   splash: number
   soloSplash: number
+  auto?: boolean
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
   granted?: string

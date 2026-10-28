@@ -49,7 +49,7 @@ const tree: TreeDef = {
       name: 'Seething',
       row: 0,
       col: 1,
-      per: [2, 4],
+      per: [2, 4, 6],
       text: 'Every hit you take gives {} more rage.',
       does: (v) => [stat('resourceWhenHit', v)],
     }),
