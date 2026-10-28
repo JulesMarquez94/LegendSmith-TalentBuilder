@@ -209,6 +209,8 @@ export interface BuffSpec {
   maxStacks?: number
   /** Your whole group gets its stats, not only you (Fervor's haste). */
   group?: boolean
+  /** Lost as soon as you use an ability that doesn't match this (Rapid Fire: anything but the main attack). */
+  lostUnless?: Match
 }
 
 /** One piece of what an ability does. Only the fields its type uses matter. */
@@ -271,6 +273,8 @@ export interface EffectSpec {
   stats?: Partial<CharStats>
   /** Direct damage that taunts: every enemy it hits attacks only you for this many seconds. */
   taunt?: number
+  /** Potency and duration talents don't lengthen it (Barbed Arrows' bleed always lasts 5 sec). */
+  fixedDuration?: boolean
 }
 
 /** When a conditional bonus applies. Every field set must hold. */
@@ -316,9 +320,10 @@ export interface ModMechanic {
  * attacks too; `crit` again when it crits), `tick` once per zone tick, and `expire` when a HoT,
  * DoT or zone runs out. `gain` fires when you gain resource: once per gain from an ability or talent,
  * and once for every 10% of your maximum you regenerate. `parry` fires when you parry a swing; its
- * enemy is the one that swung.
+ * enemy is the one that swung. `second` fires once every second of the fight while you're alive,
+ * so a proc with `every: 5` goes off every 5 sec.
  */
-export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire' | 'gain' | 'parry'
+export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire' | 'gain' | 'parry' | 'second'
 
 export type Action =
   /**
@@ -363,6 +368,12 @@ export type Action =
   | { do: 'extendBuff'; buff: string; seconds: number }
   /** Copies a matching DoT from the event's target to the nearest enemy in range that doesn't have it. */
   | { do: 'spread'; match: Match; range: number }
+  /**
+   * Gives back `pct`% of what your main attack gives right now, spread over `seconds`: one tick a
+   * second, in whole points, with what doesn't divide carried to the next tick (Barbed Arrows: 12
+   * focus over 5 sec lands as 2, 2, 3, 2, 3). Stops if the event's enemy dies.
+   */
+  | { do: 'trickle'; pct: number; seconds: number }
   /** Fires another ability's effects, slotted or not. */
   | { do: 'fire'; ability: string; at?: 'event' }
 

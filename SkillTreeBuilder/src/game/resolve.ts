@@ -237,8 +237,8 @@ function resolveEffectWith(
   const get = (key: ValueKey) => sum(mods, key, tags)
 
   const power = POWERED.has(family) ? 1 + stats.power / 100 : 1
-  const durationMods = get('duration')
-  const potency = POTENT.has(family) ? stats.potency : 0
+  const durationMods = effect.fixedDuration ? { add: 0, pct: 0 } : get('duration')
+  const potency = POTENT.has(family) && !effect.fixedDuration ? stats.potency : 0
   const duration = Math.max(0, (effect.duration ?? 0) + durationMods.add) * (1 + (durationMods.pct + potency) / 100)
   const tickRate = get('tickRate')
   const interval =

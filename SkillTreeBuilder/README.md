@@ -191,11 +191,35 @@ minion damage and attack speed, longer-lasting ghouls, more at once (Horde), Gra
 pools of decay, a Ghoul Lord every 4th cast, and Corpse Explosion when one falls.
 
 The **Ashwood Longbow** shoots from 40 yd. Focus starts empty, up to 100, and only shooting fills it:
-each Swift Arrow gives 10 (hold the key to keep shooting). Focus counts in **tens**: an artifact can set
-a `unit`, and every ability's cost and gain is multiplied by it, so Harvest's cost of 2 is 20 focus
-and Backstab's 2 is 20 focus back, while the same abilities cost 2 imps on the book. For that to hold,
-shared trees may only change costs and gains by a %, never a flat amount (the data test checks). The
-bow's own tree adds plain focus: more per arrow, more to hold, focus on crits, and procs when you spend.
+**Swift Arrow** is a 1.5 sec cast that hits for 330 and gives 10 focus (hold the key to keep shooting).
+Focus counts in **tens**: an artifact can set a `unit`, and every ability's cost and gain is multiplied
+by it, so Harvest's cost of 2 is 20 focus and Backstab's 2 is 20 focus back, while the same abilities
+cost 2 imps on the book. For that to hold, shared trees may only change costs and gains by a %, never a
+flat amount (the data test checks).
+
+The bow's own tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Sharp Eye | 2 | +3/6% critical chance |
+| 1 | Deep Quiver | 2 | 20/40 more focus to hold |
+| 1 | Fletching | 2 | Swift Arrow gives 2/4 more focus |
+| 2 | Piercing Shot (needs Sharp Eye) | 2 | Every critical hit you deal, from any damage, gives 1/2 focus |
+| 2 | Steady Aim | 2 | Swift Arrow casts 0.25/0.5 sec slower, and deals and gives 16.67/33.33% more (in proportion to its 1.5 sec) |
+| 2 | Double Nock | 2 | +5/10% echo |
+| 3 | Rapid Fire (needs Steady Aim) | 2 | After Swift Arrow hits, it casts 0.25/0.5 sec faster until you use any other ability |
+| 3 | Focused Mind (needs Deep Quiver) | 2 | 5/10 focus every 5 sec |
+| 4 | Overdraw (needs Rapid Fire) | 1 | Abilities cost 50% more focus and deal 50% more damage |
+| 4 | Barbed Arrows (needs Focused Mind) | 1 | Swift Arrow leaves a 5 sec bleed (25 a sec) that gives the arrow's focus back over those 5 sec |
+
+Barbed Arrows' bleed always lasts 5 sec (`fixedDuration`: Potency and duration talents don't lengthen
+it), and every arrow's bleed runs on its own. Over those 5 sec it gives back exactly the focus that
+arrow gave, Fletching and Steady Aim included, through the `trickle` action: one tick a second in whole
+focus, with what doesn't divide carried to the next tick, so 12 focus comes as 2, 2, 3, 2, 3. Rapid
+Fire's buff has no timer: a buff can set `lostUnless`, and using an ability that doesn't match it ends
+the buff.
+Focused Mind uses the `second` event, which fires once a second (a proc with `every: 5` goes off every
+5 sec).
 
 | Made for the bow | |
 | --- | --- |

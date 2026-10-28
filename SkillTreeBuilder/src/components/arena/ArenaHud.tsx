@@ -105,7 +105,9 @@ export function PlayerBars({ arena }: { arena: Arena }) {
         {arena.buffs.map((b) => (
           <span key={b.id} className="buff">
             {b.name}
-            {b.stacks > 1 && ` ×${b.stacks}`} <small>{sec(Math.max(0, b.endsAt - arena.time))}</small>
+            {b.stacks > 1 && ` ×${b.stacks}`}{' '}
+            {/* Buffs that last until something ends them (Rapid Fire) have no timer. */}
+            {Number.isFinite(b.endsAt) && <small>{sec(Math.max(0, b.endsAt - arena.time))}</small>}
           </span>
         ))}
       </div>
