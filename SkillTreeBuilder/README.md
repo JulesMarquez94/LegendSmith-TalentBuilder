@@ -202,13 +202,13 @@ The bow's own tree:
 | Row | Talent | Ranks | What it does |
 | --- | --- | --- | --- |
 | 1 | Sharp Eye | 2 | +3/6% critical chance |
-| 1 | Deep Quiver | 2 | 20/40 more focus to hold |
 | 1 | Fletching | 2 | Swift Arrow gives 2/4 more focus |
+| 1 | Deep Quiver | 2 | 20/40 more focus to hold |
 | 2 | Piercing Shot (needs Sharp Eye) | 2 | Every critical hit you deal, from any damage, gives 1/2 focus |
 | 2 | Steady Aim | 2 | Swift Arrow casts 0.25/0.5 sec slower, and deals and gives 16.67/33.33% more (in proportion to its 1.5 sec) |
 | 2 | Double Nock | 2 | +5/10% echo |
 | 3 | Rapid Fire (needs Steady Aim) | 2 | After Swift Arrow hits, it casts 0.25/0.5 sec faster until you use any other ability |
-| 3 | Focused Mind (needs Deep Quiver) | 2 | 5/10 focus every 5 sec |
+| 3 | Focused Mind (needs Fletching) | 2 | 5/10 focus every 5 sec |
 | 4 | Overdraw (needs Rapid Fire) | 1 | Abilities cost 50% more focus and deal 50% more damage |
 | 4 | Barbed Arrows (needs Focused Mind) | 1 | Swift Arrow leaves a 5 sec bleed (25 a sec) that gives the arrow's focus back over those 5 sec |
 
