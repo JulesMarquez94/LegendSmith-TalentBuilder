@@ -187,13 +187,13 @@ interface Sums {
   pct: number
 }
 
-function sum(mods: readonly ModMechanic[], key: ValueKey, tags: ReadonlySet<Tag>): Sums {
+function sum(mods: readonly ModMechanic[], key: ValueKey, tags: ReadonlySet<Tag>, stats: CharStats): Sums {
   let add = 0
   let pct = 0
   for (const m of mods) {
     if (m.key !== key || m.when || !matches(m.match, tags)) continue
     add += m.add ?? 0
-    pct += m.pct ?? 0
+    pct += (m.pct ?? 0) + (m.pctOf ? stats[m.pctOf] : 0)
   }
   return { add, pct }
 }
@@ -234,7 +234,7 @@ function resolveEffectWith(
 ): ResolvedEffect {
   const family = FAMILY_OF[effect.type]
   const tags = effectTags(tree, effect)
-  const get = (key: ValueKey) => sum(mods, key, tags)
+  const get = (key: ValueKey) => sum(mods, key, tags, stats)
 
   const power = POWERED.has(family) ? 1 + stats.power / 100 : 1
   const durationMods = effect.fixedDuration ? { add: 0, pct: 0 } : get('duration')
@@ -289,6 +289,8 @@ function resolveEffectWith(
     grows: effect.grows,
     stats: effect.type === 'aura' ? addStats(effect.stats ?? {}, groupTalents) : effect.stats,
     taunt: effect.taunt ? Math.max(0, scaled(effect.taunt, get('taunt'))) : 0,
+    splash: Math.max(0, scaled(effect.splash ?? 0, get('splash'))),
+    soloSplash: Math.max(0, get('soloSplash').add + get('soloSplash').pct),
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))
       .map((m) => ({
@@ -319,7 +321,7 @@ function resolveAbilityWith(
   if (effects.some(({ effect }) => HEALING.has(FAMILY_OF[effect.type]) && !effect.hostile)) tags.add('healing')
   if (effects.some(({ effect }) => DAMAGING.has(FAMILY_OF[effect.type]) || effect.hostile)) tags.add('damage')
   if (isSpell(tree)) tags.add('spell')
-  const get = (key: ValueKey) => sum(mods, key, tags)
+  const get = (key: ValueKey) => sum(mods, key, tags, stats)
   const haste = 1 + stats.haste / 100
   const baseGcd = spec.gcd ?? 1
   const moves = families.includes('movement')
@@ -342,6 +344,7 @@ function resolveAbilityWith(
     gcd: baseGcd === 0 ? 0 : Math.max(MIN_GCD, scaled(baseGcd, get('gcd')) / haste),
     // Echo repeats casts; a second dash or teleport would read as a bug, so movement never echoes.
     echo: spec.passive || moves ? 0 : Math.max(0, stats.echo + get('echo').add),
+    autocast: Math.max(0, scaled(0, get('autocast'))),
     passive: spec.passive,
     minion: spec.minion ? resolveEffectWith(tree, spec.minion, -1, stats, mods, 'minion') : undefined,
     effects: effects.map(({ effect, granted }, i) =>

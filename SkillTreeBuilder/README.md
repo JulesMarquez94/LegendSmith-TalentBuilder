@@ -111,7 +111,7 @@ soak counts as healing on the meter.
 ## The damage weapons
 
 The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, **Summon Imp**, is a 2 sec
-cast that summons one for **14 sec**. Every imp attacks your target on its own (60 every 1.5 sec), and
+cast that summons one for **14 sec**. Every imp attacks your target on its own (40 every 1.5 sec), and
 its spells are paid for by **sacrificing imps**, the one with the least time left first. An imp whose
 time runs out leaves and takes its point of resource with it. Minion power raises all your damage for
 each imp you command.
@@ -142,7 +142,7 @@ The new mechanics behind it:
 
 | Slot | Choices |
 | --- | --- |
-| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (no cooldown, only its cost; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (a zone that makes everyone inside sick), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
+| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (instant, 5 imps, no cooldown; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (a zone that makes everyone inside sick), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
 | Ultimate | Fervor (you and your group gain 30% haste for 20 sec) |
 
 The **Twin Daggers** build combo points (up to 6) with Quick Strike: hold the key to keep striking.
@@ -155,7 +155,7 @@ procs on spending 2 or 3 steps at once (Adrenaline, Sleight of Hand, Restless Ha
 The **Spear** (first version) is melee with reach. Its main attack, **Thrust and Sweep**, alternates (like
 Plague) a thrust that hits one enemy for 320 from 8 yd and a sweep that hits it and every enemy within
 6 yd of it for 160. **Vigor** starts full at 100, refills 10 a second and counts in tens like focus, so
-Harvest costs 20 vigor. It's a large weapon (`traits: ['large']`), so it casts every spell but no
+Harvest costs 50 vigor. It's a large weapon (`traits: ['large']`), so it casts every spell but no
 blade or dagger strikes. Its tree: reach, vigor, thrust crits and a bleed (Impale), a wider sweep that
 gives vigor per enemy, and Rhythm (a sweep makes the next thrust hit harder).
 
@@ -167,6 +167,27 @@ lists what it is in `traits`. Backstab, Eviscerate and Rupture need a blade, Fan
 bow's shots a bow, and a future cleave would need a large weapon. The picker shows the ones your weapon
 can't make at the bottom, dimmed, with what they need. Talents aim only at their own ability or at
 families: damage over time, direct damage, area damage, zones, finishers.
+
+**Harvest** (made for the book) is instant and costs 5. Every enemy with your damage-over-time effects
+takes 550 for each one on it. Its tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Bountiful Harvest | 2 | 5/10% more damage for each of your DoTs on the target |
+| 1 | Keen Scythe | 2 | 10/20% more damage |
+| 1 | Reaper's Due | 1 | Costs 20% less |
+| 2 | Chaff (needs Bountiful Harvest) | 2 | Each hit splashes 15/30% of its damage onto every other enemy within 8 yd |
+| 2 | Ripening (needs Keen Scythe) | 1 | Potency also raises its damage, by the same % |
+| 2 | Reaping | 1 | Each tick of your DoTs adds 1% to the next Harvest, up to 100 stacks; Harvest uses them up |
+| 3 | Lone Reaper (needs Chaff) | 2 | When it hits only one enemy: 20/40% more damage and 100/200% more splash |
+| 3 | Windfall (needs Reaper's Due) | 2 | Each tick of your DoTs has a 2/4% chance to make the next Harvest free |
+| 4 | Endless Harvest (needs Reaping) | 1 | Harvest becomes a passive that goes off on its own every 10 sec, for free |
+
+The new mechanics behind it:
+- `splash` and `soloSplash` on an effect.
+- A `single` condition: the cast hit only one enemy.
+- `pctOf` on a mod: a % equal to one of your stats.
+- `autocast` on an ability: passive, going off on its own every N sec. It uses up the buffs a cast would.
 
 An ability can also be **made for** a weapon (`madeFor`: Harvest for the book). That's a label: the
 picker shows it and lists the ones made for your weapon first. The Plague tree keeps its art and
@@ -219,7 +240,7 @@ pools of decay, a Ghoul Lord every 4th cast, and Corpse Explosion when one falls
 The **Ashwood Longbow** shoots from 40 yd. Focus starts empty, up to 100, and only shooting fills it:
 **Swift Arrow** is a 1.5 sec cast that hits for 330 and gives 10 focus (hold the key to keep shooting).
 Focus counts in **tens**: an artifact can set a `unit`, and every ability's cost and gain is multiplied
-by it, so Harvest's cost of 2 is 20 focus and Backstab's 2 is 20 focus back, while the same abilities
+by it, so Harvest's cost of 5 is 50 focus and Backstab's 2 is 20 focus back, while the same abilities
 cost 2 imps on the book. For that to hold, shared trees may only change costs and gains by a %, never a
 flat amount (the data test checks).
 
@@ -344,6 +365,13 @@ and Haste" and "Potency and Haste" sets differ by 1%. Mixing balances lets one s
 when they improve and red when they drop, with the base (nothing equipped or learned) in grey.
 
 ## Test arena
+
+**Chances come from decks, not dice rolls.** A 1% chance is a deck of 100 cards with one winner. Each
+time the chance comes up, a card is drawn and thrown away, and when the deck is empty it's shuffled
+whole again. So a 1% chance comes up exactly once in every 100 tries and a 25% chance 25 times, and bad
+luck can't run past the end of a deck. Every source of chance has its own deck: each ability's crits,
+each talent's proc, echo, dodge, parry, and sparing imps. If a chance changes partway through a deck
+(more crit from a buff), the winners left are recounted from the new chance (`src/game/sim/deck.ts`).
 
 Pick a fight (Practice, Target dummies, a 4-player dungeon boss or an 8-player raid boss), then click the
 arena or press an ability key. Healers start on Practice, damage dealers and tanks on Target dummies.

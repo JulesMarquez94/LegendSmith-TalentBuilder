@@ -50,6 +50,9 @@ export function talent({ per, text, does, ...rest }: TalentInput): TalentDef {
 export const more = (key: ValueKey, match: Match, pct: number, when?: Condition): ModMechanic =>
   when ? { kind: 'mod', key, match, pct, when } : { kind: 'mod', key, match, pct }
 
+/** % more of a number on whatever matches, equal to one of your stats (Ripening: Potency on Harvest). */
+export const moreByStat = (key: ValueKey, match: Match, s: CharStat): ModMechanic => ({ kind: 'mod', key, match, pctOf: s })
+
 /** A flat change to a number, on whatever matches. */
 export const plus = (key: ValueKey, match: Match, add: number): ModMechanic => ({ kind: 'mod', key, match, add })
 

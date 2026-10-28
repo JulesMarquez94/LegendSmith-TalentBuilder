@@ -68,13 +68,10 @@ describe('the summoning book', () => {
     run(arena, 1)
     cast(arena, 1)
     run(arena, 1)
-    cast(arena, 0)
-    run(arena, 1)
-    cast(arena, 0)
-    run(arena, 1)
+    arena.resource = 5
     cast(arena, 2)
-    // Pox and Blight on the big dummy: 220 for each.
-    expect(damageOf(arena, 'Harvest')).toMatchObject({ hits: 1, damage: 440 })
+    // Pox and Blight on the big dummy: 550 for each.
+    expect(damageOf(arena, 'Harvest')).toMatchObject({ hits: 1, damage: 1100 })
   })
 
   it('lets you command up to 15 imps', () => {
@@ -113,7 +110,7 @@ describe('the summoning book', () => {
 
   it('has no cooldown on Harvest: only imps limit it', () => {
     const arena = new Arena(kitFor(book, ['plague', 'harvest', null, null, null, null]), DUMMIES, { seed: 1 })
-    for (let i = 0; i < 4; i++) cast(arena, 0)
+    arena.resource = 10
     cast(arena, 1)
     run(arena, 1)
     cast(arena, 2)
@@ -292,6 +289,89 @@ describe("the summoning book's tree", () => {
   })
 })
 
+describe("Harvest's tree", () => {
+  // Plague puts Pox on the big dummy; the four small ones around it have nothing.
+  /** No crits at all: buffs make the arena resolve abilities again, from your stats. */
+  const harvestKit = (ranks: Record<string, number>) => {
+    const kit = noCrits(kitFor(book, ['plague', 'harvest', null, null, null, null], { harvest: ranks }))
+    return { ...kit, character: { ...kit.character, stats: { ...kit.character.stats, crit: 0 } } }
+  }
+  /** Pox on the big dummy, the global cooldown over, and imps to spend. */
+  const plagued = (kit: Kit, imps = 15) => {
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    cast(arena, 1)
+    run(arena, 1)
+    arena.resource = imps
+    return arena
+  }
+  const certain = (kit: Kit): Kit => ({ ...kit, procs: kit.procs.map((p) => ({ ...p, proc: { ...p.proc, chance: 100 } })) })
+
+  it('costs 5 and is instant', () => {
+    const harvest = harvestKit({}).slots[2]!
+    expect(harvest.cost).toBe(5)
+    expect(harvest.castTime).toBe(0)
+    expect(harvestKit({ 'reapers-due': 1 }).slots[2]!.cost).toBe(4)
+  })
+
+  it('deals more for each DoT on the target with Bountiful Harvest', () => {
+    const arena = plagued(harvestKit({ 'bountiful-harvest': 2 }))
+    cast(arena, 2)
+    // One DoT: 550, 10% more for it.
+    expect(damageOf(arena, 'Harvest')!.damage).toBeCloseTo(550 * 1.1)
+  })
+
+  it('splashes each hit onto the enemies around it with Chaff, much more on a lone target with Lone Reaper', () => {
+    const chaff = plagued(harvestKit({ chaff: 2 }))
+    cast(chaff, 2)
+    const splash = damageOf(chaff, 'Harvest splash')!
+    expect(splash.hits).toBe(4)
+    expect(splash.damage / splash.hits).toBeCloseTo(550 * 0.3)
+
+    const lone = plagued(harvestKit({ chaff: 2, 'lone-reaper': 2 }))
+    cast(lone, 2)
+    const hit = 550 * 1.4
+    expect(damageOf(lone, 'Harvest')!.damage).toBeCloseTo(hit)
+    expect(damageOf(lone, 'Harvest splash')!.damage / 4).toBeCloseTo(hit * 0.3 * 3)
+  })
+
+  it('adds Potency to its damage with Ripening', () => {
+    const kit = harvestKit({ ripening: 1 })
+    expect(kit.resolve('harvest', [], { ...kit.character.stats, potency: 25 })!.effects[0].amount).toBeCloseTo(550 * 1.25)
+  })
+
+  it('grows with every DoT tick with Reaping, and uses the stacks up', () => {
+    const arena = plagued(harvestKit({ reaping: 1 }))
+    run(arena, 2.5)
+    // Pox ticks once a second: one tick during setup, two more since.
+    const stacks = arena.buffs.find((b) => b.id === 'reaping')!.stacks
+    expect(stacks).toBe(3)
+    cast(arena, 2)
+    expect(damageOf(arena, 'Harvest')!.damage).toBeCloseTo(550 * 1.03)
+    expect(arena.buffs.some((b) => b.id === 'reaping')).toBe(false)
+  })
+
+  it('makes the next Harvest free with Windfall', () => {
+    const arena = plagued(certain(harvestKit({ windfall: 2 })), 5)
+    expect(arena.current(2)!.cost).toBe(0)
+    cast(arena, 2)
+    expect(arena.resource).toBe(5)
+  })
+
+  it('goes off on its own every 10 sec, for free, with Endless Harvest', () => {
+    const kit = harvestKit({ 'endless-harvest': 1 })
+    expect(kit.slots[2]!.autocast).toBe(10)
+    const arena = plagued(kit, 5)
+    arena.press(2)
+    arena.step(DT)
+    expect(arena.notice?.text).toBe('Harvest goes off on its own')
+    run(arena, 9.5)
+    expect(damageOf(arena, 'Harvest')).toBeDefined()
+    expect(arena.meter.casts.get('Harvest')).toBe(1)
+    expect(arena.resource).toBe(5)
+  })
+})
+
 describe('casting and moving', () => {
   it("won't start a cast while you walk, and keeps you still while you cast", () => {
     const arena = new Arena(kitFor(book, [null, null, null, null, null, null]), DUMMIES, { seed: 1 })
@@ -339,10 +419,10 @@ describe('the bow', () => {
 
   it('counts costs and gains in tens of focus', () => {
     const kit = kitFor(bow, ['harvest', 'backstab', 'festering-rot', null, null, null])
-    expect(kit.slots[1]!.cost).toBe(20)
+    expect(kit.slots[1]!.cost).toBe(50)
     expect(kit.slots[2]!.effects.find((e) => e.type === 'restore')?.restore).toBe(20)
     expect(kit.slots[3]!.cost).toBe(10)
-    expect(kit.slots[1]!.text).toContain('Costs 20 focus')
+    expect(kit.slots[1]!.text).toContain('Costs 50 focus')
     // Talents in the bow's own tree add plain focus on top.
     const fletched = kitFor(bow, [null, null, null, null, null, null], { 'ashwood-longbow': { fletching: 2 } })
     expect(fletched.slots[0]!.effects.find((e) => e.type === 'restore')?.restore).toBe(14)
@@ -448,7 +528,7 @@ describe("the bow's tree", () => {
 
   it('makes abilities cost and deal 50% more with Overdraw, and adds echo with Double Nock', () => {
     const kit = bowKit({ overdraw: 1, 'double-nock': 2 }, ['harvest', null, null, null, null, null])
-    expect(kit.slots[1]!.cost).toBe(30)
+    expect(kit.slots[1]!.cost).toBe(75)
     expect(kit.character.stats.echo).toBe(10)
   })
 })

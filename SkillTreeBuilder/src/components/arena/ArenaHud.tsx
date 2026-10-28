@@ -137,7 +137,9 @@ export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readon
         const waiting = cd && cd.charges < 1 && cd.rechargeAt !== null ? (cd.rechargeAt - arena.time) / cd.duration : 0
         const gcd = base && base.gcd > 0 && arena.time < arena.gcdUntil ? (arena.gcdUntil - arena.time) / (arena.gcdUntil - arena.gcdStart) : 0
         const sweep = Math.max(waiting, gcd)
-        const short = a !== null && arena.resource + 1e-6 < a.cost
+        // An ability that goes off on its own (Endless Harvest) is passive: it costs nothing.
+        const passive = !!a && (!!a.passive || a.autocast > 0)
+        const short = a !== null && !passive && arena.resource + 1e-6 < a.cost
         const left = cd && cd.charges < 1 && cd.rechargeAt !== null ? cd.rechargeAt - arena.time : 0
         // What the next press would do: steps on a combo weapon, or how big a spend-all ability gets.
         const growth =
@@ -155,7 +157,7 @@ export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readon
             className={[
               'action',
               !a && 'action--inert',
-              a?.passive && 'action--passive',
+              passive && 'action--passive',
               short && 'action--oom',
               arena.cast?.slot === i && 'action--casting',
             ]
@@ -171,9 +173,9 @@ export function ActionBar({ arena, trees, onUse }: { arena: Arena; trees: readon
             {left > 0 && <span className="action__timer">{left >= 10 ? Math.ceil(left) : sec(Math.round(left * 10) / 10)}</span>}
             <span className="action__key">{SLOT_KEYS[i]}</span>
             {cd && cd.max > 1 && <span className="action__charges">{cd.charges}</span>}
-            {a && a.cost > 0 && <span className="action__cost">{int(a.cost)}</span>}
+            {a && !passive && a.cost > 0 && <span className="action__cost">{int(a.cost)}</span>}
             {growth >= 1.05 && <span className="action__steps">×{pct(growth)}</span>}
-            {a?.passive && <span className="action__cost">Passive</span>}
+            {passive && <span className="action__cost">Passive</span>}
           </button>
         )
       })}
