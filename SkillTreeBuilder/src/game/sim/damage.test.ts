@@ -301,16 +301,26 @@ describe("the bow's tree", () => {
     expect(arena.enemies[0].dots).toHaveLength(0)
   })
 
-  it("keeps Barbed Arrows' bleed at 5 sec, and pays every arrow back on its own", () => {
+  it('keeps one Barbed Arrows bleed per target: another arrow adds 5 sec and its focus to it', () => {
+    // Potency doesn't lengthen it: only another arrow does.
     const base = bowKit({ 'barbed-arrows': 1 })
     const potent: Kit = { ...base, character: { ...base.character, stats: { ...base.character.stats, potency: 50 } } }
     const arena = ready(potent)
     cast(arena, 0)
-    expect(arena.enemies[0].dots[0].endsAt - arena.time).toBeCloseTo(5, 1)
+    const target = arena.enemies[0]
+    expect(target.dots[0].endsAt - arena.time).toBeCloseTo(5, 1)
+    const firstEnd = target.dots[0].endsAt
     cast(arena, 0)
-    run(arena, 6)
+    // Still one bleed, ending 5 sec later than it would have.
+    expect(target.dots).toHaveLength(1)
+    expect(target.dots[0].endsAt).toBeCloseTo(firstEnd + 5)
+    // It pays 2 focus a second, not 4, until both arrows are paid back.
+    run(arena, 3.1)
+    expect(gained(arena, 'Barbed Arrows')).toBe(8)
+    run(arena, 7)
     expect(gained(arena, 'Swift Arrow')).toBe(20)
     expect(gained(arena, 'Barbed Arrows')).toBe(20)
+    expect(target.dots).toHaveLength(0)
   })
 
   it('makes abilities cost and deal 50% more with Overdraw, and adds echo with Double Nock', () => {

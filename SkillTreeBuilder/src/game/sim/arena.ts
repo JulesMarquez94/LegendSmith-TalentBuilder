@@ -243,7 +243,8 @@ interface Trickle {
   name: string
   /** It stops if this enemy dies. */
   enemy?: Enemy
-  perTick: number
+  /** Points still to give, shared evenly over the ticks left. */
+  left: number
   ticksLeft: number
   nextAt: number
 }
@@ -1088,6 +1089,14 @@ export class Arena {
   private applyDot(enemy: Enemy, e: ResolvedEffect, ctx: CastContext, name: string) {
     if (!enemy.alive || e.duration <= 0 || e.interval <= 0) return
     let d = enemy.dots.find((x) => x.key === e.key)
+    // A DoT that adds its duration (Barbed Arrows) never stacks: it runs longer instead.
+    if (d && e.addsDuration) {
+      Object.assign(d, { effect: e, amount: e.amount, interval: e.interval })
+      d.endsAt = Math.max(d.endsAt, this.time) + e.duration
+      d.duration = d.endsAt - this.time
+      d.baseEnd = d.endsAt
+      return
+    }
     if (!d) {
       d = {
         key: e.key,
@@ -1314,8 +1323,12 @@ export class Arena {
       case 'trickle': {
         const total = (this.mainAttackGain() * action.pct) / 100
         if (total <= 0 || action.seconds < 1) break
-        const perTick = total / action.seconds
-        this.trickles.push({ name, enemy: ev.enemy ?? ev.ctx.eventEnemy, perTick, ticksLeft: action.seconds, nextAt: this.time + 1 })
+        const enemy = ev.enemy ?? ev.ctx.eventEnemy
+        const running = action.extends ? this.trickles.find((t) => t.name === name && t.enemy === enemy) : undefined
+        if (running) {
+          running.left += total
+          running.ticksLeft += action.seconds
+        } else this.trickles.push({ name, enemy, left: total, ticksLeft: action.seconds, nextAt: this.time + 1 })
         break
       }
       case 'extendBuff': {
@@ -1652,13 +1665,15 @@ export class Arena {
   private updateTrickles() {
     for (const t of this.trickles) {
       while (t.ticksLeft > 0 && this.time >= t.nextAt) {
-        t.ticksLeft -= 1
-        t.nextAt += 1
         if (t.enemy && !t.enemy.alive) {
           t.ticksLeft = 0
           break
         }
-        const owed = (this.trickleCarry.get(t.name) ?? 0) + t.perTick
+        const share = t.left / t.ticksLeft
+        t.left -= share
+        t.ticksLeft -= 1
+        t.nextAt += 1
+        const owed = (this.trickleCarry.get(t.name) ?? 0) + share
         const whole = Math.floor(owed + 1e-9)
         this.trickleCarry.set(t.name, Math.max(0, owed - whole))
         if (whole > 0 && this.player.alive) this.gainResource(whole, t.name, true)

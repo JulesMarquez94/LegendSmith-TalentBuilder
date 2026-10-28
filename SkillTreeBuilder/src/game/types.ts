@@ -275,6 +275,11 @@ export interface EffectSpec {
   taunt?: number
   /** Potency and duration talents don't lengthen it (Barbed Arrows' bleed always lasts 5 sec). */
   fixedDuration?: boolean
+  /**
+   * A DoT that never stacks: applying it to an enemy that has it adds its duration to what's left,
+   * instead of refreshing it (Barbed Arrows: each arrow adds 5 sec to the one bleed).
+   */
+  addsDuration?: boolean
 }
 
 /** When a conditional bonus applies. Every field set must hold. */
@@ -371,9 +376,10 @@ export type Action =
   /**
    * Gives back `pct`% of what your main attack gives right now, spread over `seconds`: one tick a
    * second, in whole points, with what doesn't divide carried to the next tick (Barbed Arrows: 12
-   * focus over 5 sec lands as 2, 2, 3, 2, 3). Stops if the event's enemy dies.
+   * focus over 5 sec lands as 2, 2, 3, 2, 3). Stops if the event's enemy dies. With `extends`, a new
+   * one on an enemy that already has one from the same talent adds its points and seconds to it.
    */
-  | { do: 'trickle'; pct: number; seconds: number }
+  | { do: 'trickle'; pct: number; seconds: number; extends?: boolean }
   /** Fires another ability's effects, slotted or not. */
   | { do: 'fire'; ability: string; at?: 'event' }
 
@@ -473,6 +479,7 @@ export interface ResolvedEffect {
   hostile?: boolean
   inflicts?: ResolvedEffect
   rolling?: boolean
+  addsDuration?: boolean
   perEffect?: Match
   grows?: 'amount' | 'duration'
   stats?: Partial<CharStats>

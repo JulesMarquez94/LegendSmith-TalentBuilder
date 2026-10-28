@@ -165,11 +165,12 @@ const tree: TreeDef = {
       text:
         'Swift Arrow also leaves a bleed on its target: 25 damage every sec for 5 sec. Over those 5 sec it gives ' +
         'you that arrow’s focus again, a fifth every second in whole focus (12 focus comes as 2, 2, 3, 2, 3). ' +
-        'Every arrow’s bleed runs on its own, and nothing makes it last longer.',
+        'It never stacks: another arrow on a bleeding target adds 5 sec, and its focus, to the bleed. Nothing ' +
+        'else makes it last longer.',
       does: () => [
         proc('hit', ARROW, [
-          apply(dot(25, BLEED, 1, 'event', { name: 'Barbed Arrow', rolling: true, fixedDuration: true })),
-          { do: 'trickle', pct: 100, seconds: BLEED },
+          apply(dot(25, BLEED, 1, 'event', { name: 'Barbed Arrow', fixedDuration: true, addsDuration: true })),
+          { do: 'trickle', pct: 100, seconds: BLEED, extends: true },
         ]),
       ],
     }),
