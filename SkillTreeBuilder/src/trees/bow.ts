@@ -150,6 +150,7 @@ export const ashwoodLongbow: ArtifactDef = {
   color: '#7fb069',
   role: 'damage',
   roleKind: 'damage',
+  reach: 'ranged',
   resource: 'Focus',
   resourceStart: 0,
   unit: 10,

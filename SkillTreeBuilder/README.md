@@ -1,8 +1,8 @@
 # LegendSmith Talent Builder
 
-A WoW Classic–style talent builder for testing LegendSmith's skill trees. You hold an artifact (a
-healer's staff, a summoner's book or twin daggers), fill eight slots, and each slotted ability brings its
-own talent tree. Trinkets set your stats, every ability shows its live numbers, and a **Test arena** lets
+A WoW Classic–style talent builder for testing LegendSmith's skill trees. You hold an artifact (one of
+eight weapons: two tanks, two healers, two melee and two ranged damage dealers), fill eight slots, and
+each slotted ability brings its own talent tree. Trinkets set your stats, every ability shows its live numbers, and a **Test arena** lets
 you play the build against dummies or a boss.
 
 ## Run it
@@ -28,15 +28,36 @@ repositories.
 | Slot | Holds | Keyboard |
 | --- | --- | --- |
 | 1 | The artifact, with its own tree (its main attack) | Left click |
-| 2–4 | Role abilities: heals for the staff, damage for the book or the daggers | Right click, Q, E |
+| 2–4 | Role abilities: heals for a healer, damage for a damage dealer, tank abilities for a tank | Right click, Q, E |
 | 5 | An ultimate (big cooldown). Fervor fits every role | F |
 | 6 | A mobility ability, shared by every role | Shift |
 | 7 | A group buff for your role: passive, for you and your group | — |
 | 8 | Outdoor talents, always there. Empty for now | — |
 
-Click **Change** on slot 1 to switch artifacts; abilities that don't fit the new role come out and
-refund their points. Click an empty slot (or **Change**) to pick an ability. Picking one that's
+Click **Change** on slot 1 to switch artifacts; the picker lists them by seat (Tank, Healer, Melee
+damage, Ranged damage). Abilities that don't fit the new role come out and refund their points. Click an empty slot (or **Change**) to pick an ability. Picking one that's
 already in another slot swaps the two and keeps both builds.
+
+## The artifacts
+
+Two for every seat in a group. Each artifact's `reach` (melee or ranged) and role set its seat, and the
+picker groups them by it.
+
+| Seat | Artifact | Resource | Main attack | File |
+| --- | --- | --- | --- | --- |
+| Tank | **Sword & Shield** (first version) | Rage | Shield Bash | `src/trees/tank/shield.ts` |
+| Tank | **Greatsword** (first version) | Momentum | Wide Swing | `src/trees/tank/greatsword.ts` |
+| Healer | Lifewarden Staff | Mana | Radiant Bolt | `src/trees/healer/staff.ts` |
+| Healer | **Tome of Dawn** (first version) | Light | Dawn Bolt | `src/trees/healer/dawn.ts` |
+| Melee damage | Twin Daggers | Combo points | Quick Strike | `src/trees/daggers.ts` |
+| Melee damage | **Spear** (first version) | Vigor | Thrust and Sweep | `src/trees/spear.ts` |
+| Ranged damage | Tome of Summoning | Imps | Summon Imp | `src/trees/necro/tome.ts` |
+| Ranged damage | Ashwood Longbow | Focus | Swift Arrow | `src/trees/bow.ts` |
+
+The four **first versions** were improvised so every seat has two weapons, and are meant to be replaced
+by their real designs. Each sets `firstVersion: true`, opens with a `FIRST VERSION` comment and says so
+in its description, and the picker tags it. They use the tinted placeholder icons. Each is described
+below with its role.
 
 ## Rules
 
@@ -78,6 +99,15 @@ reaches ("Affects: Renew, Lifetide"). The families are direct heal, HoT, zone, s
 DoT, minion, resource, movement, buff and aura, plus `healing` on every heal, `damage` on every hit,
 `aoe` on area damage, slot kinds (`heal`, `cooldown`…) and the ability's own id.
 
+The **Tome of Dawn** (first version) is the shield healer: where the staff heals after the damage, it
+wards allies before the hit lands. Its main attack, **Dawn Bolt**, hits for 220 and puts a 350 barrier
+(an absorb shield, blue like every shield) on the lowest-health ally for 8 sec; another bolt on the same
+ally adds to it. **Light** is its resource: 600, starting full and refilling 15 a second on its own, so
+you attack to ward, not to refill. The shared heals cost light unchanged (Mend: 100). Its tree makes
+shields bigger and longer, wards more allies per bolt, shields allies when direct heals crit
+(Afterglow) and casts direct heals faster. Shields are capped at half the ally's health, and what they
+soak counts as healing on the meter.
+
 ## The damage weapons
 
 The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, Summon Imp, adds one, every
@@ -95,6 +125,13 @@ spends 4 or 6 if you have them, and every step makes it stronger (two steps hit 
 lasts longer instead). The action bar shows how many steps the next press takes (×3). The daggers'
 own tree is about that: more combo points to hold (Bandolier), more from each step (Compounding), and
 procs on spending 2 or 3 steps at once (Adrenaline, Sleight of Hand, Restless Hands, Encore).
+
+The **Spear** (first version) is melee with reach. Its main attack, **Thrust and Sweep**, alternates (like
+Plague) a thrust that hits one enemy for 320 from 8 yd and a sweep that hits it and every enemy within
+6 yd of it for 160. **Vigor** starts full at 100, refills 10 a second and counts in tens like focus, so
+Harvest costs 20 vigor. It's a large weapon (`traits: ['large']`), so it casts every spell but no
+blade or dagger strikes. Its tree: reach, vigor, thrust crits and a bleed (Impale), a wider sweep that
+gives vigor per enemy, and Rhythm (a sweep makes the next thrust hit harder).
 
 **Spells fit every weapon of their role.** Plague, Harvest, Raise Ghoul or Doom Bolt can be cast with
 the book, the daggers or the bow, and cost whatever the weapon holds (Doom Bolt: 3 imps, 30 focus, or
@@ -167,12 +204,43 @@ bow's own tree adds plain focus: more per arrow, more to hold, focus on crits, a
 | Poison Arrow | a 15 sec damage over time (10 focus) |
 | Rain of Arrows | a dense 6 sec damaging zone, 20 sec cooldown (30 focus) |
 
+## The tanks
+
+A tank's three role slots hold **tank abilities** (`kind: 'tank'`), first versions too
+(`src/trees/tank/abilities.ts`). Fervor fills the ultimate slot, mobility is shared, and the tank
+group buffs fill slot 7.
+
+| Tank ability | |
+| --- | --- |
+| Provoke | Taunts the enemy under your crosshair from 30 yd for 6 sec, off the global cooldown (8 sec cooldown) |
+| Stand Firm | 40% less damage taken for 8 sec, off the global cooldown (45 sec cooldown) |
+| Tremor | Hits every enemy within 8 yd of you for 260 and taunts them for 4 sec (2 points of resource) |
+| Shield Block | Needs a shield (`needs: 'shield'`): a 2,000 shield on you for 6 sec, 2 charges (3 points) |
+
+A **taunt** (`taunt` on a damage effect) makes every enemy it hits swing only at you for that long,
+even when the boss would hit another tank. In the arena **you take the first tank's place**: you start
+where it stood, the boss and its adds hit you, and in fights with a bot healer the bot heals from your
+usual spot. In the raid the boss still swaps between you and the off tank every 20 sec, so Provoke
+pulls it back.
+
+The **Sword & Shield** (first version) is the block tank: traits `blade` and `shield`. **Rage** starts
+empty, holds 100 and counts in tens. **Shield Bash**, its main attack, hits for 300 and gives 10 rage,
+and every hit you take gives 5 more (a new stat, `resourceWhenHit`, "Rage when hit"), even one a shield
+soaks. Its tree: damage reduction, more rage from bashes and hits, bigger and longer shields, shields
+on crits, and damage reduction when you spend rage.
+
+The **Greatsword** (first version) is the parry tank: traits `blade` and `large`, no shield. **Wide
+Swing**, its main attack, hits its target and every enemy within 5 yd of it for 220, so it holds packs,
+and gives 10 **momentum** (starts empty, holds 100, counts in tens). It **parries** 15% of melee swings
+(the boss's and its adds', not pulses or pools), and every parry gives 10 momentum. **Parry** is a new
+stat (`parry`) and a new event (`parry`, its enemy is the one that swung), so its tree can strike back
+(Riposte), make the next swing hit harder (Counterstroke) and give parry when you spend.
+
 ## Group buffs
 
 Every character slots one group buff for their role. It's passive: you and your group get its stats,
 and its tree adds more. Healers pick more maximum health or more healing received. Damage dealers pick
-Haste, Critical or Power. Tanks get Damage reduction, Dodge or Speed, ready for when there's a tank
-weapon.
+Haste, Critical or Power. Tanks get Damage reduction, Dodge or Speed.
 
 ## Gear and stats
 
@@ -208,10 +276,13 @@ the leaned stat's bigger, and the icons also mark the item cards, the forge and 
 - **Echo** is a chance to cast an ability again for free. Movement never echoes.
 - **Dodge** is a chance to avoid a hit completely. Like Damage reduction it never comes from items; Dash
   talents give it.
+- **Parry** is a chance to turn aside an enemy's melee swing. It never comes from items: the Greatsword
+  and its talents give it.
 
 The stat sheet shows Power and Health together at the top with the resource, then **Secondary**
-(Haste, Critical, Crit damage, Potency), **Defensive** (Damage reduction, Dodge) and **Extra** (Echo,
-Minion power, Speed and anything only talents give).
+(Haste, Critical, Crit damage, Potency), **Defensive** (Damage reduction, Dodge, and Parry once
+something gives it) and **Extra** (Echo, Minion power, Speed and anything only talents or a weapon
+give, like Rage when hit).
 
 Because no two worn trinkets can share a name, each balance of a stat pair can be worn once. An even
 set holds each pair once, so no stat sits on more than 5 of its 12 trinkets, and the common "Critical
@@ -223,8 +294,9 @@ when they improve and red when they drop, with the base (nothing equipped or lea
 ## Test arena
 
 Pick a fight (Practice, Target dummies, a 4-player dungeon boss or an 8-player raid boss), then click the
-arena or press an ability key. Healers start on Practice and damage dealers on Target dummies. The boss
-fights send waves of adds; when you're a damage dealer, a bot heals the group. Move with W A S D. Heals go to the lowest-health ally in range, zones land on that
+arena or press an ability key. Healers start on Practice, damage dealers and tanks on Target dummies.
+The boss fights send waves of adds; when you're a damage dealer or a tank, a bot heals the group, and a
+tank takes the bot tank's place. Move with W A S D. Heals go to the lowest-health ally in range, zones land on that
 ally, and Dash and Teleport go the way you're moving (or toward the crosshair). Hold a key to keep
 casting it. Step out of the red pools.
 
@@ -237,7 +309,9 @@ gear or talents and come back to carry on with the new numbers.
 Everything lives in `src/trees/`:
 
 - `index.ts`: the point rules, the artifacts, the list of trees and the starting loadout.
-- `healer/`: the Lifewarden Staff and its heals and ultimates. `mobility.ts`: Dash, Teleport, Sprint.
+- `healer/`: the Lifewarden Staff, the Tome of Dawn and the heals and ultimates. `mobility.ts`: Dash,
+  Teleport, Sprint.
+- `tank/`: the Sword & Shield, the Greatsword and the tank abilities. `spear.ts`: the Spear.
 - `plague.ts`: the Plague tree from `Plague - Skill Tree.pptx`, using the art in `../Art/Plague/`.
 - `playtest.ts`: made-up necromancer abilities so every damage slot has options.
 

@@ -13,11 +13,14 @@ export const BASE_STATS: CharStats = {
   minionPower: 0,
   damageReduction: 0,
   dodge: 0,
+  parry: 0,
   healingTaken: 0,
   speed: 0,
   maxResource: 0,
   resourceRegen: 0,
   resourceRegenPct: 0,
+  resourceWhenHit: 0,
+  resourceOnParry: 0,
   comboBonus: 0,
   splash: 0,
   overhealToResource: 0,
@@ -93,6 +96,12 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     unit: '%',
     help: 'Chance to avoid a hit completely. Every hit rolls on its own.',
   },
+  parry: {
+    label: 'Parry',
+    color: '#d39a5e',
+    unit: '%',
+    help: "Chance to turn aside an enemy's melee swing, so it does nothing. Never on items: weapons and talents give it.",
+  },
   healingTaken: {
     label: 'Healing received',
     color: '#8fe3a0',
@@ -122,6 +131,18 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     color: '#5aa9ff',
     unit: '%',
     help: 'More @resource per second, as a share of your maximum.',
+  },
+  resourceWhenHit: {
+    label: '@Resource when hit',
+    color: '#5aa9ff',
+    unit: 'flat',
+    help: "@Resource you gain each time an enemy's hit lands on you, even one a shield soaks.",
+  },
+  resourceOnParry: {
+    label: '@Resource per parry',
+    color: '#5aa9ff',
+    unit: 'flat',
+    help: '@Resource you gain each time you parry a swing.',
   },
   splash: {
     label: 'Splash',
@@ -162,7 +183,7 @@ export const withResource = (text: string, resource: string) =>
 /** The stat sheet, in sections. The top block shows Power, Health and the resource. */
 export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[] }[] = [
   { title: 'Secondary', stats: ['haste', 'crit', 'critDamage', 'potency'] },
-  { title: 'Defensive', stats: ['damageReduction', 'dodge', 'healthPct', 'healingTaken'] },
+  { title: 'Defensive', stats: ['damageReduction', 'dodge', 'parry', 'healthPct', 'healingTaken'] },
   {
     title: 'Extra',
     stats: [
@@ -172,6 +193,8 @@ export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[
       'comboBonus',
       'splash',
       'resourceRegenPct',
+      'resourceWhenHit',
+      'resourceOnParry',
       'overhealToResource',
       'lowResourceRegen',
       'zoneResourceRegen',
@@ -179,8 +202,11 @@ export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[
   },
 ]
 
-/** Shown only once a talent or group buff gives them. */
+/** Shown only once something gives them: a talent, a group buff or the weapon (the Greatsword's parry). */
 export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>([
+  'parry',
+  'resourceWhenHit',
+  'resourceOnParry',
   'overhealToResource',
   'lowResourceRegen',
   'zoneResourceRegen',

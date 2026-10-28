@@ -287,6 +287,7 @@ function resolveEffectWith(
     perEffect: effect.perEffect,
     grows: effect.grows,
     stats: effect.type === 'aura' ? addStats(effect.stats ?? {}, groupTalents) : effect.stats,
+    taunt: effect.taunt ? Math.max(0, scaled(effect.taunt, get('taunt'))) : 0,
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))
       .map((m) => ({

@@ -107,6 +107,8 @@ export interface Dot {
 export interface Shield {
   key: string
   name: string
+  /** Its ability's tint, for the meter. */
+  color: string
   amount: number
   endsAt: number
 }
@@ -179,6 +181,8 @@ export interface Enemy {
   /** Adds hit the tank for this every couple of seconds. */
   hits: number
   swingAt: number
+  /** Until then it attacks only you (taunts). */
+  tauntedUntil: number
 }
 
 /** A curse on an enemy: each hit from your minions takes a stack and deals the curse's damage. */
@@ -227,6 +231,8 @@ export interface ActiveBuff {
 
 /** The tags a `gain` event carries, so talents can aim at it with 'resource'. */
 const GAIN_TAGS: ReadonlySet<Tag> = new Set<Tag>(['resource'])
+/** The tags a `parry` event carries. */
+const PARRY_TAGS: ReadonlySet<Tag> = new Set<Tag>(['parry'])
 
 export interface Casting {
   slot: number
@@ -409,8 +415,18 @@ export class Arena {
     this.rng = mulberry32(this.options.seed)
     this.resourceName = kit.resource
     const youHeal = kit.role === 'healer'
-    this.player = this.makeAlly('You', youHeal ? 'healer' : kit.role, kit.character.stats.health, scenario.playerHome, 0, true)
     const party = scenario.party.map((t) => ({ ...t }))
+    // A tank takes the first tank's place: you start where it stood, and the boss and its adds hit
+    // you. The bot healer, in fights that have one, takes your usual spot so the group keeps its size.
+    let home = scenario.playerHome
+    const tankSeat = kit.role === 'tank' ? party.findIndex((t) => t.role === 'tank') : -1
+    if (tankSeat >= 0) {
+      home = party[tankSeat].home
+      const maxHp = party.find((t) => t.role !== 'tank')?.maxHp ?? party[tankSeat].maxHp
+      if (scenario.botHealer) party[tankSeat] = { name: 'Bot healer', role: 'healer', maxHp, home: scenario.playerHome, dps: 1000 }
+      else party.splice(tankSeat, 1)
+    }
+    this.player = this.makeAlly('You', youHeal ? 'healer' : kit.role, kit.character.stats.health, home, 0, true)
     // A damage dealer brings no healing, so a bot takes the healer's seat.
     if (!youHeal && scenario.botHealer && !party.some((t) => t.role === 'healer')) {
       const seat = [...party].reverse().find((t) => t.role === 'damage')
@@ -473,6 +489,7 @@ export class Arena {
       curses: [],
       hits,
       swingAt: this.time + ADD_SWING,
+      tauntedUntil: -Infinity,
     }
   }
 
@@ -832,7 +849,7 @@ export class Arena {
         this.spawnZone(e, ctx, opts.label)
         break
       case 'shield':
-        for (const t of this.pick(e.target, ctx, e, e.targets)) this.addShield(t, e.amount, e.duration, opts.label, e.key)
+        for (const t of this.pick(e.target, ctx, e, e.targets)) this.addShield(t, e, opts.label)
         break
       case 'damage':
         this.dealDamage(e, ctx, opts)
@@ -879,10 +896,22 @@ export class Arena {
     const splash = e.radius === 0 && e.target === 'target' && ctx.range > 8 && !opts.secondary ? this.stats().splash : 0
     for (const enemy of victims) {
       if (e.target !== 'self') this.beam(this.player.pos, enemy.pos, e.color)
+      if (e.taunt > 0 && enemy.alive) this.taunt(enemy, e.taunt)
       const per = e.perEffect ? this.countEffects(enemy, e.perEffect) : 1
       const dealt = per > 0 ? this.hitEnemy(enemy, e.amount * per, e, ctx, opts) : 0
       if (splash > 0 && dealt > 0) this.splashAround(enemy, (dealt * splash) / 100, e, ctx)
     }
+  }
+
+  /** The enemy attacks only you for a while: its swings land on you, not on its tank. */
+  private taunt(enemy: Enemy, seconds: number) {
+    if (enemy.tauntedUntil <= this.time) this.text(enemy.pos, 'Taunted', '#ffb347', false)
+    enemy.tauntedUntil = Math.max(enemy.tauntedUntil, this.time + seconds)
+  }
+
+  /** Who an enemy swings at: you while it's taunted, otherwise its tank. */
+  private swingTarget(enemy: Enemy, tank: Ally | undefined): Ally | undefined {
+    return enemy.tauntedUntil > this.time && this.player.alive ? this.player : tank
   }
 
   /** Volley's extra hits, tagged 'splash' and 'aoe' so talents can aim at them. */
@@ -1110,14 +1139,16 @@ export class Arena {
     })
   }
 
-  private addShield(target: Ally, amount: number, duration: number, name: string, key: string) {
-    if (!target.alive || amount <= 0) return
+  private addShield(target: Ally, e: ResolvedEffect, name: string) {
+    if (!target.alive || e.amount <= 0) return
     const cap = target.maxHp * SHIELD_CAP
-    const existing = target.shields.find((s) => s.key === key)
+    const existing = target.shields.find((s) => s.key === e.key)
     if (existing) {
-      existing.amount = Math.min(cap, existing.amount + amount)
-      existing.endsAt = this.time + duration
-    } else target.shields.push({ key, name, amount: Math.min(cap, amount), endsAt: this.time + duration })
+      existing.amount = Math.min(cap, existing.amount + e.amount)
+      existing.endsAt = this.time + e.duration
+    } else {
+      target.shields.push({ key: e.key, name, color: e.color, amount: Math.min(cap, e.amount), endsAt: this.time + e.duration })
+    }
   }
 
   /** Talent buffs get Potency here; buff effects (Sprint) already have it, so they pass `potency: false`. */
@@ -1851,8 +1882,8 @@ export class Arena {
         const tanks = alive.filter((a) => a.role === 'tank')
         const order = this.allies.filter((a) => a.role === 'tank')
         const turn = ev.swap ? Math.floor(this.time / ev.swap) % Math.max(1, order.length) : 0
-        const tank = order[turn]?.alive ? order[turn] : (tanks[0] ?? alive[0])
-        this.damage(tank, ev.amount * (0.85 + this.rng() * 0.3) * scale, 'Melee')
+        const tank = this.swingTarget(this.boss, order[turn]?.alive ? order[turn] : (tanks[0] ?? alive[0]))!
+        this.damage(tank, ev.amount * (0.85 + this.rng() * 0.3) * scale, 'Melee', false, this.boss)
         break
       }
       case 'pulse':
@@ -1948,8 +1979,8 @@ export class Arena {
     for (const add of adds) {
       if (!add.alive || add.hits <= 0 || this.time < add.swingAt) continue
       add.swingAt = this.time + ADD_SWING
-      const tank = this.currentTank()
-      if (tank) this.damage(tank, add.hits * this.options.damageScale, add.name)
+      const tank = this.swingTarget(add, this.currentTank())
+      if (tank) this.damage(tank, add.hits * this.options.damageScale, add.name, false, add)
     }
     this.enemies = this.enemies.filter((e) => e.alive || e.isBoss)
     if (!this.allies.some((a) => a.alive)) {
@@ -1958,15 +1989,27 @@ export class Arena {
     }
   }
 
-  /** `quiet` is for steady drains: no numbers, and no dodging them. */
-  private damage(a: Ally, amount: number, source: string, quiet = false) {
+  /**
+   * `quiet` is for steady drains: no numbers, and no dodging them. `swing` is the enemy whose melee
+   * swing this is: you can parry those.
+   */
+  private damage(a: Ally, amount: number, source: string, quiet = false, swing?: Enemy) {
     if (!a.alive || amount <= 0) return
     const group = this.groupStats()
+    const parry = swing && a.isPlayer ? this.stats().parry : 0
+    if (parry > 0 && this.rng() * 100 < parry) {
+      this.text(a.pos, 'Parry', '#d39a5e', false)
+      this.gainResource(this.stats().resourceOnParry, 'Parry')
+      this.emit({ kind: 'parry', tags: PARRY_TAGS, ctx: { ...this.newContext(null, -1, 0), eventEnemy: swing }, enemy: swing })
+      return
+    }
     const dodge = a.isPlayer ? this.stats().dodge : (group.dodge ?? 0)
     if (!quiet && dodge > 0 && this.rng() * 100 < dodge) {
       this.text(a.pos, 'Dodge', '#9fe7ff', false)
       return
     }
+    // Rage: a hit that lands gives resource, even when a shield soaks it.
+    if (!quiet && a.isPlayer) this.gainResource(this.stats().resourceWhenHit, 'Getting hit', true)
     const zoneDr = Math.max(0, ...this.zones.filter((z) => !z.hostile && dist(z.pos, a.pos) <= z.radius).map((z) => z.damageReduction))
     const ownDr = a.isPlayer ? this.stats().damageReduction : (group.damageReduction ?? 0)
     const dr = Math.min(90, zoneDr + ownDr)
@@ -1975,6 +2018,13 @@ export class Arena {
       const absorbed = Math.min(s.amount, left)
       s.amount -= absorbed
       left -= absorbed
+      // What a shield soaks counts as its healing on the meter, as absorbs do in WoW's.
+      if (absorbed > 0) {
+        const row = this.meter.rows.get(s.name) ?? { name: s.name, color: s.color, healing: 0, overheal: 0, hits: 0, crits: 0 }
+        row.healing += absorbed
+        if (!quiet) row.hits += 1
+        this.meter.rows.set(s.name, row)
+      }
     }
     a.shields = a.shields.filter((s) => s.amount > 0)
     a.hp -= left

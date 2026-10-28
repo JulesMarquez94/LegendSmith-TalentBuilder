@@ -4,7 +4,7 @@ import { AbilityNumbers } from './components/AbilityNumbers.tsx'
 import { AbilityPicker, type PickerOption } from './components/AbilityPicker.tsx'
 import { ArenaView } from './components/arena/ArenaView.tsx'
 import { CharacterPanel } from './components/gear/CharacterPanel.tsx'
-import { KIND_LABEL } from './components/labels.ts'
+import { KIND_LABEL, SEATS, seatOf } from './components/labels.ts'
 import { SlotCard } from './components/SlotCard.tsx'
 import { abilityMeta } from './game/describe.ts'
 import type { Gear } from './game/gear.ts'
@@ -12,7 +12,7 @@ import { buildKit } from './game/resolve.ts'
 import { save, savedGear, savedLoadout } from './saved.ts'
 import { pointsLeftFor, ranksIn, totalSpent } from './talents/loadout.ts'
 import { canMake, fitsKind, NEEDS_LABEL, slotKinds } from './talents/slots.ts'
-import type { TreeDef } from './talents/types.ts'
+import type { ArtifactDef, TreeDef } from './talents/types.ts'
 import { useLoadout } from './talents/useLoadout.ts'
 import { validateCatalog, validateTree } from './talents/validate.ts'
 import { ARTIFACTS, POINT_RULES, STARTING_LOADOUT, TREES } from './trees/index.ts'
@@ -52,14 +52,20 @@ export default function App() {
 
   const options = (slot: number): PickerOption[] => {
     if (slot === 0) {
-      return ARTIFACTS.map((a) => ({
-        id: a.id,
-        name: a.name,
-        color: a.color,
-        meta: `${a.role === 'healer' ? 'Healer' : 'Damage'} · ${a.resource}`,
-        description: a.description,
-        at: a.id === artifact.id ? 0 : -1,
-      }))
+      // Grouped by seat, two of each: tanks, healers, melee damage, ranged damage.
+      const seat = (a: ArtifactDef) => SEATS.indexOf(seatOf(a))
+      return [...ARTIFACTS]
+        .sort((a, b) => seat(a) - seat(b))
+        .map((a) => ({
+          id: a.id,
+          name: a.name,
+          color: a.color,
+          meta: `${seatOf(a)} · ${a.resource}`,
+          description: a.description,
+          firstVersion: a.firstVersion,
+          group: seatOf(a),
+          at: a.id === artifact.id ? 0 : -1,
+        }))
     }
     const fitting = TREES.filter((tree) => fitsKind(tree, kinds[slot], artifact)).map((tree: TreeDef) => {
       const live = tree.spec ? kit.resolve(tree.id) : null

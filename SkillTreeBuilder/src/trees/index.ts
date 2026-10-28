@@ -10,6 +10,7 @@ import { volley } from './volley.ts'
 import { festeringWound } from './wound.ts'
 import { backstab, eviscerate, fanOfKnives, rupture, twinDaggers } from './daggers.ts'
 import { fervor } from './fervor.ts'
+import { tomeOfDawn } from './healer/dawn.ts'
 import { bloom, chainHeal, conduit, healingRain, mend, renew } from './healer/heals.ts'
 import { lifewardenStaff } from './healer/staff.ts'
 import { lifetide, miracle, sanctuary } from './healer/ultimates.ts'
@@ -19,6 +20,10 @@ import { tomeOfSummoning } from './necro/tome.ts'
 import { plague } from './plague.ts'
 import { raiseGhoul } from './ghoul.ts'
 import { armyOfTheDead, bloodFrenzy, boneSpear, shadowStep, soulSiphon, wraithWalk } from './playtest.ts'
+import { spear } from './spear.ts'
+import { TANK_ABILITIES } from './tank/abilities.ts'
+import { greatsword } from './tank/greatsword.ts'
+import { swordAndShield } from './tank/shield.ts'
 
 /**
  * One talent point per level up to 60, and no more than 12 in any one tree, as in the overview's
@@ -26,8 +31,21 @@ import { armyOfTheDead, bloodFrenzy, boneSpear, shadowStep, soulSiphon, wraithWa
  */
 export const POINT_RULES: PointRules = { total: 60, perTree: 12 }
 
-/** Every artifact that can be held. Add new ones here. */
-export const ARTIFACTS: readonly ArtifactDef[] = [lifewardenStaff, tomeOfSummoning, twinDaggers, ashwoodLongbow]
+/**
+ * Every artifact that can be held, two per seat: tank, healer, melee and ranged damage. The picker
+ * groups them by seat. Add new ones here. The Sword & Shield, Greatsword, Tome of Dawn and Spear are
+ * first versions (`firstVersion`), to be replaced by their real designs.
+ */
+export const ARTIFACTS: readonly ArtifactDef[] = [
+  lifewardenStaff,
+  tomeOfSummoning,
+  twinDaggers,
+  ashwoodLongbow,
+  swordAndShield,
+  greatsword,
+  tomeOfDawn,
+  spear,
+]
 
 /** Every tree that can be slotted, artifact trees included. Add new trees here. */
 export const TREES: readonly TreeDef[] = [
@@ -70,6 +88,8 @@ export const TREES: readonly TreeDef[] = [
   multiShot,
   poisonArrow,
   rainOfArrows,
+  // Tank (first versions)
+  ...TANK_ABILITIES,
   // Ultimates for every role
   fervor,
   // Mobility, for every role
@@ -89,4 +109,4 @@ export const STARTING_LOADOUT: Loadout = {
   ranks: {},
 }
 
-export { ashwoodLongbow, tomeOfSummoning, twinDaggers }
+export { ashwoodLongbow, greatsword, spear, swordAndShield, tomeOfDawn, tomeOfSummoning, twinDaggers }

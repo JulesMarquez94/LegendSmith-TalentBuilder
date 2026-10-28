@@ -1,7 +1,7 @@
 import type { AbilitySpec, CharStats, Mechanic } from '../game/types.ts'
 
-/** What an ability slot accepts. `buff` is the group buff slot. */
-export type AbilityKind = 'damage' | 'heal' | 'cooldown' | 'mobility' | 'buff'
+/** What an ability slot accepts. `tank` holds a tank's role abilities; `buff` is the group buff slot. */
+export type AbilityKind = 'damage' | 'heal' | 'tank' | 'cooldown' | 'mobility' | 'buff'
 
 /** Slot 1 holds the artifact; the last slot holds outdoor talents (none yet); the rest hold abilities. */
 export type SlotKind = 'artifact' | AbilityKind | 'outdoor'
@@ -14,9 +14,13 @@ export type Role = 'damage' | 'healer' | 'tank'
 
 /**
  * What a weapon physically is, for abilities whose animation or story needs it: a blade stabs and
- * slices, daggers can be thrown, a large weapon sweeps and cleaves, a bow shoots arrows.
+ * slices, daggers can be thrown, a large weapon sweeps and cleaves, a bow shoots arrows, a shield
+ * bashes and blocks.
  */
-export type WeaponTrait = 'blade' | 'dagger' | 'large' | 'bow' | 'staff' | 'book'
+export type WeaponTrait = 'blade' | 'dagger' | 'large' | 'bow' | 'staff' | 'book' | 'shield'
+
+/** Whether a weapon fights up close or from range. With the role, it sets your seat in a group. */
+export type Reach = 'melee' | 'ranged'
 
 /** An ability card, like the deck's ability slides. */
 export interface AbilityCard {
@@ -94,6 +98,13 @@ export interface ArtifactDef {
   role: Role
   /** What the three role slots hold. */
   roleKind: AbilityKind
+  /** Up close or from range: the picker groups artifacts by seat (tank, healer, melee or ranged damage). */
+  reach: Reach
+  /**
+   * A first version, improvised until its real design arrives: tagged in the builder. Search for
+   * `firstVersion` to find them all.
+   */
+  firstVersion?: boolean
   /** Shown on the artifact card and in the picker. */
   description: string
   /** What it is, for abilities that need a certain weapon (`needs`). */

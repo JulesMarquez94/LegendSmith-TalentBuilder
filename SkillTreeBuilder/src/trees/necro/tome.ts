@@ -144,6 +144,7 @@ export const tomeOfSummoning: ArtifactDef = {
   color: '#c89b4c',
   role: 'damage',
   roleKind: 'damage',
+  reach: 'ranged',
   resource: 'Imps',
   resourceStart: 0,
   traits: ['book'],

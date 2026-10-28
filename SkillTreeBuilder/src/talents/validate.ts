@@ -131,7 +131,15 @@ function modsOf(m: Mechanic): ModMechanic[] {
 }
 
 /** Stats in a weapon's own numbers: an imp, a combo point and a point of mana are worth very different things. */
-const WEAPON_STATS: readonly CharStat[] = ['maxResource', 'resourceRegen', 'overhealToResource', 'minionPower', 'comboBonus']
+const WEAPON_STATS: readonly CharStat[] = [
+  'maxResource',
+  'resourceRegen',
+  'resourceWhenHit',
+  'resourceOnParry',
+  'overhealToResource',
+  'minionPower',
+  'comboBonus',
+]
 
 /**
  * Abilities go on any weapon of their role, so their talents can't lean on one: they aim at their own

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { Fragment, useEffect, useId, useRef } from 'react'
 import { ArtIcon } from './ArtIcon.tsx'
 
 /** One choice in the picker: an ability for a slot, or an artifact for slot 1. */
@@ -17,6 +17,10 @@ export interface PickerOption {
   madeFor?: { name: string; color: string; yours: boolean }
   /** Why your weapon can't slot it ("Needs a blade"); shown, but not pickable. */
   locked?: string
+  /** An artifact that's a first version, until its real design arrives. */
+  firstVersion?: boolean
+  /** Options with the same group are listed together under it (artifacts by seat: "Tank", "Healer"…). */
+  group?: string
   /** The slot it's in now (0-based), or -1. */
   at: number
 }
@@ -32,7 +36,7 @@ interface Props {
   onClose: () => void
 }
 
-/** A modal list of what fits a slot. Escape, Cancel or a click outside closes it. */
+/** A modal list of what fits a slot, in groups when the options have them. Escape, Cancel or a click outside closes it. */
 export function AbilityPicker({ slotIndex, title, subtitle, options, slotFilled, onPick, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -46,6 +50,63 @@ export function AbilityPicker({ slotIndex, title, subtitle, options, slotFilled,
     onPick(id)
     ref.current?.close()
   }
+
+  // Groups in the order their first option comes, so the caller decides the order.
+  const groups = [...new Set(options.map((o) => o.group))]
+
+  const list = (group: string | undefined) => (
+    <ul className="picker__list">
+      {options
+        .filter((option) => option.group === group)
+        .map((option) => {
+          const here = option.at === slotIndex
+          return (
+            <li key={option.id}>
+              <button
+                type="button"
+                className={option.locked ? 'picker__option picker__option--locked' : 'picker__option'}
+                disabled={here || option.locked !== undefined}
+                onClick={() => choose(option.id)}
+              >
+                <ArtIcon
+                  folder={option.artFolder}
+                  icon={option.icon}
+                  label={option.name}
+                  tint={option.color}
+                  className="picker__icon"
+                />
+                <span className="picker__text">
+                  <span className="picker__name">
+                    {option.name}
+                    {option.madeFor && (
+                      <span
+                        className="tag tag--weapon"
+                        style={{ color: option.madeFor.color, borderColor: option.madeFor.color }}
+                        title={`Made for the ${option.madeFor.name}. Any weapon of its role can use it.`}
+                      >
+                        {option.madeFor.name}
+                      </span>
+                    )}
+                    {option.locked && <span className="tag tag--locked">{option.locked}</span>}
+                    {option.playtest && <span className="tag">Playtest</span>}
+                    {option.displayOnly && <span className="tag">Display only</span>}
+                    {option.firstVersion && <span className="tag">First version</span>}
+                    {here && <span className="picker__note">In this slot</span>}
+                    {!here && option.at >= 0 && (
+                      <span className="picker__note">
+                        In slot {option.at + 1} · {slotFilled ? 'swaps' : 'moves here'}
+                      </span>
+                    )}
+                  </span>
+                  <span className="picker__meta">{option.meta}</span>
+                  <span className="picker__desc">{option.description}</span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+    </ul>
+  )
 
   return (
     <dialog
@@ -63,54 +124,16 @@ export function AbilityPicker({ slotIndex, title, subtitle, options, slotFilled,
         </h2>
         <p className="picker__sub">{subtitle}</p>
 
-        <ul className="picker__list">
-          {options.map((option) => {
-            const here = option.at === slotIndex
-            return (
-              <li key={option.id}>
-                <button
-                  type="button"
-                  className={option.locked ? 'picker__option picker__option--locked' : 'picker__option'}
-                  disabled={here || option.locked !== undefined}
-                  onClick={() => choose(option.id)}
-                >
-                  <ArtIcon
-                    folder={option.artFolder}
-                    icon={option.icon}
-                    label={option.name}
-                    tint={option.color}
-                    className="picker__icon"
-                  />
-                  <span className="picker__text">
-                    <span className="picker__name">
-                      {option.name}
-                      {option.madeFor && (
-                        <span
-                          className="tag tag--weapon"
-                          style={{ color: option.madeFor.color, borderColor: option.madeFor.color }}
-                          title={`Made for the ${option.madeFor.name}. Any weapon of its role can use it.`}
-                        >
-                          {option.madeFor.name}
-                        </span>
-                      )}
-                      {option.locked && <span className="tag tag--locked">{option.locked}</span>}
-                      {option.playtest && <span className="tag">Playtest</span>}
-                      {option.displayOnly && <span className="tag">Display only</span>}
-                      {here && <span className="picker__note">In this slot</span>}
-                      {!here && option.at >= 0 && (
-                        <span className="picker__note">
-                          In slot {option.at + 1} · {slotFilled ? 'swaps' : 'moves here'}
-                        </span>
-                      )}
-                    </span>
-                    <span className="picker__meta">{option.meta}</span>
-                    <span className="picker__desc">{option.description}</span>
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+        {groups.map((group) =>
+          group === undefined ? (
+            <Fragment key="">{list(group)}</Fragment>
+          ) : (
+            <section key={group} className="picker__group">
+              <h3 className="picker__group-title">{group}</h3>
+              {list(group)}
+            </section>
+          ),
+        )}
 
         <div className="picker__footer">
           <button type="button" className="btn" onClick={() => ref.current?.close()}>

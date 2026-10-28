@@ -135,6 +135,7 @@ export const lifewardenStaff: ArtifactDef = {
   color: '#e8cf6a',
   role: 'healer',
   roleKind: 'heal',
+  reach: 'ranged',
   resource: 'Mana',
   traits: ['staff'],
   stats: { maxResource: 1000, resourceRegen: 8 },
