@@ -25,6 +25,8 @@ export const raiseGhoul: TreeDef = {
     description: 'Raise a ghoul that fights for you for 20 sec. You can have up to 3 ghouls at once.',
   },
   spec: {
+    // A summon spell, so talents for summon spells (Quick Invocation) reach it.
+    tags: ['summon'],
     cost: 2,
     castTime: 1.5,
     range: 20,

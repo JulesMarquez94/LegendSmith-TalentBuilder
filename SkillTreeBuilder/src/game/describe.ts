@@ -161,6 +161,7 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
         better: 'up',
         detail: `every ${seconds(e.interval)}, each`,
       })
+      if (e.duration > 0) out.push({ key: key('duration'), label: 'Each lasts', value: e.duration, format: seconds, better: 'up' })
       break
     case 'curse':
       out.push({

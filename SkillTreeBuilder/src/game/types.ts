@@ -70,6 +70,8 @@ export type CharStat =
   | 'resourceWhenHit'
   /** Resource you gain each time you parry. In the weapon's own units. */
   | 'resourceOnParry'
+  /** % chance each minion you sacrifice to pay for an ability survives, and isn't spent (the book's imps). */
+  | 'spareChance'
   /**
    * Combo weapons: each step past the first adds this % on top of its usual 100%, so three steps at
    * +20% land at 1 + 2 × 1.2 = 3.4 times the ability's strength.
@@ -211,6 +213,8 @@ export interface BuffSpec {
   group?: boolean
   /** Lost as soon as you use an ability that doesn't match this (Rapid Fire: anything but the main attack). */
   lostUnless?: Match
+  /** Another stack doesn't refresh its timer: every stack ends when the first one does (Dark Bargain). */
+  keepsTimer?: boolean
 }
 
 /** One piece of what an ability does. Only the fields its type uses matter. */
@@ -326,9 +330,21 @@ export interface ModMechanic {
  * DoT or zone runs out. `gain` fires when you gain resource: once per gain from an ability or talent,
  * and once for every 10% of your maximum you regenerate. `parry` fires when you parry a swing; its
  * enemy is the one that swung. `second` fires once every second of the fight while you're alive,
- * so a proc with `every: 5` goes off every 5 sec.
+ * so a proc with `every: 5` goes off every 5 sec. `sacrifice` fires once for each minion you
+ * sacrifice to pay for an ability, and `moving` once for every second you spend moving.
  */
-export type EventKind = 'cast' | 'heal' | 'crit' | 'hit' | 'tick' | 'expire' | 'gain' | 'parry' | 'second'
+export type EventKind =
+  | 'cast'
+  | 'heal'
+  | 'crit'
+  | 'hit'
+  | 'tick'
+  | 'expire'
+  | 'gain'
+  | 'parry'
+  | 'second'
+  | 'sacrifice'
+  | 'moving'
 
 export type Action =
   /**
@@ -380,6 +396,10 @@ export type Action =
    * one on an enemy that already has one from the same talent adds its points and seconds to it.
    */
   | { do: 'trickle'; pct: number; seconds: number; extends?: boolean }
+  /** Adds seconds to every imp you command (the book's minions, which last a while). */
+  | { do: 'extendImps'; seconds: number }
+  /** Does one of these, picked at random (Dark Bargain: haste, crit, echo or minion power). */
+  | { do: 'oneOf'; actions: Action[] }
   /** Fires another ability's effects, slotted or not. */
   | { do: 'fire'; ability: string; at?: 'event' }
 
@@ -391,6 +411,8 @@ export interface ProcSpec {
   chance?: number
   /** Fires on every Nth matching event. */
   every?: number
+  /** Seconds before it can go off again. */
+  cooldown?: number
   actions: Action[]
 }
 

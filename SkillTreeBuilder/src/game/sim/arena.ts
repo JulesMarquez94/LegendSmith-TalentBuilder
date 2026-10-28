@@ -200,6 +200,8 @@ export interface Imp {
   id: number
   angle: number
   nextAttack: number
+  /** When it leaves. Spells sacrifice the imp with the least time left first. */
+  endsAt: number
 }
 
 /** A minion an ability raised (a ghoul): it fights on its own until its time runs out. */
@@ -237,6 +239,10 @@ const GAIN_TAGS: ReadonlySet<Tag> = new Set<Tag>(['resource'])
 const PARRY_TAGS: ReadonlySet<Tag> = new Set<Tag>(['parry'])
 /** The tags a `second` event carries. */
 const SECOND_TAGS: ReadonlySet<Tag> = new Set<Tag>(['second'])
+/** The tags a `sacrifice` event carries. */
+const SACRIFICE_TAGS: ReadonlySet<Tag> = new Set<Tag>(['sacrifice'])
+/** The tags a `moving` event carries. */
+const MOVING_TAGS: ReadonlySet<Tag> = new Set<Tag>(['moving'])
 
 /** Resource given back a second at a time (Barbed Arrows), from the `trickle` action. */
 interface Trickle {
@@ -396,6 +402,10 @@ export class Arena {
   /** When the next `second` event fires. */
   private nextSecond = 1
   private trickles: Trickle[] = []
+  /** Time spent moving since the last `moving` event. */
+  private movedFor = 0
+  /** When each proc with a cooldown can go off again. */
+  private readonly procReady = new Map<string, number>()
   /** Fractions of a point each trickle source has built up, given once they make a whole one. */
   private readonly trickleCarry = new Map<string, number>()
   facing: Vec = { x: 0, y: -1 }
@@ -694,6 +704,8 @@ export class Arena {
     const cd = this.cooldowns.get(base.treeId)
     if (cd && cd.charges < 1) return `${base.name} isn't ready yet`
     let a = this.current(slot)!
+    // You can't cast and move: a cast can't start while you walk, and walking waits for it to end.
+    if (a.castTime > 0 && input && Math.hypot(input.move.x, input.move.y) > 0) return "You can't cast while moving"
     const resource = this.kit.resource.toLowerCase()
     if (this.resource + 1e-6 < a.cost) return `Not enough ${resource}`
     if (a.effects.some((e) => e.type === 'restore' && e.tags.has('main-attack')) && this.kit.minion) {
@@ -1196,7 +1208,7 @@ export class Arena {
       id: spec.id,
       name: spec.name,
       duration,
-      endsAt: this.time + duration,
+      endsAt: existing && spec.keepsTimer ? existing.endsAt : this.time + duration,
       stats: spec.stats ?? {},
       mods: spec.mods ?? [],
       consumeOn: spec.consumeOn,
@@ -1244,7 +1256,10 @@ export class Arena {
         this.procCounts.set(key, n)
         if (n % p.every !== 0) return
       }
+      const key = `${rp.source.treeId}/${rp.source.talentId}/${i}`
+      if (p.cooldown && this.time < (this.procReady.get(key) ?? -Infinity)) return
       if (p.chance !== undefined && this.rng() * 100 >= p.chance) return
+      if (p.cooldown) this.procReady.set(key, this.time + p.cooldown)
       for (const action of p.actions) this.act(action, rp, ev)
     })
   }
@@ -1329,6 +1344,14 @@ export class Arena {
           running.left += total
           running.ticksLeft += action.seconds
         } else this.trickles.push({ name, enemy, left: total, ticksLeft: action.seconds, nextAt: this.time + 1 })
+        break
+      }
+      case 'extendImps':
+        for (const imp of this.imps) imp.endsAt += action.seconds
+        break
+      case 'oneOf': {
+        const pick = action.actions[Math.floor(this.rng() * action.actions.length)]
+        if (pick) this.act(pick, rp, ev)
         break
       }
       case 'extendBuff': {
@@ -1690,8 +1713,10 @@ export class Arena {
 
   private spend(n: number, source: string) {
     if (n <= 0) return
-    this.resource = Math.max(0, this.resource - n)
-    this.meter.resourceSpent.set(source, (this.meter.resourceSpent.get(source) ?? 0) + n)
+    // When your resource is imps, spending it sacrifices them.
+    const spent = this.kit.minion ? this.sacrifice(n) : n
+    this.resource = Math.max(0, this.resource - spent)
+    this.meter.resourceSpent.set(source, (this.meter.resourceSpent.get(source) ?? 0) + spent)
   }
 
   // ---------- Minions ----------
@@ -1699,13 +1724,48 @@ export class Arena {
   /** One imp per whole point of a minion resource: summoned ones appear, sacrificed ones vanish. */
   private syncImps() {
     const want = this.kit.minion && this.player.alive ? Math.floor(this.resource + 1e-6) : 0
+    const lasts = this.minionNow()?.duration ?? 0
     while (this.imps.length < want) {
-      this.imps.push({ id: this.nextId++, angle: this.rng() * Math.PI * 2, nextAttack: this.time + 0.4 + this.rng() * 0.6 })
+      this.imps.push({
+        id: this.nextId++,
+        angle: this.rng() * Math.PI * 2,
+        nextAttack: this.time + 0.4 + this.rng() * 0.6,
+        endsAt: lasts > 0 ? this.time + lasts : Infinity,
+      })
     }
-    while (this.imps.length > want) {
-      const imp = this.imps.pop()!
-      this.ring(this.impPos(imp), 1.2, '#ff8a5c')
+    while (this.imps.length > want) this.removeImp(this.shortestImp()!)
+  }
+
+  /** The imp with the least time left: the one a spell sacrifices first. */
+  private shortestImp(): Imp | undefined {
+    return this.imps.reduce<Imp | undefined>((min, imp) => (!min || imp.endsAt < min.endsAt ? imp : min), undefined)
+  }
+
+  private removeImp(imp: Imp) {
+    this.imps = this.imps.filter((x) => x !== imp)
+    this.ring(this.impPos(imp), 1.2, '#ff8a5c')
+  }
+
+  /**
+   * Pays for an ability with imps, the ones with the least time left first. Each has the spare
+   * chance to survive instead (and isn't spent). Returns how many were spent.
+   */
+  private sacrifice(n: number): number {
+    // Imps you just gained (or were given) may not have appeared yet.
+    this.syncImps()
+    const spare = this.stats().spareChance
+    const order = [...this.imps].sort((a, b) => a.endsAt - b.endsAt)
+    let spent = n - Math.floor(n + 1e-6)
+    for (const imp of order.slice(0, Math.floor(n + 1e-6))) {
+      if (spare > 0 && this.rng() * 100 < spare) {
+        this.text(this.impPos(imp), 'Spared', '#a6e65a', false)
+        continue
+      }
+      this.removeImp(imp)
+      spent += 1
+      this.emit({ kind: 'sacrifice', tags: SACRIFICE_TAGS, ctx: this.newContext(null, -1, 0) })
     }
+    return spent
   }
 
   /** Where an imp hovers: circling you, on a wider circle the more you have. */
@@ -1716,6 +1776,11 @@ export class Arena {
   }
 
   private updateImps() {
+    // An imp whose time is up leaves, and takes its point of resource with it.
+    for (const imp of this.imps.filter((x) => this.time >= x.endsAt)) {
+      this.removeImp(imp)
+      this.resource = Math.max(0, this.resource - 1)
+    }
     const e = this.imps.length ? this.minionNow() : null
     if (!e) return
     for (const imp of this.imps) {
@@ -1868,14 +1933,24 @@ export class Arena {
       const { from, to } = this.dashing
       p.pos = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }
       if (t >= 1) this.dashing = null
+      this.moved(dt)
       return
     }
     const len = Math.hypot(input.move.x, input.move.y)
-    if (len === 0) return
+    // You can't cast and move: walking waits for the cast to end (dashes and teleports still work).
+    if (len === 0 || this.cast) return
     const dir = { x: input.move.x / len, y: input.move.y / len }
     const speed = RUN_SPEED * (1 + this.stats().speed / 100)
     this.facing = dir
     p.pos = inArena({ x: p.pos.x + dir.x * speed * dt, y: p.pos.y + dir.y * speed * dt })
+    this.moved(dt)
+  }
+
+  /** Counts time spent moving: a `moving` event for every whole second (Quick Invocation). */
+  private moved(dt: number) {
+    for (this.movedFor += dt; this.movedFor >= 1 - 1e-9; this.movedFor -= 1) {
+      this.emit({ kind: 'moving', tags: MOVING_TAGS, ctx: this.newContext(null, -1, 0) })
+    }
   }
 
   private moveBots(dt: number) {

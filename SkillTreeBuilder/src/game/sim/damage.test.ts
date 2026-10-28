@@ -79,9 +79,36 @@ describe('the summoning book', () => {
 
   it('lets you command up to 15 imps', () => {
     const arena = new Arena(kitFor(book, [null, null, null, null, null, null]), DUMMIES, { seed: 1 })
-    for (let i = 0; i < 16; i++) cast(arena, 0)
+    arena.resource = 15
+    cast(arena, 0)
     expect(arena.imps).toHaveLength(15)
     expect(arena.notice?.text).toBe('You command as many imps as you can')
+  })
+
+  it('summons each imp for 14 sec, in a 2 sec cast', () => {
+    const arena = new Arena(kitFor(book, [null, null, null, null, null, null]), DUMMIES, { seed: 1 })
+    arena.press(0)
+    run(arena, 1.9)
+    expect(arena.imps).toHaveLength(0)
+    run(arena, 0.2)
+    expect(arena.imps).toHaveLength(1)
+    run(arena, 13.8)
+    expect(arena.imps).toHaveLength(1)
+    run(arena, 0.3)
+    expect(arena.imps).toHaveLength(0)
+    expect(arena.resource).toBe(0)
+  })
+
+  it('sacrifices the imp with the least time left first', () => {
+    const arena = new Arena(kitFor(book, ['festering-rot', null, null, null, null, null]), DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    cast(arena, 0)
+    run(arena, 1)
+    cast(arena, 0)
+    const [older, newer] = arena.imps
+    cast(arena, 1)
+    expect(arena.imps).toEqual([newer])
+    expect(older.endsAt).toBeLessThan(newer.endsAt)
   })
 
   it('has no cooldown on Harvest: only imps limit it', () => {
@@ -187,6 +214,102 @@ describe('the daggers', () => {
   })
 })
 
+describe("the summoning book's tree", () => {
+  const tomeKit = (ranks: Record<string, number>, slots: (string | null)[] = [null, null, null, null, null, null]) =>
+    noCrits(kitFor(book, slots, { 'tome-of-summoning': ranks }))
+  /** The same kit with every talent proc made certain, for procs that roll a small chance. */
+  const certain = (kit: Kit): Kit => ({ ...kit, procs: kit.procs.map((p) => ({ ...p, proc: { ...p.proc, chance: 100 } })) })
+  const ready = (kit: Kit, imps = 0) => {
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = imps
+    return arena
+  }
+  const moving = { move: { x: 1, y: 0 }, aim: null, held: new Set<number>() }
+
+  it('makes imps last longer and Summon Imp cast faster', () => {
+    const kit = tomeKit({ 'lasting-pact': 2, 'quick-summons': 2, 'infernal-haste': 2 })
+    expect(kit.slots[0]!.minion!.duration).toBe(24)
+    expect(kit.slots[0]!.castTime).toBeCloseTo(1.5 / 1.06)
+    expect(kit.character.stats.haste).toBe(6)
+  })
+
+  it('builds Quick Invocation while you move, for an instant summon at 100%', () => {
+    const arena = ready(tomeKit({ 'quick-invocation': 2 }))
+    for (let t = 0; t < 13; t += DT) arena.step(DT, moving)
+    expect(arena.buffs.find((b) => b.id === 'quick-invocation')?.stacks).toBe(13)
+    expect(arena.current(0)!.castTime).toBe(0)
+    // Instant, so it goes off even on the move, and uses the stacks up.
+    arena.press(0)
+    arena.step(DT, moving)
+    expect(arena.imps).toHaveLength(1)
+    expect(arena.buffs.some((b) => b.id === 'quick-invocation')).toBe(false)
+  })
+
+  it('lengthens every imp on a hit with Bloodbound', () => {
+    const arena = ready(certain(tomeKit({ bloodbound: 2 })), 2)
+    run(arena, DT)
+    const before = arena.imps.map((i) => i.endsAt)
+    run(arena, 1.5)
+    // At least one imp attack landed, adding a second to both imps.
+    arena.imps.forEach((imp, i) => expect(imp.endsAt).toBeGreaterThanOrEqual(before[i] + 1))
+  })
+
+  it('summons an extra imp from an imp attack with Spawning, at most once every 15 sec', () => {
+    const arena = ready(certain(tomeKit({ spawning: 2 })), 1)
+    run(arena, 1.5)
+    expect(arena.imps).toHaveLength(2)
+    run(arena, 10)
+    expect(arena.imps).toHaveLength(2)
+  })
+
+  it('spares sacrificed imps with Stubborn Imps', () => {
+    const base = tomeKit({ 'stubborn-imps': 2 }, ['festering-rot', null, null, null, null, null])
+    expect(base.character.stats.spareChance).toBe(10)
+    const kit: Kit = { ...base, character: { ...base.character, stats: { ...base.character.stats, spareChance: 100 } } }
+    const arena = ready(kit, 3)
+    cast(arena, 1)
+    expect(arena.resource).toBe(3)
+    expect(arena.meter.resourceSpent.get('Festering Rot') ?? 0).toBe(0)
+  })
+
+  it('gives a stacking buff for every sacrificed imp with Dark Bargain, without refreshing it', () => {
+    const arena = ready(tomeKit({ 'dark-bargain': 1 }, ['doom-bolt', null, null, null, null, null]), 6)
+    cast(arena, 1)
+    const bargains = arena.buffs.filter((b) => b.id.startsWith('dark-bargain'))
+    expect(bargains.reduce((n, b) => n + b.stacks, 0)).toBe(6)
+    const ends = new Map(bargains.map((b) => [b.id, b.endsAt]))
+    run(arena, 2)
+    arena.resource = 3
+    cast(arena, 1)
+    for (const b of arena.buffs.filter((x) => ends.has(x.id))) expect(b.endsAt).toBe(ends.get(b.id))
+  })
+
+  it('summons 2 imps on every third Summon Imp with Twin Summons', () => {
+    const arena = ready(tomeKit({ 'twin-summons': 1 }))
+    for (let i = 0; i < 3; i++) cast(arena, 0)
+    expect(arena.imps).toHaveLength(4)
+  })
+})
+
+describe('casting and moving', () => {
+  it("won't start a cast while you walk, and keeps you still while you cast", () => {
+    const arena = new Arena(kitFor(book, [null, null, null, null, null, null]), DUMMIES, { seed: 1 })
+    const start = { ...arena.player.pos }
+    arena.press(0)
+    arena.step(DT, { move: { x: 1, y: 0 }, aim: null, held: new Set() })
+    expect(arena.cast).toBeNull()
+    expect(arena.notice?.text).toBe("You can't cast while moving")
+    arena.press(0)
+    arena.step(DT)
+    expect(arena.cast?.ability.name).toBe('Summon Imp')
+    const casting = { ...arena.player.pos }
+    for (let t = 0; t < 1; t += DT) arena.step(DT, { move: { x: 1, y: 0 }, aim: null, held: new Set() })
+    expect(arena.player.pos).toEqual(casting)
+    expect(arena.player.pos.x).toBeGreaterThan(start.x)
+  })
+})
+
 describe('the bow', () => {
   const bow = artifact('ashwood-longbow')
 
@@ -273,7 +396,7 @@ describe("the bow's tree", () => {
     run(arena, 4.9)
     expect(arena.resource).toBe(0)
     run(arena, 5.2)
-    expect(gained(arena, 'Focused Mind')).toBe(20)
+    expect(gained(arena, 'Focused Mind')).toBe(8)
   })
 
   it('gives focus on every critical hit with Piercing Shot', () => {

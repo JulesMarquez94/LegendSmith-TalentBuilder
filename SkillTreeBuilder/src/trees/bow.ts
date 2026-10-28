@@ -141,7 +141,7 @@ const tree: TreeDef = {
       row: 2,
       col: 2,
       requires: 'fletching',
-      per: [5, 10],
+      per: [2, 4],
       text: 'Every 5 sec, you gain {} focus.',
       does: (v) => [proc('second', 'second', [restore(v)], { every: 5 })],
     }),
