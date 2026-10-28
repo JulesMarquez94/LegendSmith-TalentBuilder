@@ -31,8 +31,13 @@ repositories.
 | 2–4 | Role abilities: heals for a healer, damage for a damage dealer, tank abilities for a tank | Right click, Q, E |
 | 5 | An ultimate (big cooldown). Fervor fits every role | F |
 | 6 | A mobility ability, shared by every role | Shift |
-| 7 | A group buff for your role: passive, for you and your group | — |
-| 8 | Outdoor talents, always there. Empty for now | — |
+| 7 | A group buff for your role: passive, for you and your group | Passive |
+| 8 | The **character skill tree**, always there whatever you hold, on its own tab. Empty for now | — |
+
+The build view has two tabs above the trees. **Artifact skills** is a grid of 4 across and 2 down: the
+first block is an **overview** that lists slots 1–7 top to bottom with their key, ability and points
+spent (click a row to change that slot), and the other seven blocks hold the slots' trees.
+**Character skills** holds slot 8, a bigger tree for the character itself. It has nothing to spec yet.
 
 Click **Change** on slot 1 to switch artifacts; the picker lists them by seat (Tank, Healer, Melee
 damage, Ranged damage). Abilities that don't fit the new role come out and refund their points. Click an empty slot (or **Change**) to pick an ability. Picking one that's
@@ -63,8 +68,9 @@ below with its role.
 
 - **60 talent points** (one per level) to spend anywhere, but **no more than 12 in any one tree**, as in
   the overview (`POINT_RULES` in `src/trees/index.ts`).
-- **Ultimates** (the cooldown slot) have smaller trees: **6 points at most** (`perUltimate`), about 5
-  talents and **exactly 9 ranks** (`ULTIMATE_RANKS`), in the top three rows so 6 points reach them all.
+- **Ultimates** (the cooldown slot) and **group buffs** have small trees: **6 points at most**
+  (`perSmall`), about 5 talents and **exactly 9 ranks** (`SMALL_RANKS`), in the top three rows so 6
+  points reach them all.
 - Every other tree's talents hold **exactly 18 ranks** in all (`TREE_RANKS`), so with 12 to spend you always
   leave a third of it: 6, 12, 18. The data test fails on a tree with more or fewer. Talents that reach
   other abilities (a whole family) or feed them (synergy) are favoured; tweaks to one ability's own
@@ -181,11 +187,11 @@ takes 550 for each one on it. Its tree:
 | 1 | Bountiful Harvest | 3 | 5/10/15% more damage for each of your DoTs on the target |
 | 1 | Keen Scythe | 3 | 10/20/30% more damage |
 | 1 | Reaper's Due | 1 | Costs 20% less |
-| 2 | Chaff (needs Bountiful Harvest) | 2 | Each hit splashes 15/30% of its damage onto every other enemy within 8 yd |
+| 2 | Chaff (needs Bountiful Harvest) | 2 | Each hit splashes 10/20% of its damage onto every other enemy within 8 yd |
 | 2 | Ripening (needs Keen Scythe) | 1 | Potency also raises its damage, by the same % |
 | 2 | Reaping | 2 | Each tick of your DoTs adds 0.5/1% to the next Harvest, up to 100 stacks; Harvest uses them up |
-| 3 | Lone Reaper (needs Chaff) | 2 | When it hits only one enemy: 20/40% more damage and 100/200% more splash |
-| 3 | Windfall (needs Reaper's Due) | 3 | Each tick of your DoTs has a 2/4/6% chance to make the next Harvest free |
+| 3 | Lone Reaper (needs Chaff) | 2 | When it hits only one enemy: 20/40% more damage and 50/100% more splash |
+| 3 | Windfall (needs Reaper's Due) | 3 | Each tick of your DoTs has a 2/4/6% chance to make the next Harvest free, at most once every 20 sec |
 | 4 | Endless Harvest (needs Reaping) | 1 | Harvest becomes a passive that goes off on its own every 10 sec, for free |
 
 The new mechanics behind it:
@@ -345,7 +351,8 @@ stat (`parry`) and a new event (`parry`, its enemy is the one that swung), so it
 
 Every character slots one group buff for their role. It's passive: you and your group get its stats,
 and its tree adds more. Healers pick more maximum health or more healing received. Damage dealers pick
-Haste, Critical or Power. Tanks get Damage reduction, Dodge or Speed.
+Haste, Critical or Power. Tanks get Damage reduction, Dodge or Speed. Like an ultimate's, a group
+buff's tree is small: 6 points, 5 talents, 9 ranks.
 
 ## Gear and stats
 

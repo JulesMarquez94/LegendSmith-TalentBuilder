@@ -8,7 +8,7 @@ export const KIND_LABEL: Record<SlotKind, string> = {
   cooldown: 'Ultimate',
   mobility: 'Mobility',
   buff: 'Group buff',
-  outdoor: 'Outdoor',
+  character: 'Character skills',
 }
 
 /** Seats in a group, in the order the artifact picker lists them. */

@@ -37,7 +37,7 @@ describe('talent points', () => {
   })
 
   it('stop at 6 in an ultimate', () => {
-    const rules: PointRules = { total: 60, perTree: 12, perUltimate: 6 }
+    const rules: PointRules = { total: 60, perTree: 12, perSmall: 6 }
     const loadout: Loadout = { ...START, slots: [null, null, null, null, 'blood-frenzy', null], ranks: {} }
     const path = ['bloodlust', 'bloodlust', 'lingering-rage', 'lingering-rage', 'quickened-pulse', 'quickened-pulse', 'twin-frenzy']
     const l = path.reduce((acc, id) => learn(acc, bloodFrenzy, bloodFrenzy.talents.find((t) => t.id === id)!, rules), loadout)

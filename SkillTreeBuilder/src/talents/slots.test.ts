@@ -17,9 +17,9 @@ const tree = (id: string) => TREES.find((t) => t.id === id)!
 
 describe('the artifact', () => {
   it('decides what the role slots hold', () => {
-    expect(slotKinds(lifewardenStaff)).toEqual(['artifact', 'heal', 'heal', 'heal', 'cooldown', 'mobility', 'buff', 'outdoor'])
-    expect(slotKinds(tomeOfSummoning)).toEqual(['artifact', 'damage', 'damage', 'damage', 'cooldown', 'mobility', 'buff', 'outdoor'])
-    expect(slotKinds(swordAndShield)).toEqual(['artifact', 'tank', 'tank', 'tank', 'cooldown', 'mobility', 'buff', 'outdoor'])
+    expect(slotKinds(lifewardenStaff)).toEqual(['artifact', 'heal', 'heal', 'heal', 'cooldown', 'mobility', 'buff', 'character'])
+    expect(slotKinds(tomeOfSummoning)).toEqual(['artifact', 'damage', 'damage', 'damage', 'cooldown', 'mobility', 'buff', 'character'])
+    expect(slotKinds(swordAndShield)).toEqual(['artifact', 'tank', 'tank', 'tank', 'cooldown', 'mobility', 'buff', 'character'])
   })
 
   it('clears abilities and group buffs that no longer fit when it changes, keeping shared mobility', () => {

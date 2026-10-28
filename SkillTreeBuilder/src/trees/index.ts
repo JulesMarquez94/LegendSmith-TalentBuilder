@@ -28,9 +28,9 @@ import { swordAndShield } from './tank/shield.ts'
 
 /**
  * One talent point per level up to 60, and no more than 12 in any one tree, as in the overview's
- * "Ability slots and talent trees". An ultimate's smaller tree takes 6 at most.
+ * "Ability slots and talent trees". The small trees, the ultimate's and the group buff's, take 6 at most.
  */
-export const POINT_RULES: PointRules = { total: 60, perTree: 12, perUltimate: 6 }
+export const POINT_RULES: PointRules = { total: 60, perTree: 12, perSmall: 6 }
 
 /**
  * Every artifact that can be held, two per seat: tank, healer, melee and ranged damage. The picker

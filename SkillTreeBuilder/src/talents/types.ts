@@ -3,8 +3,8 @@ import type { AbilitySpec, CharStats, Mechanic } from '../game/types.ts'
 /** What an ability slot accepts. `tank` holds a tank's role abilities; `buff` is the group buff slot. */
 export type AbilityKind = 'damage' | 'heal' | 'tank' | 'cooldown' | 'mobility' | 'buff'
 
-/** Slot 1 holds the artifact; the last slot holds outdoor talents (none yet); the rest hold abilities. */
-export type SlotKind = 'artifact' | AbilityKind | 'outdoor'
+/** Slot 1 holds the artifact; the last slot holds the character skill tree (none yet); the rest hold abilities. */
+export type SlotKind = 'artifact' | AbilityKind | 'character'
 
 /**
  * The role an artifact gives you. Role abilities and group buffs belong to one role; mobility and

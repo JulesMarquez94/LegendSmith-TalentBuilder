@@ -24,7 +24,7 @@ function read(): Partial<Saved> {
 
 export function savedLoadout(): Loadout {
   const { loadout: stored } = read()
-  // Builds saved before the group buff and outdoor slots had six slots: add the two empty ones.
+  // Builds saved before the group buff and character slots had six slots: add the two empty ones.
   const padded =
     stored && Array.isArray(stored.slots) && stored.slots.length < STARTING_LOADOUT.slots.length
       ? { ...stored, slots: [...stored.slots, ...Array(STARTING_LOADOUT.slots.length - stored.slots.length).fill(null)] }

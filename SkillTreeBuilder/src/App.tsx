@@ -3,14 +3,17 @@ import { hasArt } from './art.ts'
 import { AbilityNumbers } from './components/AbilityNumbers.tsx'
 import { AbilityPicker, type PickerOption } from './components/AbilityPicker.tsx'
 import { ArenaView } from './components/arena/ArenaView.tsx'
+import { CharacterSkills } from './components/CharacterSkills.tsx'
 import { CharacterPanel } from './components/gear/CharacterPanel.tsx'
 import { KIND_LABEL, SEATS, seatOf } from './components/labels.ts'
 import { SlotCard } from './components/SlotCard.tsx'
+import { SlotOverview } from './components/SlotOverview.tsx'
 import { abilityMeta } from './game/describe.ts'
 import type { Gear } from './game/gear.ts'
 import { buildKit } from './game/resolve.ts'
 import { save, savedGear, savedLoadout } from './saved.ts'
 import { capFor, pointsLeftFor, ranksIn, totalSpent } from './talents/loadout.ts'
+import { pointsSpent } from './talents/rules.ts'
 import { canMake, fitsKind, NEEDS_LABEL, slotKinds } from './talents/slots.ts'
 import type { ArtifactDef, TreeDef } from './talents/types.ts'
 import { useLoadout } from './talents/useLoadout.ts'
@@ -27,10 +30,14 @@ const TREE_BY_ID = new Map(TREES.map((tree) => [tree.id, tree]))
 
 type View = 'build' | 'arena'
 
+/** The build view's two tabs: the artifact's abilities, and the character's own tree. */
+type SkillTab = 'artifact' | 'character'
+
 export default function App() {
   const build = useLoadout(savedLoadout, POINT_RULES, TREES)
   const [gear, setGear] = useState<Gear>(savedGear)
   const [view, setView] = useState<View>('build')
+  const [skillTab, setSkillTab] = useState<SkillTab>('artifact')
   const [picking, setPicking] = useState<number | null>(null)
   const { loadout } = build
   const spent = totalSpent(loadout)
@@ -112,7 +119,7 @@ export default function App() {
             {POINT_RULES.total - spent}
           </span>
           <span className="points__total">
-            / {POINT_RULES.total} · max {POINT_RULES.perTree} per tree, {POINT_RULES.perUltimate} per ultimate
+            / {POINT_RULES.total} · max {POINT_RULES.perTree} per tree, {POINT_RULES.perSmall} per ultimate or group buff
           </span>
         </div>
         <button type="button" className="btn btn--lg" onClick={build.resetTalents} disabled={spent === 0}>
@@ -137,30 +144,66 @@ export default function App() {
           <CharacterPanel artifact={artifact} character={kit.character} gear={gear} onGear={setGear} />
 
           <div className="build__trees">
-            <div className="slots">
-              {kinds.map((kind, index) => {
-                const tree = trees[index] ?? undefined
-                return (
-                  <SlotCard
-                    key={index}
-                    index={index}
-                    kind={kind}
-                    tree={tree}
-                    ranks={tree ? ranksIn(loadout, tree) : {}}
-                    pointsLeft={tree ? pointsLeftFor(loadout, tree, POINT_RULES) : 0}
-                    cap={tree ? capFor(tree, POINT_RULES) : POINT_RULES.perTree}
+            <nav className="tabs skill-tabs" aria-label="Skill tab">
+              <button
+                type="button"
+                className="tabs__tab"
+                aria-pressed={skillTab === 'artifact'}
+                onClick={() => setSkillTab('artifact')}
+              >
+                Artifact skills
+              </button>
+              <button
+                type="button"
+                className="tabs__tab"
+                aria-pressed={skillTab === 'character'}
+                onClick={() => setSkillTab('character')}
+              >
+                Character skills
+              </button>
+            </nav>
+
+            {skillTab === 'artifact' ? (
+              <>
+                {/* 4 across, 2 down: the overview, then the artifact and its six abilities. */}
+                <div className="slots">
+                  <SlotOverview
+                    kinds={kinds}
+                    trees={trees}
                     artifact={artifact}
-                    live={kit.slots[index] ?? null}
-                    kit={kit}
-                    onChoose={() => setPicking(index)}
-                    onRemove={() => build.slot(index, null)}
-                    onLearn={build.learn}
-                    onUnlearn={build.unlearn}
+                    points={trees.map((tree) =>
+                      tree ? `${pointsSpent(tree, ranksIn(loadout, tree))}/${capFor(tree, POINT_RULES)}` : null,
+                    )}
+                    onChoose={setPicking}
                   />
-                )
-              })}
-            </div>
-            <AbilityNumbers kinds={kinds} trees={trees} live={kit.slots} base={bare.slots} />
+                  {kinds.map((kind, index) => {
+                    if (kind === 'character') return null
+                    const tree = trees[index] ?? undefined
+                    return (
+                      <SlotCard
+                        key={index}
+                        index={index}
+                        kind={kind}
+                        tree={tree}
+                        ranks={tree ? ranksIn(loadout, tree) : {}}
+                        pointsLeft={tree ? pointsLeftFor(loadout, tree, POINT_RULES) : 0}
+                        cap={tree ? capFor(tree, POINT_RULES) : POINT_RULES.perTree}
+                        artifact={artifact}
+                        live={kit.slots[index] ?? null}
+                        kit={kit}
+                        onChoose={() => setPicking(index)}
+                        onRemove={() => build.slot(index, null)}
+                        onLearn={build.learn}
+                        onUnlearn={build.unlearn}
+                      />
+                    )
+                  })}
+                </div>
+                <AbilityNumbers kinds={kinds} trees={trees} live={kit.slots} base={bare.slots} />
+              </>
+            ) : (
+              <CharacterSkills />
+            )}
           </div>
         </div>
       </main>

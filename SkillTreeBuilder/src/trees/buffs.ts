@@ -1,7 +1,7 @@
 import { statValue } from '../game/format.ts'
 import type { CharStat, CharStats, ResolvedAbility } from '../game/types.ts'
 import type { TreeDef } from '../talents/types.ts'
-import { apply, aura, buff, cooldown, group, more, plus, proc, shield, stat, talent } from './authoring.ts'
+import { aura, buff, cooldown, group, more, plus, proc, stat, talent } from './authoring.ts'
 
 // Group buffs, for the buff slot: one per character, chosen by role. Each is passive and gives you
 // and everyone in your group its stats. Most talents add group stats (the buff's own, plus one
@@ -37,12 +37,13 @@ export const vitalityAura: TreeDef = {
     text: (a) => `Passive. You and your group have ${auraValue(a, 'healthPct')} more maximum health.`,
   },
   talents: [
+    // Row 1
     talent({
       id: 'swelling-heart',
       name: 'Swelling Heart',
       row: 0,
       col: 0,
-      per: [2, 4, 6],
+      per: [3, 6],
       text: 'You and your group have {}% more maximum health.',
       does: (v) => [group('healthPct', v)],
     }),
@@ -51,19 +52,12 @@ export const vitalityAura: TreeDef = {
       name: 'Warm Blood',
       row: 0,
       col: 1,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group receive {}% more healing.',
       does: (v) => [group('healingTaken', v)],
     }),
-    talent({
-      id: 'enduring-care',
-      name: 'Enduring Care',
-      row: 0,
-      col: 3,
-      per: [3, 6],
-      text: 'Your heal-over-time effects, zones, shields and buffs last {}% longer.',
-      does: (v) => [stat('potency', v)],
-    }),
+
+    // Row 2
     talent({
       id: 'thread-of-life',
       name: 'Thread of Life',
@@ -75,40 +69,21 @@ export const vitalityAura: TreeDef = {
       does: (v) => [more('amount', 'healing', v, { targetBelow: 50 })],
     }),
     talent({
-      id: 'steady-pulse',
-      name: 'Steady Pulse',
-      row: 1,
-      col: 2,
-      per: [4, 8, 12],
-      text: 'Your heal-over-time effects heal {}% more.',
-      does: (v) => [more('amount', 'hot', v)],
-    }),
-    talent({
-      id: 'rallying-beat',
-      name: 'Rallying Beat',
-      row: 2,
-      col: 1,
-      per: [15, 30],
-      text: 'Your critical heals have a {}% chance to make you and your group take 5% less damage for 6 sec.',
-      does: (v) => [
-        proc('crit', 'healing', [rally('rallying-beat', 'Rallying Beat', 6, { damageReduction: 5 })], { chance: v }),
-      ],
-    }),
-    talent({
       id: 'living-ward',
       name: 'Living Ward',
-      row: 2,
+      row: 1,
       col: 3,
       per: [10, 20],
       text: 'Your shields absorb {}% more.',
       does: (v) => [more('amount', 'shield', v)],
     }),
+
+    // Row 3
     talent({
       id: 'racing-heart',
       name: 'Racing Heart',
-      row: 3,
+      row: 2,
       col: 1,
-      requires: 'rallying-beat',
       text: 'When you heal an ally below 30% health, you and your group receive 10% more healing for 4 sec.',
       does: () => [
         proc('heal', 'healing', [rally('racing-heart', 'Racing Heart', 4, { healingTaken: 10 })], {
@@ -136,12 +111,13 @@ export const mendingGrace: TreeDef = {
     text: (a) => `Passive. You and your group receive ${auraValue(a, 'healingTaken')} more healing.`,
   },
   talents: [
+    // Row 1
     talent({
       id: 'open-arms',
       name: 'Open Arms',
       row: 0,
       col: 0,
-      per: [2, 4, 6],
+      per: [3, 6],
       text: 'You and your group receive {}% more healing.',
       does: (v) => [group('healingTaken', v)],
     }),
@@ -150,26 +126,19 @@ export const mendingGrace: TreeDef = {
       name: 'Gentle Touch',
       row: 0,
       col: 1,
-      per: [4, 8, 12],
+      per: [6, 12],
       text: 'Your direct heals heal {}% more.',
       does: (v) => [more('amount', 'direct-heal', v)],
     }),
-    talent({
-      id: 'quiet-breath',
-      name: 'Quiet Breath',
-      row: 0,
-      col: 3,
-      per: [0.1, 0.2],
-      text: 'You regenerate {}% of your maximum @resource more per sec.',
-      does: (v) => [stat('resourceRegenPct', v)],
-    }),
+
+    // Row 2
     talent({
       id: 'sturdy-kin',
       name: 'Sturdy Kin',
       row: 1,
       col: 0,
       requires: 'open-arms',
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group have {}% more maximum health.',
       does: (v) => [group('healthPct', v)],
     }),
@@ -182,35 +151,14 @@ export const mendingGrace: TreeDef = {
       text: 'Your heals have +{}% critical chance.',
       does: (v) => [plus('critChance', 'healing', v)],
     }),
-    talent({
-      id: 'swift-mercy',
-      name: 'Swift Mercy',
-      row: 2,
-      col: 0,
-      per: [5, 10],
-      text: 'When you heal an ally below 35% health, you have +{}% haste for 4 sec.',
-      does: (v) => [
-        proc('heal', 'healing', [buff({ id: 'swift-mercy', name: 'Swift Mercy', duration: 4, stats: { haste: v } })], {
-          when: { targetBelow: 35 },
-        }),
-      ],
-    }),
-    talent({
-      id: 'bright-mercy',
-      name: 'Bright Mercy',
-      row: 2,
-      col: 2,
-      requires: 'keen-mercy',
-      per: [10, 20],
-      text: 'Your heals have +{}% crit damage.',
-      does: (v) => [plus('critDamage', 'healing', v)],
-    }),
+
+    // Row 3
     talent({
       id: 'overflowing-grace',
       name: 'Overflowing Grace',
-      row: 3,
+      row: 2,
       col: 2,
-      requires: 'bright-mercy',
+      requires: 'keen-mercy',
       text: 'When you critically heal, you and your group receive 8% more healing for 4 sec.',
       does: () => [proc('crit', 'healing', [rally('overflowing-grace', 'Overflowing Grace', 4, { healingTaken: 8 })])],
     }),
@@ -234,6 +182,7 @@ export const warCadence: TreeDef = {
     text: (a) => `Passive. You and your group have +${auraValue(a, 'haste')} haste.`,
   },
   talents: [
+    // Row 1
     talent({
       id: 'marching-step',
       name: 'Marching Step',
@@ -248,27 +197,21 @@ export const warCadence: TreeDef = {
       name: 'Drumbeat',
       row: 0,
       col: 1,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group have +{}% haste.',
       does: (v) => [group('haste', v)],
     }),
+
+    // Row 2
     talent({
-      id: 'echoing-drums',
-      name: 'Echoing Drums',
-      row: 0,
-      col: 2,
-      per: [2, 4],
-      text: 'Your abilities have +{}% chance to be cast a second time for free.',
-      does: (v) => [stat('echo', v)],
-    }),
-    talent({
-      id: 'hurried-ruin',
-      name: 'Hurried Ruin',
+      id: 'tempo-surge',
+      name: 'Tempo Surge',
       row: 1,
-      col: 0,
-      per: [5, 10, 15],
-      text: 'Your damage-over-time effects tick {}% faster.',
-      does: (v) => [more('tickRate', 'dot', v)],
+      col: 1,
+      requires: 'drumbeat',
+      per: [7.5, 15],
+      text: 'Your critical hits have a {}% chance to give you and your group +5% haste for 5 sec.',
+      does: (v) => [proc('crit', 'damage', [rally('tempo-surge', 'Tempo Surge', 5, { haste: 5 })], { chance: v })],
     }),
     talent({
       id: 'relentless-tempo',
@@ -279,29 +222,12 @@ export const warCadence: TreeDef = {
       text: "Your damage abilities' cooldowns are {}% shorter.",
       does: (v) => [more('cooldown', 'damage', -v)],
     }),
-    talent({
-      id: 'tight-rhythm',
-      name: 'Tight Rhythm',
-      row: 1,
-      col: 3,
-      per: [0.05, 0.1],
-      text: "Your damage abilities' global cooldown is {} sec shorter.",
-      does: (v) => [plus('gcd', 'damage', -v)],
-    }),
-    talent({
-      id: 'tempo-surge',
-      name: 'Tempo Surge',
-      row: 2,
-      col: 1,
-      requires: 'drumbeat',
-      per: [5, 10, 15],
-      text: 'Your critical hits have a {}% chance to give you and your group +5% haste for 5 sec.',
-      does: (v) => [proc('crit', 'damage', [rally('tempo-surge', 'Tempo Surge', 5, { haste: 5 })], { chance: v })],
-    }),
+
+    // Row 3
     talent({
       id: 'breakneck',
       name: 'Breakneck',
-      row: 3,
+      row: 2,
       col: 2,
       requires: 'relentless-tempo',
       text: "Each critical hit takes 0.3 sec off your ultimate's cooldown.",
@@ -327,23 +253,15 @@ export const keenEdge: TreeDef = {
     text: (a) => `Passive. You and your group have +${auraValue(a, 'crit')} critical chance.`,
   },
   talents: [
+    // Row 1
     talent({
       id: 'honed-edge',
       name: 'Honed Edge',
       row: 0,
       col: 0,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group have +{}% critical chance.',
       does: (v) => [group('crit', v)],
-    }),
-    talent({
-      id: 'needle-point',
-      name: 'Needle Point',
-      row: 0,
-      col: 1,
-      per: [2, 4, 6],
-      text: 'Your direct damage has +{}% critical chance.',
-      does: (v) => [plus('critChance', 'direct-damage', v)],
     }),
     talent({
       id: 'festering-cuts',
@@ -354,47 +272,33 @@ export const keenEdge: TreeDef = {
       text: 'Your damage-over-time effects have +{}% critical chance.',
       does: (v) => [plus('critChance', 'dot', v)],
     }),
+
+    // Row 2
     talent({
       id: 'cutting-depth',
       name: 'Cutting Depth',
       row: 1,
       col: 0,
       requires: 'honed-edge',
-      per: [4, 8, 12],
+      per: [6, 12],
       text: 'You and your group have +{}% crit damage.',
       does: (v) => [group('critDamage', v)],
     }),
     talent({
-      id: 'wide-swathe',
-      name: 'Wide Swathe',
-      row: 1,
-      col: 2,
-      per: [3, 6],
-      text: 'Your area damage has +{}% critical chance.',
-      does: (v) => [plus('critChance', 'aoe', v)],
-    }),
-    talent({
-      id: 'laid-open',
-      name: 'Laid Open',
-      row: 2,
-      col: 1,
-      per: [5, 10],
-      text: 'Your critical hits have a {}% chance to give you and your group +4% critical chance for 5 sec.',
-      does: (v) => [proc('crit', 'damage', [rally('laid-open', 'Laid Open', 5, { crit: 4 })], { chance: v })],
-    }),
-    talent({
       id: 'calm-hand',
       name: 'Calm Hand',
-      row: 2,
+      row: 1,
       col: 3,
       per: [5, 10],
       text: 'You have +{}% crit damage.',
       does: (v) => [stat('critDamage', v)],
     }),
+
+    // Row 3
     talent({
       id: 'deep-incision',
       name: 'Deep Incision',
-      row: 3,
+      row: 2,
       col: 3,
       requires: 'calm-hand',
       text: 'When your direct damage critically hits, your damage-over-time effects on the target deal 2 sec worth of damage at once.',
@@ -421,12 +325,13 @@ export const sharpenedWill: TreeDef = {
       `Passive. You and your group have +${auraValue(a, 'power')} power: every hit, heal and shield lands harder.`,
   },
   talents: [
+    // Row 1
     talent({
       id: 'steeled-mind',
       name: 'Steeled Mind',
       row: 0,
       col: 1,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group have +{}% power.',
       does: (v) => [group('power', v)],
     }),
@@ -435,19 +340,12 @@ export const sharpenedWill: TreeDef = {
       name: 'Focused Breath',
       row: 0,
       col: 2,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group have +{}% haste.',
       does: (v) => [group('haste', v)],
     }),
-    talent({
-      id: 'unwavering-focus',
-      name: 'Unwavering Focus',
-      row: 0,
-      col: 3,
-      per: [3, 6],
-      text: 'Your damage-over-time effects, zones, shields and buffs last {}% longer.',
-      does: (v) => [stat('potency', v)],
-    }),
+
+    // Row 2
     talent({
       id: 'commanding-will',
       name: 'Commanding Will',
@@ -463,47 +361,16 @@ export const sharpenedWill: TreeDef = {
       row: 1,
       col: 1,
       requires: 'steeled-mind',
-      per: [3, 6, 9],
+      per: [4.5, 9],
       text: 'Your damage is {}% higher.',
       does: (v) => [more('amount', 'damage', v)],
     }),
-    talent({
-      id: 'broad-intent',
-      name: 'Broad Intent',
-      row: 2,
-      col: 0,
-      per: [5, 10],
-      text: 'Your area damage is {}% higher.',
-      does: (v) => [more('amount', 'aoe', v)],
-    }),
-    talent({
-      id: 'gathered-will',
-      name: 'Gathered Will',
-      row: 2,
-      col: 2,
-      per: [15, 30],
-      text: 'Every 4th damage ability you cast makes your next one deal {}% more damage.',
-      does: (v) => [
-        proc(
-          'cast',
-          'damage',
-          [
-            buff({
-              id: 'gathered-will',
-              name: 'Gathered Will',
-              duration: 10,
-              mods: [more('amount', 'damage', v)],
-              consumeOn: 'damage',
-            }),
-          ],
-          { every: 4 },
-        ),
-      ],
-    }),
+
+    // Row 3
     talent({
       id: 'shared-resolve',
       name: 'Shared Resolve',
-      row: 3,
+      row: 2,
       col: 1,
       requires: 'honed-intent',
       text: 'When you cast your ultimate, you and your group have +10% power for 10 sec.',
@@ -529,12 +396,13 @@ export const stoneskin: TreeDef = {
     text: (a) => `Passive. You and your group take ${auraValue(a, 'damageReduction')} less damage.`,
   },
   talents: [
+    // Row 1
     talent({
       id: 'granite-hide',
       name: 'Granite Hide',
       row: 0,
       col: 1,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group take {}% less damage.',
       does: (v) => [group('damageReduction', v)],
     }),
@@ -543,19 +411,12 @@ export const stoneskin: TreeDef = {
       name: 'Bedrock',
       row: 0,
       col: 2,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group have {}% more maximum health.',
       does: (v) => [group('healthPct', v)],
     }),
-    talent({
-      id: 'packed-earth',
-      name: 'Packed Earth',
-      row: 1,
-      col: 0,
-      per: [200, 400, 600],
-      text: 'You have {} more health.',
-      does: (v) => [stat('health', v)],
-    }),
+
+    // Row 2
     talent({
       id: 'unyielding-core',
       name: 'Unyielding Core',
@@ -575,28 +436,12 @@ export const stoneskin: TreeDef = {
       text: 'Your shields absorb {}% more.',
       does: (v) => [more('amount', 'shield', v)],
     }),
-    talent({
-      id: 'rock-shell',
-      name: 'Rock Shell',
-      row: 2,
-      col: 0,
-      per: [10, 20],
-      text: 'Your hits have a {}% chance to shield you for 400 for 6 sec.',
-      does: (v) => [proc('hit', 'damage', [apply(shield(400, 6, 'self', { name: 'Rock Shell' }))], { chance: v })],
-    }),
-    talent({
-      id: 'lasting-stone',
-      name: 'Lasting Stone',
-      row: 2,
-      col: 2,
-      per: [2, 4],
-      text: 'Your shields last {} sec longer.',
-      does: (v) => [plus('duration', 'shield', v)],
-    }),
+
+    // Row 3
     talent({
       id: 'living-rampart',
       name: 'Living Rampart',
-      row: 3,
+      row: 2,
       col: 1,
       requires: 'unyielding-core',
       text: 'When you cast your ultimate, you and your group take 10% less damage for 8 sec.',
@@ -622,33 +467,27 @@ export const evasionDrill: TreeDef = {
     text: (a) => `Passive. You and your group have +${auraValue(a, 'dodge')} dodge: the chance to avoid a hit completely.`,
   },
   talents: [
+    // Row 1
     talent({
       id: 'sidestep-practice',
       name: 'Sidestep Practice',
       row: 0,
       col: 0,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group have +{}% dodge.',
       does: (v) => [group('dodge', v)],
-    }),
-    talent({
-      id: 'nimble-ranks',
-      name: 'Nimble Ranks',
-      row: 0,
-      col: 2,
-      per: [3, 6, 9],
-      text: 'You and your group move {}% faster.',
-      does: (v) => [group('speed', v)],
     }),
     talent({
       id: 'practiced-feet',
       name: 'Practiced Feet',
       row: 0,
       col: 3,
-      per: [2, 4, 6],
+      per: [3, 6],
       text: 'You have +{}% dodge.',
       does: (v) => [stat('dodge', v)],
     }),
+
+    // Row 2
     talent({
       id: 'drilled-reflexes',
       name: 'Drilled Reflexes',
@@ -668,32 +507,12 @@ export const evasionDrill: TreeDef = {
       text: 'After you use your mobility ability, you and your group have +{}% dodge for 4 sec.',
       does: (v) => [proc('cast', 'mobility', [rally('counterstep', 'Counterstep', 4, { dodge: v })])],
     }),
-    talent({
-      id: 'read-the-feint',
-      name: 'Read the Feint',
-      row: 2,
-      col: 0,
-      per: [1, 2],
-      text: 'Your critical hits give you +{}% dodge for 8 sec, stacking up to 3 times.',
-      does: (v) => [
-        proc('crit', 'damage', [
-          buff({ id: 'read-the-feint', name: 'Read the Feint', duration: 8, maxStacks: 3, stats: { dodge: v } }),
-        ]),
-      ],
-    }),
-    talent({
-      id: 'tight-formation',
-      name: 'Tight Formation',
-      row: 2,
-      col: 2,
-      per: [1, 2],
-      text: 'You and your group take {}% less damage.',
-      does: (v) => [group('damageReduction', v)],
-    }),
+
+    // Row 3
     talent({
       id: 'endless-drills',
       name: 'Endless Drills',
-      row: 3,
+      row: 2,
       col: 1,
       requires: 'drilled-reflexes',
       text: 'Your mobility ability holds 1 more charge.',
@@ -719,12 +538,13 @@ export const forcedMarch: TreeDef = {
     text: (a) => `Passive. You and your group move ${auraValue(a, 'speed')} faster.`,
   },
   talents: [
+    // Row 1
     talent({
       id: 'brisk-pace',
       name: 'Brisk Pace',
       row: 0,
       col: 0,
-      per: [2, 4, 6],
+      per: [3, 6],
       text: 'You and your group move {}% faster.',
       does: (v) => [group('speed', v)],
     }),
@@ -733,19 +553,12 @@ export const forcedMarch: TreeDef = {
       name: 'Hardened Marchers',
       row: 0,
       col: 1,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'You and your group have {}% more maximum health.',
       does: (v) => [group('healthPct', v)],
     }),
-    talent({
-      id: 'mile-eater',
-      name: 'Mile Eater',
-      row: 0,
-      col: 3,
-      per: [2, 4, 6],
-      text: 'Your dashes and teleports go {} yd farther.',
-      does: (v) => [plus('distance', 'movement', v)],
-    }),
+
+    // Row 2
     talent({
       id: 'quick-time',
       name: 'Quick Time',
@@ -757,36 +570,20 @@ export const forcedMarch: TreeDef = {
       does: (v) => [group('haste', v)],
     }),
     talent({
-      id: 'loose-formation',
-      name: 'Loose Formation',
-      row: 1,
-      col: 2,
-      per: [1, 2],
-      text: 'You and your group have +{}% dodge.',
-      does: (v) => [group('dodge', v)],
-    }),
-    talent({
       id: 'running-start',
       name: 'Running Start',
-      row: 2,
+      row: 1,
       col: 1,
       per: [15, 30],
       text: 'After you use your mobility ability, you and your group move {}% faster for 4 sec.',
       does: (v) => [proc('cast', 'mobility', [rally('running-start', 'Running Start', 4, { speed: v })])],
     }),
-    talent({
-      id: 'road-legs',
-      name: 'Road Legs',
-      row: 2,
-      col: 3,
-      per: [5, 10],
-      text: 'You move {}% faster.',
-      does: (v) => [stat('speed', v)],
-    }),
+
+    // Row 3
     talent({
       id: 'onward',
       name: 'Onward',
-      row: 3,
+      row: 2,
       col: 1,
       requires: 'running-start',
       text: 'When you cast your ultimate, you and your group move 30% faster and have +5% haste for 8 sec.',
