@@ -284,6 +284,7 @@ function resolveEffectWith(
       ? resolveEffectWith(tree, effect.inflicts, index, stats, mods, effect.inflicts.name ?? 'inflicts')
       : undefined,
     rolling: effect.rolling,
+    addsDuration: effect.addsDuration,
     perEffect: effect.perEffect,
     grows: effect.grows,
     stats: effect.type === 'aura' ? addStats(effect.stats ?? {}, groupTalents) : effect.stats,
