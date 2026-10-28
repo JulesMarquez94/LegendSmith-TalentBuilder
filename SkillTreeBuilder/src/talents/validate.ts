@@ -1,6 +1,6 @@
 import type { Action, BuffSpec, CharStat, Condition, Match, Mechanic, ModMechanic, ValueKey } from '../game/types.ts'
 import { rankValueCounts } from './description.ts'
-import type { Loadout } from './loadout.ts'
+import { isSmallTree, type Loadout } from './loadout.ts'
 import { canMake, fits, NEEDS_LABEL, slotKinds } from './slots.ts'
 import type { ArtifactDef, TreeDef } from './types.ts'
 
@@ -10,11 +10,11 @@ import type { ArtifactDef, TreeDef } from './types.ts'
  */
 export const TREE_RANKS = 18
 
-/** An ultimate's smaller tree: about 5 talents and 9 ranks, for its 6 points. */
-export const ULTIMATE_RANKS = 9
+/** A small tree (an ultimate's or a group buff's): about 5 talents and 9 ranks, for its 6 points. */
+export const SMALL_RANKS = 9
 
-/** The ranks a tree must hold: 9 for an ultimate, 18 for the rest. */
-export const ranksFor = (tree: TreeDef) => (tree.kind === 'cooldown' ? ULTIMATE_RANKS : TREE_RANKS)
+/** The ranks a tree must hold: 9 for an ultimate or a group buff, 18 for the rest. */
+export const ranksFor = (tree: TreeDef) => (isSmallTree(tree) ? SMALL_RANKS : TREE_RANKS)
 
 /** A tree's ranks in all, counting each choice pair once, at the bigger of the two. */
 export function treeRanks(tree: TreeDef): number {

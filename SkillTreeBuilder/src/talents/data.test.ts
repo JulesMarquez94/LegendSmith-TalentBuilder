@@ -6,8 +6,8 @@ import { more, proc, restore, talent } from '../trees/authoring.ts'
 import { harvest } from '../trees/necro/spells.ts'
 import { plague } from '../trees/plague.ts'
 import type { TreeDef } from './types.ts'
-import { capFor } from './loadout.ts'
-import { TREE_RANKS, treeRanks, ULTIMATE_RANKS, validateCatalog, validateTree } from './validate.ts'
+import { capFor, isSmallTree } from './loadout.ts'
+import { SMALL_RANKS, TREE_RANKS, treeRanks, validateCatalog, validateTree } from './validate.ts'
 
 describe('tree data', () => {
   it.each(TREES.map((tree) => [tree.ability.name, tree] as const))('%s has no problems', (_, tree) => {
@@ -22,15 +22,15 @@ describe('tree data', () => {
     expect(validateCatalog(TREES, ARTIFACTS, STARTING_LOADOUT)).toEqual([])
   })
 
-  it('gives every tree 18 ranks (an ultimate 9), more than it can take, so the cap forces choices', () => {
+  it('gives every tree 18 ranks (an ultimate or group buff 9), more than it can take, so the cap forces choices', () => {
     for (const tree of TREES) {
-      expect(treeRanks(tree), tree.id).toBe(tree.kind === 'cooldown' ? ULTIMATE_RANKS : TREE_RANKS)
+      expect(treeRanks(tree), tree.id).toBe(isSmallTree(tree) ? SMALL_RANKS : TREE_RANKS)
       expect(treeRanks(tree), tree.id).toBeGreaterThan(capFor(tree, POINT_RULES))
     }
   })
 
-  it('keeps every talent of an ultimate within reach of its 6 points', () => {
-    for (const tree of TREES.filter((t) => t.kind === 'cooldown')) {
+  it('keeps every talent of a small tree within reach of its 6 points', () => {
+    for (const tree of TREES.filter(isSmallTree)) {
       for (const t of tree.talents) {
         expect(t.row * tree.pointsPerRow, `${tree.id}/${t.id}`).toBeLessThan(capFor(tree, POINT_RULES))
       }

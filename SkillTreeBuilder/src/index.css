@@ -12,14 +12,15 @@
   --heal: #8fe3a0;
   --shield: #00afd7;
 
-  /* The character panel's width beside the trees on wide screens; below 1280px it sits above them. */
+  /* The character panel's width beside the trees on wide screens; below 1500px it sits above them. */
   --side: 372px;
 
   /*
-   * 1u = one inch of the deck's tree panel (3u × 4u). Sized so the 3 × 2 slot grid fits the
-   * screen: 9u plus gaps across (next to the character panel), and two rows of (slot header + 4u) down.
+   * 1u = one inch of the deck's tree panel (3u × 4u). Sized so the 4 × 2 slot grid fits the
+   * screen: 12u plus gaps across (next to the character panel), and the skill tabs plus two rows of
+   * (slot header + 4u) down.
    */
-  --u: clamp(84px, min(calc((100vw - 104px - var(--side)) / 9), calc((100dvh - 196px) / 8)), 132px);
+  --u: clamp(80px, min(calc((100vw - 124px - var(--side)) / 12), calc((100dvh - 244px) / 8)), 132px);
 
   color-scheme: dark;
   font-family: Lexend, system-ui, sans-serif;
@@ -28,13 +29,13 @@
   -webkit-font-smoothing: antialiased;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1500px) {
   :root {
     --side: 0px;
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   :root {
     --u: clamp(84px, calc((100vw - 84px) / 6), 132px);
   }
@@ -238,11 +239,11 @@ img {
 
 .slots {
   display: grid;
-  grid-template-columns: repeat(3, calc(var(--u) * 3));
+  grid-template-columns: repeat(4, calc(var(--u) * 3));
   gap: 20px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .slots {
     grid-template-columns: repeat(2, calc(var(--u) * 3));
   }
@@ -352,13 +353,6 @@ img {
     0 24px 60px rgba(0, 0, 0, 0.55);
 }
 
-.artifact--outdoor {
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 12px),
-    linear-gradient(#1b1d1a, #121412);
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.12);
-}
-
 .artifact__icon {
   width: calc(var(--u) * 0.8);
   height: calc(var(--u) * 0.8);
@@ -379,6 +373,147 @@ img {
   margin: 0;
   font-weight: 300;
   font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ---------- Overview: the first block, every slot with its key ---------- */
+
+.overview {
+  display: grid;
+  grid-auto-rows: 1fr;
+  gap: calc(var(--u) * 0.05);
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 4);
+  margin: 0;
+  padding: calc(var(--u) * 0.08);
+  list-style: none;
+  border-radius: 6px;
+  background: linear-gradient(#1d1d1d, #131313);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.overview > li {
+  min-height: 0;
+}
+
+.overview__row {
+  display: grid;
+  grid-template-columns: calc(var(--u) * 0.5) calc(var(--u) * 0.36) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(var(--u) * 0.08);
+  width: 100%;
+  height: 100%;
+  padding: 0 calc(var(--u) * 0.08);
+  text-align: left;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    background-color 120ms,
+    border-color 120ms;
+}
+
+.overview__row:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.overview__row:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+.overview__key {
+  padding: 2px 0;
+  font-weight: 900;
+  font-size: max(9px, calc(var(--u) * 0.1));
+  text-align: center;
+  color: var(--gold);
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
+  border-radius: 4px;
+}
+
+.overview__icon {
+  width: calc(var(--u) * 0.36);
+  height: calc(var(--u) * 0.36);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.overview__icon--empty {
+  box-shadow: none;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+}
+
+.overview__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.overview__name,
+.overview__kind {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.overview__name {
+  font-weight: 700;
+  font-size: max(11px, calc(var(--u) * 0.12));
+}
+
+.overview__kind {
+  font-size: max(9px, calc(var(--u) * 0.095));
+  color: var(--muted);
+}
+
+.overview__row--empty .overview__name {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.overview__points {
+  font-size: max(9px, calc(var(--u) * 0.1));
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* ---------- Character skills: the second tab, one big tree ---------- */
+
+.character-skills {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: calc(var(--u) * 12 + 60px);
+  max-width: 100%;
+  min-height: calc(var(--u) * 8 + 92px);
+  padding: 24px;
+  text-align: center;
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 12px),
+    linear-gradient(#1b1d1a, #121412);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.12);
+}
+
+.character-skills__name {
+  font-weight: 900;
+  font-size: calc(var(--u) * 0.24);
+}
+
+.character-skills__note {
+  max-width: 44ch;
+  margin: 0;
+  font-weight: 300;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--muted);
 }
@@ -922,6 +1057,12 @@ img {
   outline-offset: 2px;
 }
 
+/* The artifact / character skill tabs above the slot grid. */
+.skill-tabs {
+  align-self: flex-start;
+  margin-bottom: -12px;
+}
+
 /* ---------- Build view: character beside the trees ---------- */
 
 .build {
@@ -938,7 +1079,7 @@ img {
   min-width: 0;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1500px) {
   .build {
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
@@ -961,7 +1102,7 @@ img {
     0 24px 60px rgba(0, 0, 0, 0.55);
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1500px) {
   .char {
     position: static;
   }
@@ -1431,11 +1572,11 @@ select {
 /* ---------- Ability numbers ---------- */
 
 .numbers {
-  width: calc(var(--u) * 9 + 40px);
+  width: calc(var(--u) * 12 + 60px);
   max-width: 100%;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .numbers {
     width: calc(var(--u) * 6 + 20px);
   }

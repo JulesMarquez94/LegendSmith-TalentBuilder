@@ -2,9 +2,9 @@ import type { Loadout } from './loadout.ts'
 import type { ArtifactDef, SlotKind, TreeDef, WeaponTrait } from './types.ts'
 
 /**
- * The eight slots, left to right then top to bottom (3 across): the artifact, three role abilities,
- * the big cooldown, mobility, the group buff and outdoor talents. The artifact decides what the role
- * slots hold and which group buffs fit.
+ * The eight slots: the artifact, three role abilities, the big cooldown, mobility, the group buff
+ * (the artifact skill tab's grid, after its overview), and the character skill tree, on a tab of its
+ * own. The artifact decides what the role slots hold and which group buffs fit.
  */
 export const slotKinds = (artifact: ArtifactDef): readonly SlotKind[] => [
   'artifact',
@@ -14,7 +14,7 @@ export const slotKinds = (artifact: ArtifactDef): readonly SlotKind[] => [
   'cooldown',
   'mobility',
   'buff',
-  'outdoor',
+  'character',
 ]
 
 /** The slots the arena's action bar and keys use: the artifact, role abilities, ultimate, mobility. */
@@ -35,7 +35,7 @@ export const NEEDS_LABEL: Record<WeaponTrait, string> = {
 export const fitsKind = (tree: TreeDef, kind: SlotKind, artifact: ArtifactDef) =>
   tree.kind === kind &&
   kind !== 'artifact' &&
-  kind !== 'outdoor' &&
+  kind !== 'character' &&
   (tree.role === undefined || tree.role === artifact.role)
 
 /** The held weapon can make the ability: a spell needs nothing, a weapon strike or shot needs its weapon. */

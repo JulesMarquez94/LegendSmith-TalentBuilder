@@ -14,13 +14,18 @@ export interface PointRules {
   total: number
   /** Most points any one tree can hold. */
   perTree: number
-  /** Most points an ultimate's tree (a cooldown slot) can hold, if not `perTree`. */
-  perUltimate?: number
+  /** Most points a small tree (an ultimate's or a group buff's) can hold, if not `perTree`. */
+  perSmall?: number
 }
 
-/** Most points this tree can hold: fewer for an ultimate. */
+/** Slot kinds whose trees are small: the ultimate and the group buff. */
+export const SMALL_KINDS: ReadonlySet<TreeDef['kind']> = new Set<TreeDef['kind']>(['cooldown', 'buff'])
+
+export const isSmallTree = (tree: TreeDef) => SMALL_KINDS.has(tree.kind)
+
+/** Most points this tree can hold: fewer for an ultimate or a group buff. */
 export const capFor = (tree: TreeDef, rules: PointRules): number =>
-  tree.kind === 'cooldown' ? (rules.perUltimate ?? rules.perTree) : rules.perTree
+  isSmallTree(tree) ? (rules.perSmall ?? rules.perTree) : rules.perTree
 
 const NO_RANKS: Ranks = {}
 
