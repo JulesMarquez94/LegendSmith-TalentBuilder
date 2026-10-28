@@ -110,9 +110,35 @@ soak counts as healing on the meter.
 
 ## The damage weapons
 
-The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, Summon Imp, adds one, every
-imp attacks your target on its own, and its spells are paid for by **sacrificing imps**. Minion power
-(from the Tome's own tree) raises all your damage for each imp you command.
+The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, **Summon Imp**, is a 2 sec
+cast that summons one for **14 sec**. Every imp attacks your target on its own (60 every 1.5 sec), and
+its spells are paid for by **sacrificing imps**, the one with the least time left first. An imp whose
+time runs out leaves and takes its point of resource with it. Minion power raises all your damage for
+each imp you command.
+
+The book's own tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Lasting Pact | 2 | Imps stay 5/10 sec longer |
+| 1 | Infernal Haste | 2 | +3/6% haste |
+| 1 | Quick Summons | 2 | Summon Imp casts 0.25/0.5 sec faster |
+| 2 | Bloodbound (needs Lasting Pact) | 2 | Your damage has a 2/4% chance to add 1 sec to every imp |
+| 2 | Frenzied Imps | 2 | Your minions attack 10/20% faster |
+| 2 | Quick Invocation (needs Quick Summons) | 2 | Every second you move gives a stack: your next summon spell casts 4/8% faster per stack, instantly at 100% |
+| 3 | Spawning (needs Frenzied Imps) | 2 | Imp attacks have a 2/4% chance to summon another imp, at most once every 15 sec |
+| 3 | Stubborn Imps | 2 | Each sacrificed imp has a 5/10% chance to survive, and isn't spent |
+| 4 | Dark Bargain (needs Stubborn Imps) | 1 | Every sacrificed imp gives, at random, +1% haste, +1% crit, +2% echo or +0.5% minion power for 10 sec; it stacks, but new stacks don't refresh it |
+| 4 | Twin Summons (needs Quick Invocation) | 1 | Every third Summon Imp summons 2 imps |
+
+The new mechanics behind it:
+- `sacrifice` and `moving` events: one per sacrificed imp, and one per second spent moving.
+- `cooldown` on a proc: Spawning can't go off again for 15 sec.
+- A `spareChance` stat.
+- The `oneOf` and `extendImps` actions.
+- `keepsTimer` on a buff: a new stack doesn't refresh it.
+
+"Summon spells" are abilities tagged `summon`: Summon Imp and Raise Ghoul.
 
 | Slot | Choices |
 | --- | --- |
@@ -208,7 +234,7 @@ The bow's own tree:
 | 2 | Steady Aim | 2 | Swift Arrow casts 0.25/0.5 sec slower, and deals and gives 16.67/33.33% more (in proportion to its 1.5 sec) |
 | 2 | Double Nock | 2 | +5/10% echo |
 | 3 | Rapid Fire (needs Steady Aim) | 2 | After Swift Arrow hits, it casts 0.25/0.5 sec faster until you use any other ability |
-| 3 | Focused Mind (needs Fletching) | 2 | 5/10 focus every 5 sec |
+| 3 | Focused Mind (needs Fletching) | 2 | 2/4 focus every 5 sec |
 | 4 | Overdraw (needs Rapid Fire) | 1 | Abilities cost 50% more focus and deal 50% more damage |
 | 4 | Barbed Arrows (needs Focused Mind) | 1 | Swift Arrow leaves a 5 sec bleed (25 a sec) that gives the arrow's focus back over those 5 sec |
 
@@ -325,6 +351,10 @@ The boss fights send waves of adds; when you're a damage dealer or a tank, a bot
 tank takes the bot tank's place. Move with W A S D. Heals go to the lowest-health ally in range, zones land on that
 ally, and Dash and Teleport go the way you're moving (or toward the crosshair). Hold a key to keep
 casting it. Step out of the red pools.
+
+**You can't cast and move.** An ability with a cast time won't start while you walk ("You can't cast
+while moving"), and once a cast starts, walking waits until it ends. Instant abilities work on the
+move, and Dash and Teleport still work mid-cast.
 
 The meter shows healing per ability, overheal and crits, plus where your mana went and came from. The
 boss damage slider and "Nobody dies" make it easier or harder. Leaving the arena pauses the fight; change

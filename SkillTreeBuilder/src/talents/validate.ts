@@ -89,6 +89,8 @@ function actionTags(a: Action): string[] {
       return [...tagsOf(a.effect.perEffect), ...buffTags(a.effect.buff)]
     case 'fire':
       return [a.ability]
+    case 'oneOf':
+      return a.actions.flatMap(actionTags)
     default:
       return []
   }
@@ -114,10 +116,12 @@ const withoutAbsorb = (m: Mechanic): Mechanic =>
 /** The stats a mechanic gives, its buffs' included. */
 function givenStats(m: Mechanic): CharStat[] {
   const of = (b: BuffSpec | undefined) => Object.keys(b?.stats ?? {}) as CharStat[]
+  const fromAction = (a: Action): CharStat[] =>
+    a.do === 'buff' ? of(a.buff) : a.do === 'apply' ? of(a.effect.buff) : a.do === 'oneOf' ? a.actions.flatMap(fromAction) : []
   if (m.kind === 'stat' || m.kind === 'group') return [m.stat]
   if (m.kind === 'grant') return of(m.effect.buff)
   if (m.kind !== 'proc') return []
-  return m.proc.actions.flatMap((a) => (a.do === 'buff' ? of(a.buff) : a.do === 'apply' ? of(a.effect.buff) : []))
+  return m.proc.actions.flatMap(fromAction)
 }
 
 /** Numbers in a weapon's own resource: flat changes to them mean different things on every weapon. */
@@ -136,6 +140,7 @@ const WEAPON_STATS: readonly CharStat[] = [
   'resourceRegen',
   'resourceWhenHit',
   'resourceOnParry',
+  'spareChance',
   'overhealToResource',
   'minionPower',
   'comboBonus',
