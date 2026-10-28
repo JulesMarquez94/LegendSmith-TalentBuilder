@@ -14,7 +14,13 @@ export interface PointRules {
   total: number
   /** Most points any one tree can hold. */
   perTree: number
+  /** Most points an ultimate's tree (a cooldown slot) can hold, if not `perTree`. */
+  perUltimate?: number
 }
+
+/** Most points this tree can hold: fewer for an ultimate. */
+export const capFor = (tree: TreeDef, rules: PointRules): number =>
+  tree.kind === 'cooldown' ? (rules.perUltimate ?? rules.perTree) : rules.perTree
 
 const NO_RANKS: Ranks = {}
 
@@ -28,7 +34,7 @@ export const totalSpent = (loadout: Loadout): number =>
 
 /** Points a tree can still take: whatever is left overall, up to the per-tree cap. */
 export const pointsLeftFor = (loadout: Loadout, tree: TreeDef, rules: PointRules): number =>
-  Math.min(rules.total - totalSpent(loadout), rules.perTree - pointsSpent(tree, ranksIn(loadout, tree)))
+  Math.min(rules.total - totalSpent(loadout), capFor(tree, rules) - pointsSpent(tree, ranksIn(loadout, tree)))
 
 function withRank(loadout: Loadout, tree: TreeDef, talent: TalentDef, rank: number): Loadout {
   return { ...loadout, ranks: { ...loadout.ranks, [tree.id]: { ...ranksIn(loadout, tree), [talent.id]: rank } } }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { miasma } from '../trees/necro/spells.ts'
 import { plague } from '../trees/plague.ts'
 import { describeRank } from './description.ts'
 import { canLearn, canUnlearn, isRowUnlocked, talentState } from './rules.ts'
@@ -67,5 +68,21 @@ describe('describeRank', () => {
     const text = talent('volatile-plague').description
     expect(describeRank(text, 1)).toContain('by 0.5 sec and instantly deals 1 sec worth')
     expect(describeRank(text, 3)).toContain('by 1.5 sec and instantly deals 3 sec worth')
+  })
+})
+
+describe('choices', () => {
+  const choice = (id: string) => miasma.talents.find((t) => t.id === id)!
+  // Enough points in the rows above to reach row 4.
+  const above = { 'thick-pox': 2, 'restless-fog': 2, 'virulent-pox': 2 }
+
+  it('let you take one of a choice pair, not both', () => {
+    expect(canLearn(miasma, above, choice('emanation'), 6)).toBe(true)
+    expect(canLearn(miasma, above, choice('quickening-pulse'), 6)).toBe(true)
+    const took = { ...above, emanation: 1 }
+    expect(canLearn(miasma, took, choice('quickening-pulse'), 5)).toBe(false)
+    // Taking the point back out frees the other.
+    expect(canUnlearn(miasma, took, choice('emanation'))).toBe(true)
+    expect(canLearn(miasma, above, choice('quickening-pulse'), 6)).toBe(true)
   })
 })

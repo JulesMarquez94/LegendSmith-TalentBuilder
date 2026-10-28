@@ -63,7 +63,7 @@ const tree: TreeDef = {
       name: 'Morning Light',
       row: 0,
       col: 3,
-      per: [2, 4],
+      per: [2, 4, 6],
       text: 'You regenerate {} more light per sec.',
       does: (v) => [stat('resourceRegen', v)],
     }),

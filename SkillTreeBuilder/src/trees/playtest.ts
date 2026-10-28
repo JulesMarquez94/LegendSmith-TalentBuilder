@@ -174,92 +174,6 @@ export const soulSiphon: TreeDef = {
 
 // ---------- Cooldown ----------
 
-export const bloodFrenzy: TreeDef = {
-  id: 'blood-frenzy',
-  kind: 'cooldown',
-  role: 'damage',
-  playtest: true,
-  color: '#d4473f',
-  columns: 4,
-  pointsPerRow: 2,
-  ability: {
-    name: 'Blood Frenzy',
-    castTime: 'Instant',
-    range: 'Self',
-    cooldown: '90 sec cooldown',
-    description: 'Fly into a frenzy, increasing your attack speed by 50% for 8 sec.',
-  },
-  talents: [
-    {
-      id: 'bloodlust',
-      name: 'Bloodlust',
-      row: 0,
-      col: 1,
-      maxRank: 3,
-      description: 'Blood Frenzy grants {10/20/30}% more attack speed.',
-    },
-    {
-      id: 'lingering-rage',
-      name: 'Lingering Rage',
-      row: 0,
-      col: 2,
-      maxRank: 3,
-      description: 'Blood Frenzy lasts {1/2/3} sec longer.',
-    },
-    {
-      id: 'shared-frenzy',
-      name: 'Shared Frenzy',
-      row: 1,
-      col: 0,
-      maxRank: 1,
-      description: 'Blood Frenzy also affects your summons.',
-    },
-    {
-      id: 'quickened-pulse',
-      name: 'Quickened Pulse',
-      row: 1,
-      col: 3,
-      maxRank: 2,
-      description: "Reduces Blood Frenzy's cooldown by {10/20} sec.",
-    },
-    {
-      id: 'blood-price',
-      name: 'Blood Price',
-      row: 2,
-      col: 1,
-      maxRank: 3,
-      requires: 'bloodlust',
-      description: 'Blood Frenzy costs 10% of your health but also grants {5/10/15}% more damage.',
-    },
-    {
-      id: 'second-wind',
-      name: 'Second Wind',
-      row: 2,
-      col: 2,
-      maxRank: 2,
-      description: 'While Blood Frenzy is active, you heal {1.5/3}% of your health per sec.',
-    },
-    {
-      id: 'endless-frenzy',
-      name: 'Endless Frenzy',
-      row: 3,
-      col: 1,
-      maxRank: 1,
-      requires: 'blood-price',
-      description: 'Killing an enemy during Blood Frenzy extends it by 1 sec.',
-    },
-    {
-      id: 'crimson-surge',
-      name: 'Crimson Surge',
-      row: 3,
-      col: 3,
-      maxRank: 3,
-      requires: 'quickened-pulse',
-      description: 'When Blood Frenzy ends, your next {1/2/3} attacks are critical strikes.',
-    },
-  ],
-}
-
 export const armyOfTheDead: TreeDef = {
   id: 'army-of-the-dead',
   kind: 'cooldown',
@@ -276,13 +190,14 @@ export const armyOfTheDead: TreeDef = {
     description: 'Summon 6 ghouls that fight for you for 15 sec.',
   },
   talents: [
+    // Row 1
     {
       id: 'endless-ranks',
       name: 'Endless Ranks',
       row: 0,
       col: 1,
-      maxRank: 2,
-      description: 'Army of the Dead summons {1/2} more ghouls.',
+      maxRank: 3,
+      description: 'Army of the Dead summons {1/2/3} more ghouls.',
     },
     {
       id: 'dread-legion',
@@ -292,6 +207,8 @@ export const armyOfTheDead: TreeDef = {
       maxRank: 3,
       description: 'Your army deals {X/2X/3X}% more damage.',
     },
+
+    // Row 2
     {
       id: 'rise-again',
       name: 'Rise Again',
@@ -302,46 +219,24 @@ export const armyOfTheDead: TreeDef = {
       description: 'Ghouls from your army that die rise again once.',
     },
     {
-      id: 'hasty-grave',
-      name: 'Hasty Grave',
-      row: 1,
-      col: 3,
-      maxRank: 3,
-      description: "Reduces Army of the Dead's cooldown by {10/20/30} sec.",
-    },
-    {
-      id: 'march-of-death',
-      name: 'March of Death',
-      row: 2,
-      col: 0,
-      maxRank: 3,
-      description: 'Your army moves {10/20/30}% faster.',
-    },
-    {
       id: 'plague-bearers',
       name: 'Plague Bearers',
-      row: 2,
+      row: 1,
       col: 2,
       maxRank: 1,
       requires: 'dread-legion',
       description: "Your army's attacks inflict a random plague.",
     },
+
+    // Row 3
     {
       id: 'deathless',
       name: 'Deathless',
-      row: 3,
+      row: 2,
       col: 1,
       maxRank: 1,
       requires: 'rise-again',
       description: 'While your army is active, you take 20% less damage.',
-    },
-    {
-      id: 'grim-tide',
-      name: 'Grim Tide',
-      row: 3,
-      col: 2,
-      maxRank: 3,
-      description: 'Your army lasts {2/4/6} sec longer.',
     },
   ],
 }

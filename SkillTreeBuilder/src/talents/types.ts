@@ -46,6 +46,11 @@ export interface TalentDef {
   /** Id of a talent that must be at max rank first. Draws an arrow from it. */
   requires?: string
   /**
+   * Id of a talent in the same tree it's a choice with: you can take one or the other, not both.
+   * The pair counts once (the bigger one) toward the tree's ranks.
+   */
+  excludes?: string
+  /**
    * Tooltip text. Put per-rank values in braces, e.g. "by {0.5/1/1.5} sec" —
    * like WoW, the tooltip shows the value for the current (and next) rank.
    */

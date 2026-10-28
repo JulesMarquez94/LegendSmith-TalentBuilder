@@ -10,7 +10,7 @@ import { abilityMeta } from './game/describe.ts'
 import type { Gear } from './game/gear.ts'
 import { buildKit } from './game/resolve.ts'
 import { save, savedGear, savedLoadout } from './saved.ts'
-import { pointsLeftFor, ranksIn, totalSpent } from './talents/loadout.ts'
+import { capFor, pointsLeftFor, ranksIn, totalSpent } from './talents/loadout.ts'
 import { canMake, fitsKind, NEEDS_LABEL, slotKinds } from './talents/slots.ts'
 import type { ArtifactDef, TreeDef } from './talents/types.ts'
 import { useLoadout } from './talents/useLoadout.ts'
@@ -112,7 +112,7 @@ export default function App() {
             {POINT_RULES.total - spent}
           </span>
           <span className="points__total">
-            / {POINT_RULES.total} · max {POINT_RULES.perTree} per tree
+            / {POINT_RULES.total} · max {POINT_RULES.perTree} per tree, {POINT_RULES.perUltimate} per ultimate
           </span>
         </div>
         <button type="button" className="btn btn--lg" onClick={build.resetTalents} disabled={spent === 0}>
@@ -148,7 +148,7 @@ export default function App() {
                     tree={tree}
                     ranks={tree ? ranksIn(loadout, tree) : {}}
                     pointsLeft={tree ? pointsLeftFor(loadout, tree, POINT_RULES) : 0}
-                    cap={POINT_RULES.perTree}
+                    cap={tree ? capFor(tree, POINT_RULES) : POINT_RULES.perTree}
                     artifact={artifact}
                     live={kit.slots[index] ?? null}
                     kit={kit}

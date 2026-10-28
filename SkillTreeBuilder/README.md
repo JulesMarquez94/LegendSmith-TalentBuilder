@@ -63,9 +63,14 @@ below with its role.
 
 - **60 talent points** (one per level) to spend anywhere, but **no more than 12 in any one tree**, as in
   the overview (`POINT_RULES` in `src/trees/index.ts`).
-- A tree's talents hold **18 ranks at most** in all (`TREE_RANKS`), so with 12 to spend you always leave
-  a third of it: 6, 12, 18. The data test fails on a tree with more. Talents that reach other abilities
-  (a whole family) or feed them (synergy) are favoured; tweaks to one ability's own numbers went first.
+- **Ultimates** (the cooldown slot) have smaller trees: **6 points at most** (`perUltimate`), about 5
+  talents and **exactly 9 ranks** (`ULTIMATE_RANKS`), in the top three rows so 6 points reach them all.
+- Every other tree's talents hold **exactly 18 ranks** in all (`TREE_RANKS`), so with 12 to spend you always
+  leave a third of it: 6, 12, 18. The data test fails on a tree with more or fewer. Talents that reach
+  other abilities (a whole family) or feed them (synergy) are favoured; tweaks to one ability's own
+  numbers went first.
+- A **choice** is two talents you can take one of, not both (`excludes`). A pair counts once toward the
+  18, at the bigger of the two. The tooltip says which other talent it's a choice with.
 - Inside a tree, a row unlocks once **2 points** (`pointsPerRow`) have been spent in the rows above it,
   in any mix: row 2 needs 2, row 3 needs 4, row 4 needs 6.
 - A talent at the end of an arrow needs the talent the arrow comes from at **max rank**.
@@ -93,8 +98,8 @@ Talents aim at **families and tags**, never at another ability: a talent may nam
 ("Healing Rain's crits…") or a family ("your heal-over-time effects…"), and a data test fails if one
 names another ability or leans on one weapon (minions, flat resource). Every tree's "heals more" talent lifts a
 whole family: Mend's and Miracle's lift direct heals, Chain Heal's chain heals, Healing Rain's and
-Sanctuary's zones, Renew's and Lifetide's HoTs. Each ultimate also has a talent that cuts its cooldown
-when you crit with its family. A talent's tooltip lists what it
+Sanctuary's zones, Renew's and Lifetide's HoTs. Miracle and Sanctuary also have a talent that cuts
+their cooldown when you crit with their family. A talent's tooltip lists what it
 reaches ("Affects: Renew, Lifetide"). The families are direct heal, HoT, zone, shield, direct damage,
 DoT, minion, resource, movement, buff and aura, plus `healing` on every heal, `damage` on every hit,
 `aoe` on area damage, slot kinds (`heal`, `cooldown`…) and the ability's own id.
@@ -142,8 +147,8 @@ The new mechanics behind it:
 
 | Slot | Choices |
 | --- | --- |
-| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (instant, 5 imps, no cooldown; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (a zone that makes everyone inside sick), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
-| Ultimate | Fervor (you and your group gain 30% haste for 20 sec) |
+| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (instant, 5 imps, no cooldown; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (5 imps, 30 sec cooldown; a 3 sec cloud that gives everyone inside a stack of Pox every second), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
+| Ultimate | Fervor (you and your group gain 30% haste for 20 sec), Blood Frenzy (+20% haste for you for 30 sec, 3 min cooldown) |
 
 The **Twin Daggers** build combo points (up to 6) with Quick Strike: hold the key to keep striking.
 Fan of Knives and Backstab build them too. **Combo points pay in steps**: an ability that costs 2
@@ -173,14 +178,14 @@ takes 550 for each one on it. Its tree:
 
 | Row | Talent | Ranks | What it does |
 | --- | --- | --- | --- |
-| 1 | Bountiful Harvest | 2 | 5/10% more damage for each of your DoTs on the target |
-| 1 | Keen Scythe | 2 | 10/20% more damage |
+| 1 | Bountiful Harvest | 3 | 5/10/15% more damage for each of your DoTs on the target |
+| 1 | Keen Scythe | 3 | 10/20/30% more damage |
 | 1 | Reaper's Due | 1 | Costs 20% less |
 | 2 | Chaff (needs Bountiful Harvest) | 2 | Each hit splashes 15/30% of its damage onto every other enemy within 8 yd |
 | 2 | Ripening (needs Keen Scythe) | 1 | Potency also raises its damage, by the same % |
-| 2 | Reaping | 1 | Each tick of your DoTs adds 1% to the next Harvest, up to 100 stacks; Harvest uses them up |
+| 2 | Reaping | 2 | Each tick of your DoTs adds 0.5/1% to the next Harvest, up to 100 stacks; Harvest uses them up |
 | 3 | Lone Reaper (needs Chaff) | 2 | When it hits only one enemy: 20/40% more damage and 100/200% more splash |
-| 3 | Windfall (needs Reaper's Due) | 2 | Each tick of your DoTs has a 2/4% chance to make the next Harvest free |
+| 3 | Windfall (needs Reaper's Due) | 3 | Each tick of your DoTs has a 2/4/6% chance to make the next Harvest free |
 | 4 | Endless Harvest (needs Reaping) | 1 | Harvest becomes a passive that goes off on its own every 10 sec, for free |
 
 The new mechanics behind it:
@@ -188,6 +193,27 @@ The new mechanics behind it:
 - A `single` condition: the cast hit only one enemy.
 - `pctOf` on a mod: a % equal to one of your stats.
 - `autocast` on an ability: passive, going off on its own every N sec. It uses up the buffs a cast would.
+
+**Miasma** (made for the book) costs 5 and has a 30 sec cooldown. It fills an 8 yd area around the enemy
+under your crosshair for 3 sec, and every second every enemy inside gets a stack of **Pox**: 30 damage
+per stack every second for 20 sec, each stack on its own timer. Its tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Restless Fog | 2 | Each tick of your DoTs has a 3/6% chance to take 1 sec off Miasma's cooldown |
+| 1 | Thick Pox | 2 | Miasma gives 1/2 more stacks of Pox at a time |
+| 1 | Clinging Cloud | 2 | The area is 2/4 yd wider and follows the enemy it was placed on |
+| 2 | Virulent Pox | 3 | Pox deals 10/20/30% more |
+| 2 | Lingering Pox (needs Thick Pox) | 3 | Each stack lasts 4/8/12 sec longer |
+| 2 | Noxious Burst (needs Clinging Cloud) | 2 | Miasma deals 200/400 to every enemy in its area when placed |
+| 3 | Thickening Fog | 1 | Miasma lasts 1 sec longer |
+| 3 | Choking Burst (needs Noxious Burst) | 2 | Miasma's direct damage deals 4/8% more per stack of Pox on the enemy |
+| 4 | Emanation, **or** | 1 | Miasma becomes a passive: every 10 sec, every enemy within 8 yd of you gets a stack of Pox, for free |
+| 4 | Quickening Pulse | 1 | Miasma gives Pox twice as often (every 0.5 sec) |
+
+Emanation and Quickening Pulse are a choice: you can take one, not both. Emanation uses `autocast`
+with an `auto` effect: an effect that fires only when the ability goes off on its own, instead of its
+others.
 
 An ability can also be **made for** a weapon (`madeFor`: Harvest for the book). That's a label: the
 picker shows it and lists the ones made for your weapon first. The Plague tree keeps its art and
@@ -213,6 +239,12 @@ with that:
 enemy (Swift Arrow, Aimed Shot, Doom Bolt) also hits every enemy within 8 yd of it for 30% of the
 damage. Melee strikes and area damage don't splash. Its extra hits are tagged `splash` and `aoe`, so its
 talents (resource and cooldown per extra hit) and area-damage talents reach them.
+
+**Blood Frenzy** is the damage dealer's ultimate: instant, free, a 3 min cooldown, and +20% haste for
+you for 30 sec (`src/trees/blood.ts`). Its tree: Bloodlust (+5/10% more haste), Lingering Rage (+5/10
+sec), Quickened Pulse (cooldown 30/60 sec shorter), Endless Frenzy (every ability you use while it's
+up adds 0.2/0.4 sec, needs Lingering Rage) and Twin Frenzy (2 charges at half the duration, needs
+Quickened Pulse).
 
 **Frenzy**: +15% haste for 8 sec, with no cooldown: you keep it up by paying for
 it again. Feeding Frenzy makes every ability you spend on extend it; other talents add crit, regen,

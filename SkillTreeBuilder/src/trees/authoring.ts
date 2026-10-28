@@ -26,6 +26,8 @@ interface TalentInput {
   row: number
   col: number
   requires?: string
+  /** A talent this is a choice with: one or the other, not both. */
+  excludes?: string
   /** One value per rank. "{}" in the text shows them as "{6/12/18}". Leave out for a one-rank talent. */
   per?: readonly number[]
   /** "@resource" shows the artifact's resource ("mana"), so shared abilities fit any healing weapon. */

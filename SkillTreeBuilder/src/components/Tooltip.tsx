@@ -12,6 +12,8 @@ import {
   isRowUnlocked,
   pointsSpent,
   prerequisite,
+  rival,
+  isRivalTaken,
   rankOf,
   rowRequirement,
   type Ranks,
@@ -90,6 +92,7 @@ interface TalentTooltipProps {
 export function TalentTooltip({ tree, talent, ranks, pointsLeft, cap, kit }: TalentTooltipProps) {
   const rank = rankOf(ranks, talent)
   const pre = prerequisite(tree, talent)
+  const other = rival(tree, talent)
   const learnable = canLearn(tree, ranks, talent, pointsLeft)
   const unlearnable = canUnlearn(tree, ranks, talent)
   const atCap = pointsSpent(tree, ranks) >= cap && rank < talent.maxRank
@@ -115,6 +118,12 @@ export function TalentTooltip({ tree, talent, ranks, pointsLeft, cap, kit }: Tal
           Requires {points(pre.maxRank)} in {pre.name}
         </div>
       )}
+      {other &&
+        (isRivalTaken(tree, ranks, talent) ? (
+          <div className="tip__req">You took {other.name}: it's one or the other</div>
+        ) : (
+          <div className="tip__meta">A choice: this or {other.name}, not both</div>
+        ))}
       {atCap && (
         <div className="tip__req">
           {tree.ability.name} is at its {cap}-point limit

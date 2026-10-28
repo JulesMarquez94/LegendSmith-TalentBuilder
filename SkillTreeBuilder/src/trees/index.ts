@@ -19,7 +19,8 @@ import { ashfall, festeringRot, harvest, miasma, necroticExplosion } from './nec
 import { tomeOfSummoning } from './necro/tome.ts'
 import { plague } from './plague.ts'
 import { raiseGhoul } from './ghoul.ts'
-import { armyOfTheDead, bloodFrenzy, boneSpear, shadowStep, soulSiphon, wraithWalk } from './playtest.ts'
+import { armyOfTheDead, boneSpear, shadowStep, soulSiphon, wraithWalk } from './playtest.ts'
+import { bloodFrenzy } from './blood.ts'
 import { spear } from './spear.ts'
 import { TANK_ABILITIES } from './tank/abilities.ts'
 import { greatsword } from './tank/greatsword.ts'
@@ -27,9 +28,9 @@ import { swordAndShield } from './tank/shield.ts'
 
 /**
  * One talent point per level up to 60, and no more than 12 in any one tree, as in the overview's
- * "Ability slots and talent trees".
+ * "Ability slots and talent trees". An ultimate's smaller tree takes 6 at most.
  */
-export const POINT_RULES: PointRules = { total: 60, perTree: 12 }
+export const POINT_RULES: PointRules = { total: 60, perTree: 12, perUltimate: 6 }
 
 /**
  * Every artifact that can be held, two per seat: tank, healer, melee and ranged damage. The picker

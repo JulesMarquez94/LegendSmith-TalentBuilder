@@ -1,4 +1,5 @@
 import { counted, int, ranks, sec, yd } from '../../game/format.ts'
+import type { EffectSpec } from '../../game/types.ts'
 import type { TreeDef } from '../../talents/types.ts'
 import {
   apply,
@@ -6,6 +7,7 @@ import {
   cooldown,
   damage,
   dot,
+  grant,
   hostileZone,
   more,
   moreByStat,
@@ -64,7 +66,7 @@ export const harvest: TreeDef = {
       name: 'Bountiful Harvest',
       row: 0,
       col: 0,
-      per: [5, 10],
+      per: [5, 10, 15],
       text: 'Harvest deals {}% more for each of your damage-over-time effects on its target.',
       does: (v) => [more('amount', HARVEST_HIT, v, { each: 'dot' })],
     }),
@@ -73,7 +75,7 @@ export const harvest: TreeDef = {
       name: 'Keen Scythe',
       row: 0,
       col: 1,
-      per: [10, 20],
+      per: [10, 20, 30],
       text: 'Harvest deals {}% more damage.',
       does: (v) => [more('amount', HARVEST_HIT, v)],
     }),
@@ -111,10 +113,11 @@ export const harvest: TreeDef = {
       name: 'Reaping',
       row: 1,
       col: 2,
+      per: [0.5, 1],
       text:
-        'Each tick of your damage over time adds 1% to your next Harvest’s damage, stacking up to 100 times. ' +
+        'Each tick of your damage over time adds {}% to your next Harvest’s damage, stacking up to 100 times. ' +
         'Harvest uses them up.',
-      does: () => [
+      does: (v) => [
         proc('hit', 'dot', [
           buff({
             id: 'reaping',
@@ -122,7 +125,7 @@ export const harvest: TreeDef = {
             duration: Infinity,
             maxStacks: 100,
             consumeOn: 'harvest',
-            mods: [more('amount', HARVEST_HIT, 1)],
+            mods: [more('amount', HARVEST_HIT, v)],
           }),
         ]),
       ],
@@ -148,7 +151,7 @@ export const harvest: TreeDef = {
       row: 2,
       col: 3,
       requires: 'reapers-due',
-      per: [2, 4],
+      per: [2, 4, 6],
       text: 'Each tick of your damage over time has a {}% chance to make your next Harvest free.',
       does: (v) => [
         proc('hit', 'dot', [
@@ -279,7 +282,13 @@ export const festeringRot: TreeDef = {
   ],
 }
 
-// ---------- Miasma: a sickening zone around an enemy ----------
+// ---------- Miasma: a cloud that stacks Pox on everyone inside ----------
+
+/** Miasma's Pox, from the cloud or from Emanation: the same stacks either way. */
+const POX = { all: ['miasma', 'dot'] } as const
+const MIASMA_RADIUS = 8
+const pox = (target: 'event' | 'self', extra: Partial<EffectSpec> = {}) =>
+  dot(30, 20, 1, target, { name: 'Pox', key: 'miasma:pox', rolling: true, ...extra })
 
 export const miasma: TreeDef = {
   ...book,
@@ -289,109 +298,139 @@ export const miasma: TreeDef = {
     name: 'Miasma',
     castTime: 'Instant',
     range: '40 range',
-    cooldown: '15 sec cooldown',
-    description: 'Fill the ground around an enemy with a cloud that makes everyone inside sick.',
+    cooldown: '30 sec cooldown',
+    description: 'Fill the ground around an enemy with a cloud that gives everyone inside a stack of Pox every second.',
   },
   spec: {
-    cost: 2,
-    cooldown: 15,
+    cost: 5,
+    cooldown: 30,
     range: 40,
-    effects: [
-      hostileZone(0, 12, 1, 8, {
-        name: 'Miasma',
-        inflicts: dot(80, 3, 1, 'event', { name: 'Sickness', tags: ['sickness'] }),
-      }),
-    ],
+    effects: [hostileZone(0, 3, 1, MIASMA_RADIUS, { name: 'Miasma', inflicts: pox('event') })],
     text: (a) => {
-      const e = a.effects[0]
-      const sick = e.inflicts!
+      const zone = a.effects.find((e) => e.type === 'zone')!
+      const p = zone.inflicts!
+      const stacks = p.stacks > 1 ? `${p.stacks} stacks` : 'a stack'
+      const poxText =
+        `Pox deals ${int(p.amount)} damage per stack every ${sec(p.interval)} sec for ${sec(p.duration)} sec, ` +
+        'each stack on its own timer.'
+      if (a.autocast > 0) {
+        const aura = a.effects.find((e) => e.auto)!
+        return (
+          `Miasma emanates from you: every ${sec(a.autocast)} sec, every enemy within ${yd(aura.radius)} yd of you gets ` +
+          `${aura.stacks > 1 ? `${aura.stacks} stacks` : 'a stack'} of Pox, for free. ${poxText}`
+        )
+      }
       return (
-        `Fills a ${yd(e.radius)} yd area around the enemy nearest your crosshair with ` +
-        `Miasma for ${sec(e.duration)} sec. Every enemy inside is Sick: ${int(sick.amount)} damage every ` +
-        `${sec(sick.interval)} sec, lasting ${sec(sick.duration)} sec after it leaves. Costs ${counted(a.cost, a.resource)}.`
+        `Fills a ${yd(zone.radius)} yd area around the enemy nearest your crosshair with Miasma for ${sec(zone.duration)} ` +
+        `sec. Every ${sec(zone.interval)} sec, every enemy inside gets ${stacks} of Pox. ${poxText} ` +
+        `Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },
   talents: [
+    // Row 1
     talent({
-      id: 'thick-fog',
-      name: 'Thick Fog',
+      id: 'restless-fog',
+      name: 'Restless Fog',
       row: 0,
       col: 0,
-      per: [2, 4],
-      text: 'Your zones are {} yd wider.',
-      does: (v) => [plus('radius', 'zone', v)],
+      per: [3, 6],
+      text: "Each tick of your damage over time has a {}% chance to take 1 sec off Miasma's cooldown.",
+      does: (v) => [proc('hit', 'dot', [cooldown('miasma', 1)], { chance: v })],
     }),
     talent({
-      id: 'lingering-fog',
-      name: 'Lingering Fog',
+      id: 'thick-pox',
+      name: 'Thick Pox',
       row: 0,
       col: 1,
-      per: [2, 4],
-      text: 'Your zones last {} sec longer.',
-      does: (v) => [plus('duration', 'zone', v)],
-    }),
-    talent({
-      id: 'choking-air',
-      name: 'Choking Air',
-      row: 0,
-      col: 2,
-      per: [4, 8, 12],
-      text: 'Enemies standing in your zones take {}% more damage from you.',
-      does: (v) => [more('amount', 'damage', v, { inZone: true })],
+      per: [1, 2],
+      text: 'Miasma gives {} more stacks of Pox at a time.',
+      does: (v) => [plus('stacks', POX, v)],
     }),
     talent({
       id: 'clinging-cloud',
       name: 'Clinging Cloud',
+      row: 0,
+      col: 3,
+      per: [2, 4],
+      text: "Miasma's area is {} yd wider, and it follows the enemy it was placed on.",
+      does: (v) => [plus('radius', 'miasma', v), plus('follow', { all: ['miasma', 'zone'] }, 1)],
+    }),
+
+    // Row 2
+    talent({
+      id: 'virulent-pox',
+      name: 'Virulent Pox',
       row: 1,
       col: 0,
-      requires: 'thick-fog',
-      text: 'Miasma follows the enemy it was placed on.',
-      does: () => [plus('follow', 'miasma', 1)],
+      per: [10, 20, 30],
+      text: 'Pox deals {}% more damage.',
+      does: (v) => [more('amount', POX, v)],
     }),
     talent({
-      id: 'restless-fog',
-      name: 'Restless Fog',
+      id: 'lingering-pox',
+      name: 'Lingering Pox',
+      row: 1,
+      col: 1,
+      requires: 'thick-pox',
+      per: [4, 8, 12],
+      text: 'Each stack of Pox lasts {} sec longer.',
+      does: (v) => [plus('duration', POX, v)],
+    }),
+    talent({
+      id: 'noxious-burst',
+      name: 'Noxious Burst',
       row: 1,
       col: 3,
-      per: [10, 20],
-      text: "Each Miasma tick has a {}% chance to take 1 sec off Miasma's cooldown.",
-      does: (v) => [proc('tick', 'miasma', [cooldown('miasma', 1)], { chance: v })],
+      requires: 'clinging-cloud',
+      per: [200, 400],
+      text: 'Miasma also deals {} damage to every enemy in its area when you place it.',
+      does: (v) => [grant('miasma', damage(v, 'target', { radius: MIASMA_RADIUS, name: 'Noxious Burst' }))],
     }),
+
+    // Row 3
     talent({
-      id: 'lasting-sickness',
-      name: 'Lasting Sickness',
+      id: 'thickening-fog',
+      name: 'Thickening Fog',
       row: 2,
-      col: 1,
-      text: 'Sickness lasts 3 sec longer after an enemy leaves Miasma.',
-      does: () => [plus('duration', 'sickness', 3)],
+      col: 0,
+      text: 'Miasma lasts 1 sec longer.',
+      does: () => [plus('duration', { all: ['miasma', 'zone'] }, 1)],
     }),
     talent({
-      id: 'sapping-fog',
-      name: 'Sapping Fog',
+      id: 'choking-burst',
+      name: 'Choking Burst',
       row: 2,
       col: 3,
-      per: [10, 20, 30],
-      text: 'Your zones tick {}% faster.',
-      does: (v) => [more('tickRate', 'zone', v)],
+      requires: 'noxious-burst',
+      per: [4, 8],
+      text: "Miasma's direct damage deals {}% more for each stack of Pox on the enemy it hits.",
+      does: (v) => [more('amount', { all: ['miasma', 'direct-damage'] }, v, { stacksOf: POX })],
     }),
+
+    // Row 4: a choice, one or the other
     talent({
-      id: 'death-cloud',
-      name: 'Death Cloud',
+      id: 'emanation',
+      name: 'Emanation',
       row: 3,
       col: 1,
-      requires: 'lasting-sickness',
-      text: 'Your damage-over-time effects deal 15% more damage to enemies standing in your zones.',
-      does: () => [more('amount', 'dot', 15, { inZone: true })],
+      excludes: 'quickening-pulse',
+      text:
+        'Miasma emanates from you instead of being cast: every 10 sec, every enemy within 8 yd of you gets a stack of ' +
+        'Pox, for free.',
+      does: () => [
+        plus('autocast', 'miasma', 10),
+        grant('miasma', pox('self', { radius: MIASMA_RADIUS, auto: true })),
+      ],
     }),
     talent({
-      id: 'pestilence',
-      name: 'Pestilence',
+      id: 'quickening-pulse',
+      name: 'Quickening Pulse',
       row: 3,
-      col: 3,
-      per: [10, 20, 30],
-      text: 'Sickness deals {}% more damage.',
-      does: (v) => [more('amount', 'sickness', v)],
+      col: 2,
+      excludes: 'emanation',
+      text: 'Miasma gives Pox twice as often: every 0.5 sec.',
+      does: () => [more('tickRate', { all: ['miasma', 'zone'] }, 100)],
     }),
   ],
 }
@@ -436,7 +475,7 @@ export const necroticExplosion: TreeDef = {
       name: 'Wide Blast',
       row: 0,
       col: 1,
-      per: [2, 4],
+      per: [2, 4, 6],
       text: 'Your explosions reach {} yd farther.',
       does: (v) => [plus('radius', { all: ['aoe', 'direct-damage'] }, v)],
     }),

@@ -805,6 +805,8 @@ export class Arena {
 
   /** A cycling ability (Plague) uses the next of its own effects each cast, plus anything talents add. */
   private effectsForCast(a: ResolvedAbility): ResolvedEffect[] {
+    // Effects for when it goes off on its own (Emanation) never come with a cast.
+    if (a.effects.some((e) => e.auto)) a = { ...a, effects: a.effects.filter((e) => !e.auto) }
     if (!a.cycle) return a.effects
     const own = a.effects.filter((e) => e.granted === undefined)
     const i = this.cycles.get(a.treeId) ?? 0
@@ -1720,7 +1722,9 @@ export class Arena {
       this.buffs = this.buffs.filter((b) => !(b.consumeOn && matches(b.consumeOn, a.tags)))
       this.meter.casts.set(a.name, (this.meter.casts.get(a.name) ?? 0) + 1)
       this.addLog(`${a.name} goes off`, 'cast')
-      this.runEffects(a, this.newContext(a, ++this.castCounter, 0))
+      // When it has effects for going off on its own (Emanation), only those fire.
+      const auto = a.effects.filter((e) => e.auto)
+      this.runEffects(a, this.newContext(a, ++this.castCounter, 0), undefined, undefined, auto.length ? auto : a.effects)
     })
   }
 
