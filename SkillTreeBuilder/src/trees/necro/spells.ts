@@ -1,16 +1,17 @@
-import { counted, int, sec, yd } from '../../game/format.ts'
+import { counted, int, ranks, sec, yd } from '../../game/format.ts'
 import type { TreeDef } from '../../talents/types.ts'
 import {
   apply,
+  buff,
   cooldown,
   damage,
   dot,
   hostileZone,
   more,
+  moreByStat,
   plus,
   proc,
   refund,
-  spread,
   talent,
 } from '../authoring.ts'
 
@@ -29,6 +30,13 @@ const book = {
 
 // ---------- Harvest: damage per DoT on every afflicted enemy ----------
 
+/** Harvest's own hits, not their splash. */
+const HARVEST_HIT = { all: ['harvest', 'direct-damage'] } as const
+
+/** Lone Reaper's bonuses when Harvest hits only one enemy: more damage, and more splash. */
+const LONE = [20, 40]
+const LONE_SPLASH = [100, 200]
+
 export const harvest: TreeDef = {
   ...book,
   id: 'harvest',
@@ -41,95 +49,129 @@ export const harvest: TreeDef = {
   },
   spec: {
     // No cooldown: its cost is the only limit on how often you Harvest.
-    cost: 2,
+    cost: 5,
     range: 40,
-    effects: [damage(220, 'afflicted', { perEffect: 'dot' })],
+    effects: [damage(550, 'afflicted', { perEffect: 'dot' })],
     text: (a) =>
       `Every enemy within ${yd(a.range)} yd takes ${int(a.effects[0].amount)} damage for each of your ` +
-      `damage-over-time effects on it. Three DoTs, three times the damage. Costs ${counted(a.cost, a.resource)}.`,
+      'damage-over-time effects on it. Three DoTs, three times the damage. ' +
+      (a.autocast > 0 ? `Goes off on its own every ${sec(a.autocast)} sec, for free.` : `Costs ${counted(a.cost, a.resource)}.`),
   },
   talents: [
+    // Row 1
     talent({
       id: 'bountiful-harvest',
       name: 'Bountiful Harvest',
       row: 0,
       col: 0,
-      per: [6, 12, 18],
-      text: 'Your direct damage deals {}% more.',
-      does: (v) => [more('amount', 'direct-damage', v)],
-    }),
-    talent({
-      id: 'reapers-due',
-      name: "Reaper's Due",
-      row: 0,
-      col: 1,
-      text: 'Harvest costs 50% less.',
-      does: () => [more('cost', 'harvest', -50)],
+      per: [5, 10],
+      text: 'Harvest deals {}% more for each of your damage-over-time effects on its target.',
+      does: (v) => [more('amount', HARVEST_HIT, v, { each: 'dot' })],
     }),
     talent({
       id: 'keen-scythe',
       name: 'Keen Scythe',
       row: 0,
-      col: 3,
-      per: [3, 6],
-      text: 'Your direct damage has +{}% critical chance.',
-      does: (v) => [plus('critChance', 'direct-damage', v)],
+      col: 1,
+      per: [10, 20],
+      text: 'Harvest deals {}% more damage.',
+      does: (v) => [more('amount', HARVEST_HIT, v)],
     }),
     talent({
-      id: 'ripe-pickings',
-      name: 'Ripe Pickings',
+      id: 'reapers-due',
+      name: "Reaper's Due",
+      row: 0,
+      col: 3,
+      text: 'Harvest costs 20% less.',
+      does: () => [more('cost', 'harvest', -20)],
+    }),
+
+    // Row 2
+    talent({
+      id: 'chaff',
+      name: 'Chaff',
       row: 1,
       col: 0,
       requires: 'bountiful-harvest',
-      per: [10, 20, 30],
-      text: 'Your direct damage deals {}% more to enemies below 35% health.',
-      does: (v) => [more('amount', 'direct-damage', v, { targetBelow: 35 })],
+      per: [15, 30],
+      text: 'Each hit of Harvest splashes {}% of its damage onto every other enemy within 8 yd of the one it hit.',
+      does: (v) => [plus('splash', HARVEST_HIT, v)],
     }),
     talent({
-      id: 'gathered-souls',
-      name: 'Gathered Souls',
+      id: 'ripening',
+      name: 'Ripening',
+      row: 1,
+      col: 1,
+      requires: 'keen-scythe',
+      text: 'Potency also raises Harvest’s damage, by the same %.',
+      does: () => [moreByStat('amount', HARVEST_HIT, 'potency')],
+    }),
+    talent({
+      id: 'reaping',
+      name: 'Reaping',
       row: 1,
       col: 2,
-      per: [10, 20],
-      text: 'Each enemy Harvest hits has a {}% chance to give back half its cost (once per cast).',
-      does: (v) => [proc('hit', { all: ['harvest', 'direct-damage'] }, [refund(50)], { chance: v })],
+      text:
+        'Each tick of your damage over time adds 1% to your next Harvest’s damage, stacking up to 100 times. ' +
+        'Harvest uses them up.',
+      does: () => [
+        proc('hit', 'dot', [
+          buff({
+            id: 'reaping',
+            name: 'Reaping',
+            duration: Infinity,
+            maxStacks: 100,
+            consumeOn: 'harvest',
+            mods: [more('amount', HARVEST_HIT, 1)],
+          }),
+        ]),
+      ],
     }),
+
+    // Row 3
     talent({
-      id: 'lingering-rot',
-      name: 'Lingering Rot',
-      row: 1,
-      col: 3,
-      per: [1, 2],
-      text: 'Harvest adds {} sec to your damage-over-time effects on each enemy it hits.',
+      id: 'lone-reaper',
+      name: 'Lone Reaper',
+      row: 2,
+      col: 0,
+      requires: 'chaff',
+      per: LONE,
+      text: `When Harvest hits only one enemy, it deals {}% more and splashes ${ranks(LONE_SPLASH)}% more.`,
       does: (v) => [
-        proc('hit', { all: ['harvest', 'direct-damage'] }, [{ do: 'extend', match: 'dot', seconds: v, scope: 'event' }]),
+        more('amount', HARVEST_HIT, v, { single: true }),
+        plus('soloSplash', HARVEST_HIT, LONE_SPLASH[LONE.indexOf(v)]),
       ],
     }),
     talent({
-      id: 'grim-yield',
-      name: 'Grim Yield',
+      id: 'windfall',
+      name: 'Windfall',
       row: 2,
-      col: 1,
-      text: 'Harvest makes your damage-over-time effects on each enemy it hits deal 2 sec worth of damage right away.',
-      does: () => [proc('hit', { all: ['harvest', 'direct-damage'] }, [{ do: 'pulse', match: 'dot', seconds: 2 }])],
-    }),
-    talent({
-      id: 'final-reaping',
-      name: 'Final Reaping',
-      row: 3,
-      col: 1,
-      requires: 'grim-yield',
-      text: "Harvest's critical hits spread your damage-over-time effects to one more enemy within 12 yd.",
-      does: () => [proc('crit', { all: ['harvest', 'direct-damage'] }, [spread('dot', 12)])],
-    }),
-    talent({
-      id: 'harvest-moon',
-      name: 'Harvest Moon',
-      row: 3,
       col: 3,
-      per: [10, 20, 30],
-      text: 'Your direct damage crits for {}% more.',
-      does: (v) => [plus('critDamage', 'direct-damage', v)],
+      requires: 'reapers-due',
+      per: [2, 4],
+      text: 'Each tick of your damage over time has a {}% chance to make your next Harvest free.',
+      does: (v) => [
+        proc('hit', 'dot', [
+          buff({
+            id: 'windfall',
+            name: 'Windfall',
+            duration: Infinity,
+            consumeOn: 'harvest',
+            mods: [more('cost', 'harvest', -100)],
+          }),
+        ], { chance: v }),
+      ],
+    }),
+
+    // Row 4
+    talent({
+      id: 'endless-harvest',
+      name: 'Endless Harvest',
+      row: 3,
+      col: 2,
+      requires: 'reaping',
+      text: 'Harvest becomes a passive: it goes off on its own every 10 sec, for free.',
+      does: () => [plus('autocast', 'harvest', 10)],
     }),
   ],
 }

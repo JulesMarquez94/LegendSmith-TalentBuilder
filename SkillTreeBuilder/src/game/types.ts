@@ -102,6 +102,8 @@ export type AbilityKey =
   | 'echo'
   /** An ability that spends all: % more that what it spends past its cost counts for. */
   | 'surplus'
+  /** Seconds: above 0, the ability is passive and goes off on its own this often, for free (Endless Harvest). */
+  | 'autocast'
 
 /** Numbers that belong to one effect of an ability. Talents aim these at the effect's tags. */
 export type EffectKey =
@@ -132,6 +134,10 @@ export type EffectKey =
   | 'strength'
   /** Seconds a hit taunts its enemies for. */
   | 'taunt'
+  /** % of each hit splashed onto every other enemy within 8 yd of the one it hit. */
+  | 'splash'
+  /** % more splash when the cast hits only one enemy. */
+  | 'soloSplash'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -144,6 +150,7 @@ export const ABILITY_KEYS: ReadonlySet<ValueKey> = new Set<ValueKey>([
   'gcd',
   'echo',
   'surplus',
+  'autocast',
 ])
 
 export type EffectType =
@@ -277,6 +284,8 @@ export interface EffectSpec {
   stats?: Partial<CharStats>
   /** Direct damage that taunts: every enemy it hits attacks only you for this many seconds. */
   taunt?: number
+  /** % of each hit splashed onto every other enemy within 8 yd of the one it hit (Harvest's talents). */
+  splash?: number
   /** Potency and duration talents don't lengthen it (Barbed Arrows' bleed always lasts 5 sec). */
   fixedDuration?: boolean
   /**
@@ -309,6 +318,8 @@ export interface Condition {
   each?: Match
   /** The bonus counts once for each stack of your effects matching this on the target (Festering Rot). */
   stacksOf?: Match
+  /** The cast hit only one enemy (Lone Reaper). */
+  single?: boolean
 }
 
 export interface ModMechanic {
@@ -319,6 +330,8 @@ export interface ModMechanic {
   add?: number
   /** % change. All percentages on the same number add together. */
   pct?: number
+  /** A % change equal to one of your stats, added to the others (Ripening: Potency on Harvest's damage). */
+  pctOf?: CharStat
   /** Only for `amount`: a bonus that applies only when this holds, checked as the hit or heal lands. */
   when?: Condition
 }
@@ -507,6 +520,8 @@ export interface ResolvedEffect {
   stats?: Partial<CharStats>
   /** Seconds the enemies it hits attack only you; 0 for an effect that doesn't taunt. */
   taunt: number
+  splash: number
+  soloSplash: number
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
   granted?: string
@@ -537,6 +552,8 @@ export interface ResolvedAbility {
   gcd: number
   /** % chance to be cast a second time for free. */
   echo: number
+  /** Above 0, it's passive: it goes off on its own every this many seconds, for free. */
+  autocast: number
   passive?: { on: EventKind; match: Match }
   minion?: ResolvedEffect
   effects: ResolvedEffect[]

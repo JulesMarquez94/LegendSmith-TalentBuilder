@@ -39,6 +39,7 @@ export function describeCondition(when: Condition): string {
   if (when.targetSelf) parts.push('on you')
   if (when.each !== undefined) parts.push('for each of your effects on it')
   if (when.stacksOf !== undefined) parts.push('for each stack on it')
+  if (when.single) parts.push('when it hits only one enemy')
   return parts.join(', ')
 }
 
@@ -147,6 +148,16 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
         better: 'up',
         detail: [e.perEffect !== undefined && 'per DoT on each', where].filter(Boolean).join(' · '),
       })
+      if (e.splash > 0) {
+        out.push({
+          key: key('splash'),
+          label: 'Splash',
+          value: e.splash,
+          format: percent,
+          better: 'up',
+          detail: `of each hit, to every other enemy within 8 yd${e.soloSplash ? ` · +${pct(e.soloSplash)}% when it hits only one` : ''}`,
+        })
+      }
       if (e.taunt > 0) {
         out.push({ key: key('taunt'), label: 'Taunt', value: e.taunt, format: seconds, better: 'up', detail: 'they attack only you' })
       }
@@ -267,7 +278,9 @@ export function abilityLines(a: ResolvedAbility): NumberLine[] {
     })
   }
   const aura = a.effects.length > 0 && a.effects.every((e) => e.type === 'aura')
-  if (!a.passive && !aura) {
+  if (a.autocast > 0) {
+    out.push({ key: 'autocast', label: 'Goes off', value: a.autocast, format: (n) => `every ${sec(n)} sec`, better: 'down', detail: 'on its own, for free' })
+  } else if (!a.passive && !aura) {
     out.push({
       key: 'cast',
       label: 'Cast',
@@ -296,7 +309,8 @@ export function abilityLines(a: ResolvedAbility): NumberLine[] {
 /** A short summary for the ability header: "1.5 sec cast · 100 mana · 6 sec cooldown". */
 export function abilityMeta(a: ResolvedAbility): string {
   const parts: string[] = []
-  if (a.passive || a.effects.every((e) => e.type === 'aura')) parts.push('Passive')
+  if (a.autocast > 0) parts.push(`Passive · every ${sec(a.autocast)} sec`)
+  else if (a.passive || a.effects.every((e) => e.type === 'aura')) parts.push('Passive')
   else parts.push(a.castTime > 0 ? `${sec(a.castTime)} sec cast` : 'Instant')
   if (a.cost > 0) {
     const how = a.spendsAll ? ' or more, spends all' : a.combo && a.combo.maxSteps > 1 ? ' a step' : ''

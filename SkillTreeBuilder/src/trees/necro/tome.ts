@@ -37,7 +37,7 @@ const tree: TreeDef = {
     tags: ['main-attack', 'summon'],
     castTime: 2,
     effects: [{ type: 'restore', restore: 1, name: 'Summon Imp' }],
-    minion: { type: 'minion', name: 'Imp', amount: 60, interval: 1.5, duration: 14, target: 'target', tags: ['imp'] },
+    minion: { type: 'minion', name: 'Imp', amount: 40, interval: 1.5, duration: 14, target: 'target', tags: ['imp'] },
     text: (a) => {
       const imp = a.minion!
       return (

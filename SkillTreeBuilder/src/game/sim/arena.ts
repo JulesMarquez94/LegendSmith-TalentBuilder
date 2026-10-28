@@ -15,6 +15,7 @@ import type {
   Tag,
   TargetRule,
 } from '../types.ts'
+import { Decks } from './deck.ts'
 import { ARENA, type AllyRole, type Scenario, type ScenarioEvent, type Vec } from './scenarios.ts'
 
 // A small top-down fight for testing a kit: the same resolved numbers the tooltips show, run in
@@ -339,6 +340,8 @@ interface CastContext {
   sourceHot?: Hot
   sourceDot?: Dot
   sourceZone?: Zone
+  /** How many enemies the hit's cast struck (Lone Reaper's "only one enemy"). */
+  victims?: number
 }
 
 interface GameEvent {
@@ -427,6 +430,10 @@ export class Arena {
   fx: Fx[] = []
 
   private readonly rng: () => number
+  /** Every chance (crits, procs, echo, dodge) is dealt from a deck, not rolled: see `Decks`. */
+  private readonly decks: Decks
+  /** When each ability that goes off on its own (Endless Harvest) goes off next. */
+  private readonly autocastAt = new Map<string, number>()
   private nextId = 1
   private castCounter = 0
   private resourceName: string
@@ -443,6 +450,7 @@ export class Arena {
     this.scenario = scenario
     this.options = { damageScale: 1, noDeaths: scenario.noDeaths, seed: 1, ...options }
     this.rng = mulberry32(this.options.seed)
+    this.decks = new Decks(this.rng)
     this.resourceName = kit.resource
     const youHeal = kit.role === 'healer'
     const party = scenario.party.map((t) => ({ ...t }))
@@ -665,6 +673,7 @@ export class Arena {
     this.updateHots()
     this.updateDots()
     this.updateTrickles()
+    this.updateAutocasts()
     this.updateZones()
     this.updateTimers()
     this.runScenario(dt)
@@ -697,6 +706,7 @@ export class Arena {
     const base = this.kit.slots[slot]
     if (!base) return 'Nothing playable in that slot'
     if (base.passive) return `${base.name} is passive`
+    if (base.autocast > 0) return `${base.name} goes off on its own`
     if (base.effects.every((e) => e.type === 'aura')) return `${base.name} is a group buff: always on`
     if (!this.player.alive) return 'You are dead'
     const offGcd = base.gcd === 0
@@ -787,7 +797,7 @@ export class Arena {
     const effects = this.effectsForCast(a)
     this.runEffects(a, ctx, input, undefined, effects)
     this.emit({ kind: 'cast', tags: a.tags, ctx })
-    if (a.echo > 0 && this.rng() * 100 < a.echo) {
+    if (this.decks.draw(`echo:${a.treeId}`, a.echo)) {
       this.addLog(`Echo: ${a.name} goes off again`, 'proc')
       this.runEffects(a, this.newContext(a, castId, cost, 0, steps), input, undefined, effects)
     }
@@ -932,13 +942,17 @@ export class Arena {
       if (center) this.ring(center, e.radius, e.color)
     }
     // Splash (Volley): a ranged hit on one target also hits everyone close to it, for a share.
-    const splash = e.radius === 0 && e.target === 'target' && ctx.range > 8 && !opts.secondary ? this.stats().splash : 0
+    const volley = e.radius === 0 && e.target === 'target' && ctx.range > 8 && !opts.secondary ? this.stats().splash : 0
+    // An effect's own splash (Harvest's talents), more when the cast hits only one enemy.
+    const own = opts.secondary ? 0 : e.splash * (victims.length === 1 ? 1 + e.soloSplash / 100 : 1)
+    const hitCtx = { ...ctx, victims: victims.length }
     for (const enemy of victims) {
       if (e.target !== 'self') this.beam(this.player.pos, enemy.pos, e.color)
       if (e.taunt > 0 && enemy.alive) this.taunt(enemy, e.taunt)
       const per = e.perEffect ? this.countEffects(enemy, e.perEffect) : 1
-      const dealt = per > 0 ? this.hitEnemy(enemy, e.amount * per, e, ctx, opts) : 0
-      if (splash > 0 && dealt > 0) this.splashAround(enemy, (dealt * splash) / 100, e, ctx)
+      const dealt = per > 0 ? this.hitEnemy(enemy, e.amount * per, e, hitCtx, opts) : 0
+      if (volley > 0 && dealt > 0) this.splashAround(enemy, (dealt * volley) / 100, e, ctx, 'Volley')
+      if (own > 0 && dealt > 0) this.splashAround(enemy, (dealt * own) / 100, e, ctx, `${opts.label} splash`)
     }
   }
 
@@ -954,12 +968,12 @@ export class Arena {
   }
 
   /** Volley's extra hits, tagged 'splash' and 'aoe' so talents can aim at them. */
-  private splashAround(center: Enemy, amount: number, e: ResolvedEffect, ctx: CastContext) {
+  private splashAround(center: Enemy, amount: number, e: ResolvedEffect, ctx: CastContext, label: string) {
     const near = this.enemies.filter((x) => x.alive && x !== center && dist(x.pos, center.pos) <= SPLASH_RADIUS + x.radius)
     if (!near.length) return
     this.ring(center.pos, SPLASH_RADIUS, e.color)
     const tags = new Set([...e.tags, 'splash', 'aoe'])
-    for (const x of near) this.hitEnemy(x, amount, { ...e, tags }, ctx, { label: 'Volley', fixed: true, quiet: true, secondary: true })
+    for (const x of near) this.hitEnemy(x, amount, { ...e, tags }, ctx, { label, fixed: true, quiet: true, secondary: true })
   }
 
   private heal(target: Ally, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions) {
@@ -970,7 +984,7 @@ export class Arena {
       let bonus = 0
       for (const c of e.conditionals) bonus += this.allyBonus(c, target)
       amount *= 1 + bonus / 100
-      crit = this.rng() * 100 < e.critChance
+      crit = this.decks.draw(`crit:${e.key}`, e.critChance)
       if (crit) amount *= e.critMultiplier
     }
     const received = target.isPlayer ? this.stats().healingTaken : (this.groupStats().healingTaken ?? 0)
@@ -1002,10 +1016,10 @@ export class Arena {
     let crit = false
     if (!opts.fixed) {
       let bonus = 0
-      for (const c of e.conditionals) bonus += this.enemyBonus(c, enemy)
+      for (const c of e.conditionals) bonus += this.enemyBonus(c, enemy, ctx)
       // Minion power: more damage for each minion you command.
       amount *= (1 + bonus / 100) * (1 + (this.stats().minionPower * (this.imps.length + this.summons.length)) / 100)
-      crit = this.rng() * 100 < e.critChance
+      crit = this.decks.draw(`crit:${e.key}`, e.critChance)
       if (crit) amount *= e.critMultiplier
     }
     const before = enemy.hp / enemy.maxHp
@@ -1258,7 +1272,7 @@ export class Arena {
       }
       const key = `${rp.source.treeId}/${rp.source.talentId}/${i}`
       if (p.cooldown && this.time < (this.procReady.get(key) ?? -Infinity)) return
-      if (p.chance !== undefined && this.rng() * 100 >= p.chance) return
+      if (p.chance !== undefined && !this.decks.draw(key, p.chance)) return
       if (p.cooldown) this.procReady.set(key, this.time + p.cooldown)
       for (const action of p.actions) this.act(action, rp, ev)
     })
@@ -1536,8 +1550,9 @@ export class Arena {
   }
 
   /** The same for an enemy, with your DoTs and hostile zones. */
-  private enemyBonus(c: Conditional, enemy: Enemy): number {
+  private enemyBonus(c: Conditional, enemy: Enemy, ctx?: CastContext): number {
     const when = c.when
+    if (when.single && ctx?.victims !== 1) return 0
     if (when.targetBelow !== undefined && (enemy.hp / enemy.maxHp) * 100 >= when.targetBelow) return 0
     const has = (m: Match) => enemy.dots.some((d) => matches(m, d.effect.tags)) || enemy.curses.some((c) => matches(m, c.effect.tags))
     if (when.targetHas !== undefined && !has(when.targetHas)) return 0
@@ -1567,7 +1582,7 @@ export class Arena {
     if (!ev.target && !ev.enemy) return false
     if (targetBelow !== undefined && (ev.before ?? 1) * 100 >= targetBelow) return false
     const probe: Conditional = { pct: 1, when: rest, source: '' }
-    return ev.target ? this.allyBonus(probe, ev.target) > 0 : this.enemyBonus(probe, ev.enemy!) > 0
+    return ev.target ? this.allyBonus(probe, ev.target) > 0 : this.enemyBonus(probe, ev.enemy!, ev.ctx) > 0
   }
 
   inZone(a: Ally): boolean {
@@ -1684,6 +1699,31 @@ export class Arena {
     this.gaining = false
   }
 
+  /**
+   * Abilities that go off on their own (Endless Harvest): every `autocast` sec, for free. They use
+   * up the buffs a cast would (Reaping's stacks).
+   */
+  private updateAutocasts() {
+    if (!this.player.alive) return
+    this.kit.slots.forEach((base, slot) => {
+      if (!base || base.autocast <= 0) {
+        if (base) this.autocastAt.delete(base.treeId)
+        return
+      }
+      const at = this.autocastAt.get(base.treeId) ?? this.time + base.autocast
+      if (this.time < at) {
+        this.autocastAt.set(base.treeId, at)
+        return
+      }
+      this.autocastAt.set(base.treeId, at + base.autocast)
+      const a = this.current(slot)!
+      this.buffs = this.buffs.filter((b) => !(b.consumeOn && matches(b.consumeOn, a.tags)))
+      this.meter.casts.set(a.name, (this.meter.casts.get(a.name) ?? 0) + 1)
+      this.addLog(`${a.name} goes off`, 'cast')
+      this.runEffects(a, this.newContext(a, ++this.castCounter, 0))
+    })
+  }
+
   /** Trickles tick once a second, in whole points; the fraction left over waits for the next tick. */
   private updateTrickles() {
     for (const t of this.trickles) {
@@ -1757,7 +1797,7 @@ export class Arena {
     const order = [...this.imps].sort((a, b) => a.endsAt - b.endsAt)
     let spent = n - Math.floor(n + 1e-6)
     for (const imp of order.slice(0, Math.floor(n + 1e-6))) {
-      if (spare > 0 && this.rng() * 100 < spare) {
+      if (this.decks.draw('spare', spare)) {
         this.text(this.impPos(imp), 'Spared', '#a6e65a', false)
         continue
       }
@@ -2146,14 +2186,14 @@ export class Arena {
     if (!a.alive || amount <= 0) return
     const group = this.groupStats()
     const parry = swing && a.isPlayer ? this.stats().parry : 0
-    if (parry > 0 && this.rng() * 100 < parry) {
+    if (this.decks.draw('parry', parry)) {
       this.text(a.pos, 'Parry', '#d39a5e', false)
       this.gainResource(this.stats().resourceOnParry, 'Parry')
       this.emit({ kind: 'parry', tags: PARRY_TAGS, ctx: { ...this.newContext(null, -1, 0), eventEnemy: swing }, enemy: swing })
       return
     }
     const dodge = a.isPlayer ? this.stats().dodge : (group.dodge ?? 0)
-    if (!quiet && dodge > 0 && this.rng() * 100 < dodge) {
+    if (!quiet && this.decks.draw(`dodge:${a.id}`, dodge)) {
       this.text(a.pos, 'Dodge', '#9fe7ff', false)
       return
     }
