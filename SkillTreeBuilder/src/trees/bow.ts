@@ -16,6 +16,9 @@ const ARROW = { all: ['main-attack', 'direct-damage'] } as const
 /** The focus Swift Arrow gives. */
 const ARROW_FOCUS = { all: ['main-attack', 'resource'] } as const
 
+/** Barbed Arrows' bleed: it always lasts this long, and gives the arrow's focus back over it. */
+const BLEED = 5
+
 /** Steady Aim's extra cast time per rank, and the % more damage and focus that buys. */
 const STEADY = [0.25, 0.5]
 const steadyPct = (seconds: number) => (seconds / CAST) * 100
@@ -160,12 +163,13 @@ const tree: TreeDef = {
       col: 2,
       requires: 'focused-mind',
       text:
-        'Swift Arrow also leaves a bleed on its target: 25 damage every sec for 5 sec. Each tick gives you a fifth ' +
-        'of the focus Swift Arrow gives (2 of its 10), so a bleed that lasts longer gives more. Every arrow’s bleed ' +
-        'runs on its own.',
+        'Swift Arrow also leaves a bleed on its target: 25 damage every sec for 5 sec. Over those 5 sec it gives ' +
+        'you that arrow’s focus again, a fifth every second in whole focus (12 focus comes as 2, 2, 3, 2, 3). ' +
+        'Every arrow’s bleed runs on its own, and nothing makes it last longer.',
       does: () => [
         proc('hit', ARROW, [
-          apply(dot(25, 5, 1, 'event', { name: 'Barbed Arrow', rolling: true, mainAttackShare: 20 })),
+          apply(dot(25, BLEED, 1, 'event', { name: 'Barbed Arrow', rolling: true, fixedDuration: true })),
+          { do: 'trickle', pct: 100, seconds: BLEED },
         ]),
       ],
     }),

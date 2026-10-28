@@ -284,21 +284,33 @@ describe("the bow's tree", () => {
     expect(gained(arena, 'Piercing Shot')).toBe(2)
   })
 
-  it("gives a fifth of an arrow's focus every tick of Barbed Arrows, per arrow, and more when it lasts longer", () => {
-    const arena = ready(bowKit({ 'barbed-arrows': 1 }))
+  it("gives each arrow's focus back over Barbed Arrows' 5 sec bleed, a whole point at a time", () => {
+    // Fletching makes it 12 focus an arrow: 2.4 a second, so 2, 2, 3, 2, 3 with the fractions carried.
+    const arena = ready(bowKit({ 'barbed-arrows': 1, fletching: 1 }))
     cast(arena, 0)
+    expect(gained(arena, 'Swift Arrow')).toBe(12)
+    // Ticks land a whole second apart, so count each second's gain from half a second in.
+    run(arena, 0.5)
+    const ticks: number[] = []
+    for (let i = 0; i < 6; i++) {
+      const before = gained(arena, 'Barbed Arrows')
+      run(arena, 1)
+      ticks.push(gained(arena, 'Barbed Arrows') - before)
+    }
+    expect(ticks).toEqual([2, 2, 3, 2, 3, 0])
+    expect(arena.enemies[0].dots).toHaveLength(0)
+  })
+
+  it("keeps Barbed Arrows' bleed at 5 sec, and pays every arrow back on its own", () => {
+    const base = bowKit({ 'barbed-arrows': 1 })
+    const potent: Kit = { ...base, character: { ...base.character, stats: { ...base.character.stats, potency: 50 } } }
+    const arena = ready(potent)
+    cast(arena, 0)
+    expect(arena.enemies[0].dots[0].endsAt - arena.time).toBeCloseTo(5, 1)
     cast(arena, 0)
     run(arena, 6)
-    // Two arrows, each bleeding 5 ticks of 2 focus on its own timer.
     expect(gained(arena, 'Swift Arrow')).toBe(20)
-    expect(gained(arena, 'Barbed Arrow')).toBeCloseTo(20)
-
-    // 20% Potency makes it a 6 sec bleed: one more tick.
-    const base = bowKit({ 'barbed-arrows': 1 })
-    const potent = ready({ ...base, character: { ...base.character, stats: { ...base.character.stats, potency: 20 } } })
-    cast(potent, 0)
-    run(potent, 7)
-    expect(gained(potent, 'Barbed Arrow')).toBeCloseTo(12)
+    expect(gained(arena, 'Barbed Arrows')).toBe(20)
   })
 
   it('makes abilities cost and deal 50% more with Overdraw, and adds echo with Double Nock', () => {

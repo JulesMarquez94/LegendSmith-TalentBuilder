@@ -238,6 +238,16 @@ const PARRY_TAGS: ReadonlySet<Tag> = new Set<Tag>(['parry'])
 /** The tags a `second` event carries. */
 const SECOND_TAGS: ReadonlySet<Tag> = new Set<Tag>(['second'])
 
+/** Resource given back a second at a time (Barbed Arrows), from the `trickle` action. */
+interface Trickle {
+  name: string
+  /** It stops if this enemy dies. */
+  enemy?: Enemy
+  perTick: number
+  ticksLeft: number
+  nextAt: number
+}
+
 export interface Casting {
   slot: number
   ability: ResolvedAbility
@@ -384,6 +394,9 @@ export class Arena {
   private gaining = false
   /** When the next `second` event fires. */
   private nextSecond = 1
+  private trickles: Trickle[] = []
+  /** Fractions of a point each trickle source has built up, given once they make a whole one. */
+  private readonly trickleCarry = new Map<string, number>()
   facing: Vec = { x: 0, y: -1 }
   aim: Vec | null = null
   dashing: { from: Vec; to: Vec; start: number } | null = null
@@ -640,6 +653,7 @@ export class Arena {
     this.updateSummons()
     this.updateHots()
     this.updateDots()
+    this.updateTrickles()
     this.updateZones()
     this.updateTimers()
     this.runScenario(dt)
@@ -1297,6 +1311,13 @@ export class Arena {
         if (amount > 0) this.hitEnemy(enemy, amount, ev.effect, ctx, { label: name, fixed: true, secondary: true })
         break
       }
+      case 'trickle': {
+        const total = (this.mainAttackGain() * action.pct) / 100
+        if (total <= 0 || action.seconds < 1) break
+        const perTick = total / action.seconds
+        this.trickles.push({ name, enemy: ev.enemy ?? ev.ctx.eventEnemy, perTick, ticksLeft: action.seconds, nextAt: this.time + 1 })
+        break
+      }
       case 'extendBuff': {
         const b = this.buffs.find((x) => x.id === action.buff)
         if (b) b.endsAt += action.seconds
@@ -1627,6 +1648,25 @@ export class Arena {
     this.gaining = false
   }
 
+  /** Trickles tick once a second, in whole points; the fraction left over waits for the next tick. */
+  private updateTrickles() {
+    for (const t of this.trickles) {
+      while (t.ticksLeft > 0 && this.time >= t.nextAt) {
+        t.ticksLeft -= 1
+        t.nextAt += 1
+        if (t.enemy && !t.enemy.alive) {
+          t.ticksLeft = 0
+          break
+        }
+        const owed = (this.trickleCarry.get(t.name) ?? 0) + t.perTick
+        const whole = Math.floor(owed + 1e-9)
+        this.trickleCarry.set(t.name, Math.max(0, owed - whole))
+        if (whole > 0 && this.player.alive) this.gainResource(whole, t.name, true)
+      }
+    }
+    this.trickles = this.trickles.filter((t) => t.ticksLeft > 0)
+  }
+
   /** What your main attack gives back right now, buffs and talents included (Swift Arrow: 10 focus). */
   private mainAttackGain(): number {
     const a = this.current(0)
@@ -1753,10 +1793,6 @@ export class Arena {
         while (d.nextTick <= d.endsAt + 1e-6 && d.nextTick <= this.time && enemy.alive) {
           const stacks = d.stacks.length ? d.stacks.filter((t) => t >= d.nextTick - 1e-6).length : d.count
           if (stacks > 0) this.hitEnemy(enemy, this.tickOf(d) * stacks, d.effect, this.dotContext(d), { label: d.name, quiet: true })
-          // Barbed Arrows: each tick of each stack gives back a share of what your main attack gives.
-          if (stacks > 0 && d.effect.mainAttackShare) {
-            this.gainResource((this.mainAttackGain() * d.effect.mainAttackShare * stacks) / 100, d.name, true)
-          }
           d.tick += 1
           d.nextTick += d.interval
         }

@@ -237,8 +237,8 @@ function resolveEffectWith(
   const get = (key: ValueKey) => sum(mods, key, tags)
 
   const power = POWERED.has(family) ? 1 + stats.power / 100 : 1
-  const durationMods = get('duration')
-  const potency = POTENT.has(family) ? stats.potency : 0
+  const durationMods = effect.fixedDuration ? { add: 0, pct: 0 } : get('duration')
+  const potency = POTENT.has(family) && !effect.fixedDuration ? stats.potency : 0
   const duration = Math.max(0, (effect.duration ?? 0) + durationMods.add) * (1 + (durationMods.pct + potency) / 100)
   const tickRate = get('tickRate')
   const interval =
@@ -288,7 +288,6 @@ function resolveEffectWith(
     grows: effect.grows,
     stats: effect.type === 'aura' ? addStats(effect.stats ?? {}, groupTalents) : effect.stats,
     taunt: effect.taunt ? Math.max(0, scaled(effect.taunt, get('taunt'))) : 0,
-    mainAttackShare: effect.mainAttackShare,
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))
       .map((m) => ({

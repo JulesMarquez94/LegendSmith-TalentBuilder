@@ -210,12 +210,14 @@ The bow's own tree:
 | 3 | Rapid Fire (needs Steady Aim) | 2 | After Swift Arrow hits, it casts 0.25/0.5 sec faster until you use any other ability |
 | 3 | Focused Mind (needs Deep Quiver) | 2 | 5/10 focus every 5 sec |
 | 4 | Overdraw (needs Rapid Fire) | 1 | Abilities cost 50% more focus and deal 50% more damage |
-| 4 | Barbed Arrows (needs Focused Mind) | 1 | Swift Arrow leaves a 5 sec bleed (25 a sec); each tick gives a fifth of the arrow's focus |
+| 4 | Barbed Arrows (needs Focused Mind) | 1 | Swift Arrow leaves a 5 sec bleed (25 a sec) that gives the arrow's focus back over those 5 sec |
 
-Barbed Arrows' bleed is a rolling DoT, so every arrow's bleed runs on its own timer and gives back its
-arrow's worth of focus over 5 sec; Potency or haste that fits in another tick gives a fifth more. It
-reads Swift Arrow's focus as it ticks, so Fletching and Steady Aim raise it too. Rapid Fire's buff has
-no timer: a buff can set `lostUnless`, and using an ability that doesn't match it ends the buff.
+Barbed Arrows' bleed always lasts 5 sec (`fixedDuration`: Potency and duration talents don't lengthen
+it), and every arrow's bleed runs on its own. Over those 5 sec it gives back exactly the focus that
+arrow gave, Fletching and Steady Aim included, through the `trickle` action: one tick a second in whole
+focus, with what doesn't divide carried to the next tick, so 12 focus comes as 2, 2, 3, 2, 3. Rapid
+Fire's buff has no timer: a buff can set `lostUnless`, and using an ability that doesn't match it ends
+the buff.
 Focused Mind uses the `second` event, which fires once a second (a proc with `every: 5` goes off every
 5 sec).
 

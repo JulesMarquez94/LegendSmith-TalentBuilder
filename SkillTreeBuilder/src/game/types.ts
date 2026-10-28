@@ -273,11 +273,8 @@ export interface EffectSpec {
   stats?: Partial<CharStats>
   /** Direct damage that taunts: every enemy it hits attacks only you for this many seconds. */
   taunt?: number
-  /**
-   * A DoT whose every tick, per stack, gives you this % of the resource your main attack gives
-   * (Barbed Arrows: 20%, so a 5 sec bleed gives back an arrow's worth, and a longer one more).
-   */
-  mainAttackShare?: number
+  /** Potency and duration talents don't lengthen it (Barbed Arrows' bleed always lasts 5 sec). */
+  fixedDuration?: boolean
 }
 
 /** When a conditional bonus applies. Every field set must hold. */
@@ -371,6 +368,12 @@ export type Action =
   | { do: 'extendBuff'; buff: string; seconds: number }
   /** Copies a matching DoT from the event's target to the nearest enemy in range that doesn't have it. */
   | { do: 'spread'; match: Match; range: number }
+  /**
+   * Gives back `pct`% of what your main attack gives right now, spread over `seconds`: one tick a
+   * second, in whole points, with what doesn't divide carried to the next tick (Barbed Arrows: 12
+   * focus over 5 sec lands as 2, 2, 3, 2, 3). Stops if the event's enemy dies.
+   */
+  | { do: 'trickle'; pct: number; seconds: number }
   /** Fires another ability's effects, slotted or not. */
   | { do: 'fire'; ability: string; at?: 'event' }
 
@@ -475,7 +478,6 @@ export interface ResolvedEffect {
   stats?: Partial<CharStats>
   /** Seconds the enemies it hits attack only you; 0 for an effect that doesn't taunt. */
   taunt: number
-  mainAttackShare?: number
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
   granted?: string
