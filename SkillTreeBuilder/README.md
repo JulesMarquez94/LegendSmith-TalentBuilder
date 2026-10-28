@@ -187,11 +187,11 @@ takes 550 for each one on it. Its tree:
 | 1 | Bountiful Harvest | 3 | 5/10/15% more damage for each of your DoTs on the target |
 | 1 | Keen Scythe | 3 | 10/20/30% more damage |
 | 1 | Reaper's Due | 1 | Costs 20% less |
-| 2 | Chaff (needs Bountiful Harvest) | 2 | Each hit splashes 15/30% of its damage onto every other enemy within 8 yd |
+| 2 | Chaff (needs Bountiful Harvest) | 2 | Each hit splashes 10/20% of its damage onto every other enemy within 8 yd |
 | 2 | Ripening (needs Keen Scythe) | 1 | Potency also raises its damage, by the same % |
 | 2 | Reaping | 2 | Each tick of your DoTs adds 0.5/1% to the next Harvest, up to 100 stacks; Harvest uses them up |
-| 3 | Lone Reaper (needs Chaff) | 2 | When it hits only one enemy: 20/40% more damage and 100/200% more splash |
-| 3 | Windfall (needs Reaper's Due) | 3 | Each tick of your DoTs has a 2/4/6% chance to make the next Harvest free |
+| 3 | Lone Reaper (needs Chaff) | 2 | When it hits only one enemy: 20/40% more damage and 50/100% more splash |
+| 3 | Windfall (needs Reaper's Due) | 3 | Each tick of your DoTs has a 2/4/6% chance to make the next Harvest free, at most once every 20 sec |
 | 4 | Endless Harvest (needs Reaping) | 1 | Harvest becomes a passive that goes off on its own every 10 sec, for free |
 
 The new mechanics behind it:

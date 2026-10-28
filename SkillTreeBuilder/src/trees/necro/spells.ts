@@ -37,7 +37,7 @@ const HARVEST_HIT = { all: ['harvest', 'direct-damage'] } as const
 
 /** Lone Reaper's bonuses when Harvest hits only one enemy: more damage, and more splash. */
 const LONE = [20, 40]
-const LONE_SPLASH = [100, 200]
+const LONE_SPLASH = [50, 100]
 
 export const harvest: TreeDef = {
   ...book,
@@ -95,7 +95,7 @@ export const harvest: TreeDef = {
       row: 1,
       col: 0,
       requires: 'bountiful-harvest',
-      per: [15, 30],
+      per: [10, 20],
       text: 'Each hit of Harvest splashes {}% of its damage onto every other enemy within 8 yd of the one it hit.',
       does: (v) => [plus('splash', HARVEST_HIT, v)],
     }),
@@ -152,7 +152,9 @@ export const harvest: TreeDef = {
       col: 3,
       requires: 'reapers-due',
       per: [2, 4, 6],
-      text: 'Each tick of your damage over time has a {}% chance to make your next Harvest free.',
+      text:
+        'Each tick of your damage over time has a {}% chance to make your next Harvest free. ' +
+        'Can’t happen more than once every 20 sec.',
       does: (v) => [
         proc('hit', 'dot', [
           buff({
@@ -162,7 +164,7 @@ export const harvest: TreeDef = {
             consumeOn: 'harvest',
             mods: [more('cost', 'harvest', -100)],
           }),
-        ], { chance: v }),
+        ], { chance: v, cooldown: 20 }),
       ],
     }),
 

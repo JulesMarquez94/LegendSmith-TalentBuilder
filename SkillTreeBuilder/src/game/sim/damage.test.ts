@@ -439,13 +439,13 @@ describe("Harvest's tree", () => {
     cast(chaff, 2)
     const splash = damageOf(chaff, 'Harvest splash')!
     expect(splash.hits).toBe(4)
-    expect(splash.damage / splash.hits).toBeCloseTo(550 * 0.3)
+    expect(splash.damage / splash.hits).toBeCloseTo(550 * 0.2)
 
     const lone = plagued(harvestKit({ chaff: 2, 'lone-reaper': 2 }))
     cast(lone, 2)
     const hit = 550 * 1.4
     expect(damageOf(lone, 'Harvest')!.damage).toBeCloseTo(hit)
-    expect(damageOf(lone, 'Harvest splash')!.damage / 4).toBeCloseTo(hit * 0.3 * 3)
+    expect(damageOf(lone, 'Harvest splash')!.damage / 4).toBeCloseTo(hit * 0.2 * 2)
   })
 
   it('adds Potency to its damage with Ripening', () => {
@@ -469,6 +469,20 @@ describe("Harvest's tree", () => {
     expect(arena.current(2)!.cost).toBe(0)
     cast(arena, 2)
     expect(arena.resource).toBe(5)
+  })
+
+  it('makes Harvest free no more than once every 20 sec with Windfall', () => {
+    const arena = plagued(certain(harvestKit({ windfall: 2 })))
+    const proced = arena.time
+    cast(arena, 2)
+    // Pox keeps ticking, but the next free Harvest waits for the 20 sec.
+    run(arena, 5)
+    expect(arena.current(2)!.cost).toBe(5)
+    run(arena, proced + 20 - arena.time + 0.1)
+    arena.resource = 15
+    cast(arena, 1)
+    run(arena, 1.2)
+    expect(arena.current(2)!.cost).toBe(0)
   })
 
   it('goes off on its own every 10 sec, for free, with Endless Harvest', () => {
