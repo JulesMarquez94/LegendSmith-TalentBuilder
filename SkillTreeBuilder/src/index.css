@@ -1727,6 +1727,21 @@ select {
   accent-color: var(--gold);
 }
 
+.forge__name {
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+
+.forge__name:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
 .segmented,
 .chips {
   display: flex;

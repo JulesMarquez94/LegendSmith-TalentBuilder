@@ -9,7 +9,7 @@ describe('build links', () => {
       slots: ['tome-of-summoning', 'miasma', 'harvest', null, 'teleport', null, null, null],
       ranks: { miasma: { 'lingering-pox': 3 }, teleport: { recall: 1 } },
     },
-    gear: { Ring: { slot: 'Ring', rarity: 'epic', itemLevel: 120, stats: ['haste', 'crit'], lean: 0 } },
+    gear: { Ring: { slot: 'Ring', rarity: 'epic', itemLevel: 120, stats: ['haste', 'crit'], split: 135, name: 'Band of the Swift Hand' } },
   }
 
   it('carry the whole build in the address, URL-safe', () => {

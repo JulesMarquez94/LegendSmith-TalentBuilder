@@ -10,16 +10,18 @@ import {
   trinketName,
   trinketPower,
   trinketStatValues,
-  uniqueName,
+  type Gear,
   type Trinket,
 } from './gear.ts'
 
 const ring: Trinket = { slot: 'Ring', rarity: 'epic', itemLevel: 118, stats: ['haste', 'crit'] }
 
 describe('trinkets', () => {
-  it('take their name from the stat pair, in any order', () => {
+  it('take their name from the slot and the stat pair, in any order, unless they have their own', () => {
     expect(trinketName(ring)).toBe('Ring of Peerlessness')
-    expect(uniqueName({ ...ring, stats: ['crit', 'haste'] })).toBe('Peerlessness')
+    expect(trinketName({ ...ring, stats: ['crit', 'haste'] })).toBe('Ring of Peerlessness')
+    expect(trinketName({ ...ring, name: 'Band of the Swift Hand' })).toBe('Band of the Swift Hand')
+    expect(trinketName({ ...ring, name: '   ' })).toBe('Ring of Peerlessness')
   })
 
   it("get Power (three times the overview card's, for level 60's own +200%) and Health from item level", () => {
@@ -40,59 +42,63 @@ describe('trinkets', () => {
 })
 
 describe('leaning trinkets', () => {
-  it('split the rarity value 150% / 50% toward one stat, either way', () => {
+  it('split twice the rarity value between the stats, from 150% / 50% to 50% / 150%', () => {
     expect(trinketStatValues(ring)).toEqual([4, 4])
-    expect(trinketStatValues({ ...ring, lean: 0 })).toEqual([6, 2])
-    expect(trinketStatValues({ ...ring, lean: 1 })).toEqual([2, 6])
-    expect(gearTotals({ Ring: { ...ring, lean: 0 } })).toMatchObject({ haste: 6, crit: 2 })
+    expect(trinketStatValues({ ...ring, split: 150 })).toEqual([6, 2])
+    expect(trinketStatValues({ ...ring, split: 50 })).toEqual([2, 6])
+    expect(trinketStatValues({ ...ring, split: 125 })).toEqual([5, 3])
+    // Never past 150% / 50%.
+    expect(trinketStatValues({ ...ring, split: 200 })).toEqual([6, 2])
+    expect(gearTotals({ Ring: { ...ring, split: 150 } })).toMatchObject({ haste: 6, crit: 2 })
   })
 
-  it('start their name with the stat they lean toward, and count as their own item', () => {
-    expect(trinketName({ ...ring, lean: 0 })).toBe('Quick Ring of Peerlessness')
-    expect(trinketName({ ...ring, lean: 1 })).toBe('Keen Ring of Peerlessness')
-    expect(uniqueName({ ...ring, lean: 0 })).toBe('Quick Peerlessness')
-    // A Quick, an even and a Keen Peerlessness stack…
-    const quick = equip({}, { ...ring, lean: 0 }).gear
-    const even = equip(quick, { ...ring, slot: 'Band' }).gear
-    const all = equip(even, { ...ring, slot: 'Necklace', lean: 1 })
-    expect(all.cleared).toBeUndefined()
-    expect(gearTotals(all.gear)).toMatchObject({ haste: 12, crit: 12 })
-    // …but two Quick ones don't.
-    expect(equip(all.gear, { ...ring, slot: 'Idol', lean: 0 }).cleared).toBe('Ring')
+  it('start their name with the stat they lean toward', () => {
+    expect(trinketName({ ...ring, split: 150 })).toBe('Quick Ring of Peerlessness')
+    expect(trinketName({ ...ring, split: 55 })).toBe('Keen Ring of Peerlessness')
   })
 })
 
 describe('the prebuilt sets', () => {
   const totals = (id: string) => gearTotals(GEAR_PRESETS.find((p) => p.id === id)!.gear)
 
-  it('build one set around each stat, stacking its pairs leaning, even and the other way', () => {
+  it('build one set around each stat, every item leaning all the way toward it', () => {
     for (const stat of GEAR_STATS) {
       const set = GEAR_PRESETS.find((p) => p.id === `main-${stat}`)!
       const items = TRINKET_SLOTS.map((s) => set.gear[s]!)
-      expect(items.every((t) => t.stats.includes(stat)), stat).toBe(true)
-      const leaningToward = items.filter((t) => t.lean !== undefined && t.stats[t.lean] === stat)
-      expect(leaningToward).toHaveLength(stat === 'echo' || stat === 'minionPower' ? 4 : 5)
-      // The main stat comes out on top.
+      expect(items.every((t) => trinketStatValues(t)[t.stats.indexOf(stat)] === 6), stat).toBe(true)
+      // 12 items at 6%; the main stat comes out on top.
       const sums = totals(set.id)
+      expect(sums[stat], stat).toBe(72)
       for (const other of GEAR_STATS) if (other !== stat) expect(sums[stat]!, `${stat} over ${other}`).toBeGreaterThan(sums[other] ?? 0)
     }
-    // Haste: 5 leaning (6% each), 5 even (4%) and 2 leaning the other way (2%).
-    expect(totals('main-haste')).toMatchObject({ haste: 54 })
-    // Echo: its 4 pairs, three times each.
-    expect(totals('main-echo')).toMatchObject({ echo: 48 })
+  })
+
+  it('wear one stat pair in all 12 slots: only names are unique', () => {
+    expect(totals('common-crit')).toMatchObject({ haste: 12, crit: 12 })
+    expect(totals('epic-crit')).toMatchObject({ crit: 48, critDamage: 48 })
   })
 
   it('keep the even mix at 100% / 100% on every item', () => {
     const set = GEAR_PRESETS.find((p) => p.id === 'even-mix')!
-    expect(TRINKET_SLOTS.every((s) => set.gear[s] && set.gear[s].lean === undefined)).toBe(true)
+    expect(TRINKET_SLOTS.every((s) => set.gear[s] && set.gear[s].split === undefined)).toBe(true)
     expect(totals('even-mix')).toMatchObject({ haste: 20, crit: 16, critDamage: 16, potency: 20, echo: 12, minionPower: 12 })
   })
 })
 
 describe('the unique name rule', () => {
-  it('takes off a worn item with the same name in another slot', () => {
-    const worn = equip({}, ring).gear
-    const { gear, cleared } = equip(worn, { ...ring, slot: 'Band', rarity: 'rare' })
+  it('lets twelve Haste and Critical items be worn together, each with its own balance', () => {
+    let gear: Gear = {}
+    TRINKET_SLOTS.forEach((slot, i) => {
+      const worn = equip(gear, { ...ring, slot, split: 50 + i * 5 })
+      expect(worn.cleared, slot).toBeUndefined()
+      gear = worn.gear
+    })
+    expect(Object.keys(gear)).toHaveLength(12)
+  })
+
+  it('takes off a worn item with the same name in another slot, whatever its case', () => {
+    const worn = equip({}, { ...ring, name: 'Band of the Swift Hand' }).gear
+    const { gear, cleared } = equip(worn, { ...ring, slot: 'Band', rarity: 'rare', name: 'band of the swift hand' })
     expect(cleared).toBe('Ring')
     expect(gear.Ring).toBeUndefined()
     expect(gear.Band?.rarity).toBe('rare')
@@ -100,7 +106,7 @@ describe('the unique name rule', () => {
 
   it('holds in every preset, the main-stat sets and the even mix included', () => {
     for (const preset of GEAR_PRESETS) {
-      const names = TRINKET_SLOTS.flatMap((s) => (preset.gear[s] ? [uniqueName(preset.gear[s])] : []))
+      const names = TRINKET_SLOTS.flatMap((s) => (preset.gear[s] ? [trinketName(preset.gear[s])] : []))
       expect(new Set(names).size, preset.name).toBe(names.length)
       for (const s of TRINKET_SLOTS) expect(preset.gear[s]?.slot ?? s).toBe(s)
     }

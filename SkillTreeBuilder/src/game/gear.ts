@@ -1,14 +1,15 @@
 import { STAT_INFO } from './stats.ts'
 import type { CharStat, CharStats } from './types.ts'
 
-// Trinket rules from the overview's "Trinkets and item cards":
+// Trinket rules from the overview's "Trinkets and item cards", with names as in WoW:
 // - item level sets Power (a %) and Health (flat), always on the item;
 // - two stats, no more; Echo and Minion power are special affixes that take one of the two;
-// - rarity sets the stats' values (common 1% … epic 4%); an item can split them evenly (100% of the
-//   value each) or lean toward one stat (150% of it, 50% of the other);
-// - the name comes from the stat pair, and you can't wear two items with the same name. A leaning
-//   item's name starts with its stat's word ("Quick Ring of Peerlessness"), and each balance is its
-//   own item: a Quick, an even and a Keen Peerlessness can all be worn together, two Quick ones can't.
+// - rarity sets the stats' value (common 1% … epic 4%), and the item splits twice that between its two
+//   stats, anywhere from 150% / 50% to 50% / 150% of it (100% / 100% is even);
+// - every item has a name, and the name is all that's unique: you can't wear two items with the same
+//   name, and nothing else limits a stat pair. Twelve Haste and Critical items, one in each slot, each
+//   with its own balance, can all be worn. An item you don't name is named from its slot and stats
+//   ("Quick Ring of Peerlessness"), so those never clash.
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic'
 
@@ -46,20 +47,25 @@ export const TRINKET_SLOTS = [
 
 export type TrinketSlot = (typeof TRINKET_SLOTS)[number]
 
-/** Which of its two stats an item leans toward: index 0 or 1. Leave it out for an even split. */
-export type Lean = 0 | 1
-
 export interface Trinket {
   slot: TrinketSlot
   rarity: Rarity
   itemLevel: number
   stats: readonly [GearStat, GearStat]
-  /** The stat that gets 150% of the rarity's value; the other gets 50%. Absent: 100% each. */
-  lean?: Lean
+  /** % of the rarity's value the first stat gets, 50 to 150; the second gets the rest of 200%. Absent: 100, even. */
+  split?: number
+  /** The item's own name, what the unique rule checks. Absent: named from its slot, stats and balance. */
+  name?: string
 }
 
-/** Share of the rarity's value each stat gets: even, or leaning toward one. */
-export const LEAN_SHARE = { even: 1, heavy: 1.5, light: 0.5 } as const
+/** How far an item can lean: 150% of the rarity's value on one stat and 50% on the other, at most. */
+export const SPLIT_MIN = 50
+export const SPLIT_MAX = 150
+/** The forge's steps between them. */
+export const SPLIT_STEP = 5
+
+/** The first stat's share, within the limits: 100 for an even item. */
+export const splitOf = (t: Trinket) => Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, t.split ?? 100))
 
 /** The word a leaning item's name starts with, from the stat it leans toward. */
 const LEAN_WORD: Record<GearStat, string> = {
@@ -101,16 +107,22 @@ export function isValidPair(a: GearStat, b: GearStat): boolean {
   return a !== b && !(SPECIAL_STATS.has(a) && SPECIAL_STATS.has(b))
 }
 
-/** "Peerlessness" — the part of the name the unique rule checks. */
+/** "Peerlessness": one name per stat pair. */
 const pairName = (t: Trinket) => PAIR_NAMES[pairKey(...t.stats)] ?? 'Oddity'
 
-/** "Quick " on a Haste-leaning item, nothing on an even one. */
-const leanWord = (t: Trinket) => (t.lean === undefined ? '' : `${LEAN_WORD[t.stats[t.lean]]} `)
+/** "Quick " on an item that leans toward Haste, nothing on an even one. */
+const leanWord = (t: Trinket) => {
+  const split = splitOf(t)
+  return split === 100 ? '' : `${LEAN_WORD[t.stats[split > 100 ? 0 : 1]]} `
+}
 
-/** "Peerlessness", "Quick Peerlessness": what the unique rule checks. Each balance of a pair is its own item. */
-export const uniqueName = (t: Trinket) => `${leanWord(t)}${pairName(t)}`
+/** The name it was given, or one from its slot, stats and balance: "Quick Ring of Peerlessness". */
+export const defaultName = (t: Trinket) => `${leanWord(t)}${t.slot} of ${pairName(t)}`
 
-export const trinketName = (t: Trinket) => `${leanWord(t)}${t.slot} of ${pairName(t)}`
+/** Its name, the one thing the unique rule checks. */
+export const trinketName = (t: Trinket) => t.name?.trim() || defaultName(t)
+
+const sameName = (a: Trinket, b: Trinket) => trinketName(a).toLowerCase() === trinketName(b).toLowerCase()
 
 /**
  * Power % from item level: the overview's item cards' 0.105 per item level, times three, since a level
@@ -120,11 +132,11 @@ export const trinketPower = (t: Trinket) => Math.round(t.itemLevel * 0.315 * 10)
 
 export const trinketHealth = (t: Trinket) => Math.round(t.itemLevel * 9.5)
 
-/** The two stats' values: the rarity's value each, or 150% and 50% of it on a leaning item. */
+/** The two stats' values: twice the rarity's value, split between them (the rarity's value each when even). */
 export function trinketStatValues(t: Trinket): [number, number] {
   const value = RARITY_INFO[t.rarity].value
-  const share = (i: Lean) => (t.lean === undefined ? LEAN_SHARE.even : t.lean === i ? LEAN_SHARE.heavy : LEAN_SHARE.light)
-  return [value * share(0), value * share(1)]
+  const split = splitOf(t)
+  return [(value * split) / 100, (value * (200 - split)) / 100]
 }
 
 /** Separate from item level: past level 60 the item level keeps climbing and this stays at 60. */
@@ -137,8 +149,7 @@ export const requiredLevel = (itemLevel: number) =>
  */
 export function equip(gear: Gear, trinket: Trinket): { gear: Gear; cleared?: TrinketSlot } {
   const next: Gear = { ...gear, [trinket.slot]: trinket }
-  const name = uniqueName(trinket)
-  const clash = TRINKET_SLOTS.find((s) => s !== trinket.slot && next[s] && uniqueName(next[s]) === name)
+  const clash = TRINKET_SLOTS.find((s) => s !== trinket.slot && next[s] && sameName(next[s], trinket))
   if (clash) delete next[clash]
   return { gear: next, cleared: clash }
 }
@@ -173,69 +184,8 @@ const fill = (rarity: Rarity, itemLevel: number, pairs: PairList): Gear =>
     TRINKET_SLOTS.map((slot, i) => [slot, { slot, rarity, itemLevel, stats: pairs[i] } satisfies Trinket]),
   )
 
-// Even sets: the unique-name rule lets each even pair be worn once, so 12 slots need 12 different
-// pairs out of 14 and every full even set carries at least two Minion power or other off-role pairs.
-const HASTE_POTENCY: PairList = [
-  ['haste', 'potency'],
-  ['haste', 'crit'],
-  ['potency', 'echo'],
-  ['haste', 'echo'],
-  ['crit', 'potency'],
-  ['haste', 'critDamage'],
-  ['critDamage', 'potency'],
-  ['crit', 'echo'],
-  ['potency', 'minionPower'],
-  ['haste', 'minionPower'],
-  ['crit', 'critDamage'],
-  ['critDamage', 'echo'],
-]
-
-// Every pair with Critical or Haste, then the three that give the least of anything else.
-const COMMON_CRIT_HASTE: PairList = [
-  ['haste', 'crit'],
-  ['haste', 'critDamage'],
-  ['haste', 'potency'],
-  ['haste', 'echo'],
-  ['haste', 'minionPower'],
-  ['crit', 'critDamage'],
-  ['crit', 'potency'],
-  ['crit', 'echo'],
-  ['crit', 'minionPower'],
-  ['critDamage', 'potency'],
-  ['critDamage', 'echo'],
-  ['potency', 'echo'],
-]
-
-// Every pair with Potency or Haste, then the three that give the least of anything else.
-const COMMON_POTENCY_HASTE: PairList = [
-  ['haste', 'potency'],
-  ['haste', 'crit'],
-  ['haste', 'critDamage'],
-  ['haste', 'echo'],
-  ['haste', 'minionPower'],
-  ['crit', 'potency'],
-  ['critDamage', 'potency'],
-  ['potency', 'echo'],
-  ['potency', 'minionPower'],
-  ['crit', 'critDamage'],
-  ['crit', 'echo'],
-  ['critDamage', 'echo'],
-]
-
-const CRIT: PairList = [
-  ['crit', 'critDamage'],
-  ['haste', 'crit'],
-  ['crit', 'potency'],
-  ['crit', 'echo'],
-  ['critDamage', 'echo'],
-  ['haste', 'critDamage'],
-  ['critDamage', 'potency'],
-  ['crit', 'minionPower'],
-  ['critDamage', 'minionPower'],
-  ['haste', 'potency'],
-  ['haste', 'echo'],
-  ['potency', 'echo'],
-]
+/** The same pair in all 12 slots, split evenly: names come from the slot, so they never clash. */
+const twelve = (pair: readonly [GearStat, GearStat]): PairList => TRINKET_SLOTS.map(() => pair)
 
 /** The overview's 12 example trinkets. Its Totem of Persistence rolled Haste and Potency, the same pair as
  * the Necklace of Swiftness; here Persistence is Potency and Echo so the two can be worn together. */
@@ -266,20 +216,17 @@ const ALL_PAIRS: PairList = GEAR_STATS.flatMap((a, i) =>
 )
 
 /**
- * Twelve epic items that all carry one stat. Each balance is its own item, so every pair with the
- * stat (5, or 4 for Echo and Minion power) can be worn three times: the set takes them all leaning
- * toward the stat, then all even, then leaning the other way until the 12 slots are full.
+ * Twelve epic items that all lean as far as they can toward one stat (150%: 6% each), going round
+ * its pairs (5, or 4 for Echo and Minion power) for the second stat.
  */
 function mainStatSet(stat: GearStat): Gear {
   const withIt = ALL_PAIRS.filter((p) => p.includes(stat))
-  const toward = (p: readonly [GearStat, GearStat]) => p.indexOf(stat) as Lean
-  const items: Omit<Trinket, 'slot' | 'rarity' | 'itemLevel'>[] = [
-    ...withIt.map((stats) => ({ stats, lean: toward(stats) })),
-    ...withIt.map((stats) => ({ stats })),
-    ...withIt.map((stats) => ({ stats, lean: (1 - toward(stats)) as Lean })),
-  ]
   return Object.fromEntries(
-    TRINKET_SLOTS.map((slot, i) => [slot, { slot, rarity: 'epic', itemLevel: 120, ...items[i] } satisfies Trinket]),
+    TRINKET_SLOTS.map((slot, i) => {
+      const stats = withIt[i % withIt.length]
+      const split = stats[0] === stat ? SPLIT_MAX : SPLIT_MIN
+      return [slot, { slot, rarity: 'epic', itemLevel: 120, stats, split } satisfies Trinket]
+    }),
   )
 }
 
@@ -308,7 +255,7 @@ export interface GearPreset {
   gear: Gear
 }
 
-const MAIN = 'Main stat · epic, item level 120: leaning, even and the other way'
+const MAIN = 'Main stat · epic, item level 120, every item 150% toward it'
 const EVEN = 'Even split · 100% / 100%'
 
 export const GEAR_PRESETS: readonly GearPreset[] = [
@@ -324,16 +271,16 @@ export const GEAR_PRESETS: readonly GearPreset[] = [
     id: 'common-crit',
     name: 'Critical and Haste · common, item level 60',
     group: EVEN,
-    gear: fill('common', 60, COMMON_CRIT_HASTE),
+    gear: fill('common', 60, twelve(['haste', 'crit'])),
   },
   {
     id: 'common-potency',
     name: 'Potency and Haste · common, item level 60',
     group: EVEN,
-    gear: fill('common', 60, COMMON_POTENCY_HASTE),
+    gear: fill('common', 60, twelve(['haste', 'potency'])),
   },
-  { id: 'rare-100', name: 'Haste and Potency · rare, item level 100', group: EVEN, gear: fill('rare', 100, HASTE_POTENCY) },
-  { id: 'epic-hp', name: 'Haste and Potency · epic, item level 120', group: EVEN, gear: fill('epic', 120, HASTE_POTENCY) },
-  { id: 'epic-crit', name: 'Critical · epic, item level 120', group: EVEN, gear: fill('epic', 120, CRIT) },
+  { id: 'rare-100', name: 'Haste and Potency · rare, item level 100', group: EVEN, gear: fill('rare', 100, twelve(['haste', 'potency'])) },
+  { id: 'epic-hp', name: 'Haste and Potency · epic, item level 120', group: EVEN, gear: fill('epic', 120, twelve(['haste', 'potency'])) },
+  { id: 'epic-crit', name: 'Critical and Crit damage · epic, item level 120', group: EVEN, gear: fill('epic', 120, twelve(['crit', 'critDamage'])) },
   { id: 'overview', name: "The overview's example set", group: EVEN, gear: OVERVIEW },
 ]

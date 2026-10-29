@@ -390,41 +390,38 @@ Marathon.
 ## Gear and stats
 
 Twelve trinket slots, as in the overview: item level sets Power (a %, three times the overview's,
-see below) and Health, rarity sets the two
-stats (common 1% … epic 4%), Echo and Minion power take one of the two, and the name comes from the
-pair, so you can't wear two "of Peerlessness" at once. Click a slot to make a test trinket, or pick a
-**Gear set** preset. Hover a stat for where it comes from.
+see below) and Health, rarity sets the two stats (common 1% … epic 4%), and Echo and Minion power
+take one of the two. Click a slot to make a test trinket, or pick a **Gear set** preset. Hover a stat
+for where it comes from.
 
-Each trinket also has a **balance**: even (100% of the rarity's value on both stats) or leaning toward
-one stat (150% of it, 50% of the other), so an epic Haste and Critical item is 4% / 4%, 6% / 2% or
-2% / 6%. A leaning item's name starts with its stat's word (Quick, Keen, Brutal, Enduring, Echoing,
-Lordly): "Quick Ring of Peerlessness". Each balance is **its own item** for the unique rule, so a
-Quick, an even and a Keen Peerlessness can all be worn together (stacking Haste 6 + 4 + 2 and Critical
-2 + 4 + 6 on epic items); only two of the very same one can't.
+Items have **names**, as in WoW, and the name is all that's unique: you can't wear two items with the
+same name (in any case), and nothing else limits a stat pair. Name an item in the forge, or leave it
+to be named from its slot and stats ("Ring of Peerlessness"); those names never clash, so twelve Haste
+and Critical items, one per slot, can all be worn.
+
+Each trinket has a **balance**: twice the rarity's value split between its two stats, anywhere from
+150% / 50% to 50% / 150% in steps of 5% (a slider in the forge; 100% / 100% is even). An epic Haste and
+Critical item can be 6% / 2%, 5% / 3%, 4% / 4% and so on, never past 6% / 2%. An unnamed item that
+leans starts its name with its bigger stat's word (Quick, Keen, Brutal, Enduring, Echoing, Lordly):
+"Quick Ring of Peerlessness". Items saved before the slider keep their balance (150% / 50% or even).
 
 The **Gear set** picker has prebuilt sets in two groups:
 
 - **Main stat** (epic, item level 120): one set per stat, Haste, Critical, Crit damage, Potency, Echo
-  and Minion power. All 12 items carry the stat: every pair with it leaning toward it (6% each), then
-  even (4%), then leaning the other way (2%) to fill the slots. Haste main gives +54% Haste; Echo main
-  wears Echo's 4 pairs three times each for +48%.
+  and Minion power. All 12 items lean all the way toward the stat (6% each, +72% in all), going round
+  its pairs for the second stat.
 - **Even split** (100% / 100% on every item): the **Even mix** (epic, item level 120: Haste and Potency
-  20%, Critical and Crit damage 16%, Echo and Minion power 12%), plus the older even sets.
+  20%, Critical and Crit damage 16%, Echo and Minion power 12%), and sets of one pair in all 12 slots:
+  Critical and Haste, Potency and Haste (common, item level 60), Haste and Potency (rare 100, epic
+  120), Critical and Crit damage (epic 120). The overview's own example set is there too.
 
 Every gear stat has an **icon** (Haste a lightning bolt, Critical a crosshair, Crit damage a burst,
 Potency an hourglass, Echo ripples, Minion power a skull). An equipped slot shows its two stats' icons,
-the leaned stat's bigger, and the icons also mark the item cards, the forge and the stat sheet.
+the bigger stat's bigger, and the icons also mark the item cards, the forge and the stat sheet.
 
 - **Power** raises every heal, shield and damage number. Your level gives most of it: +0% at level 1,
   +200% at level 60 (`levelPower`).
 - **Health** grows with level too: 800 at level 1, 2,400 at level 60, plus trinkets.
-
-Ability numbers are written for a level 60 hero with nothing on, whose level gives +200% Power, so a
-level 1 hero hits, heals and shields for a third of them (`LEVEL_GROWTH` in `src/talents/levels.ts`).
-To keep level 60 where it was, every other source of Power counts three times what it did: a trinket
-gives 0.315 per item level (the overview's 0.105, times three) and Sharpened Will +18%. The test arena
-scales with you: at a lower level the boss, its adds, the bots and every hit you take shrink the same
-way, so a fight is as hard at any level.
 - **Haste** speeds casts, the global cooldown and ticks. It never shortens a duration, so HoTs and zones fit in more ticks.
 - **Critical** and **Crit damage** set crit chance and size (crits land for 150% plus Crit damage).
 - **Potency** lengthens HoTs, zones, shields and buffs: duration × (1 + Potency).
@@ -434,14 +431,17 @@ way, so a fight is as hard at any level.
 - **Parry** is a chance to turn aside an enemy's melee swing. It never comes from items: the Greatsword
   and its talents give it.
 
+Ability numbers are written for a level 60 hero with nothing on, whose level gives +200% Power, so a
+level 1 hero hits, heals and shields for a third of them (`LEVEL_GROWTH` in `src/talents/levels.ts`).
+To keep level 60 where it was, every other source of Power counts three times what it did: a trinket
+gives 0.315 per item level (the overview's 0.105, times three) and Sharpened Will +18%. The test arena
+scales with you: at a lower level the boss, its adds, the bots and every hit you take shrink the same
+way, so a fight is as hard at any level.
+
 The stat sheet shows Power and Health together at the top with the resource, then **Secondary**
 (Haste, Critical, Crit damage, Potency), **Defensive** (Damage reduction, Dodge, and Parry once
 something gives it) and **Extra** (Echo, Minion power, Speed and anything only talents or a weapon
 give, like Rage when hit).
-
-Because no two worn trinkets can share a name, each balance of a stat pair can be worn once. An even
-set holds each pair once, so no stat sits on more than 5 of its 12 trinkets, and the common "Critical
-and Haste" and "Potency and Haste" sets differ by 1%. Mixing balances lets one stat sit on all 12.
 
 **Ability numbers**, under the trees, shows every number on every slotted ability. Numbers flash green
 when they improve and red when they drop, with the base (nothing equipped or learned) in grey.
@@ -478,8 +478,7 @@ Everything lives in `src/trees/`:
 - `healer/`: the Lifewarden Staff, the Tome of Dawn and the heals and ultimates. `mobility.ts`: Dash,
   Teleport, Sprint.
 - `tank/`: the Sword & Shield, the Greatsword and the tank abilities. `spear.ts`: the Spear.
-- `plague.ts`: the Plague tree from `Plague - Skill Tree.pptx`. It no longer shows the images in
-  `../Art/Plague/`; the files are still there.
+- `plague.ts`: the Plague tree from `Plague - Skill Tree.pptx`, with placeholder icons.
 - `playtest.ts`: made-up necromancer abilities so every damage slot has options.
 
 **Add a display-only tree:** copy `plague.ts`, set its `kind` (`damage`, `heal`, `cooldown` or
