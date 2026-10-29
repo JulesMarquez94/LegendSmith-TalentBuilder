@@ -148,7 +148,7 @@ export type EffectKey =
   | 'empower'
   /** A summon: % faster attacks for every other minion while it's up. */
   | 'hasten'
-  /** A summon: seconds it gains when one of your other minions falls, never past its full duration. */
+  /** A summon: seconds it gains when one of your other minions falls. No cap. */
   | 'feed'
   /** A summon: a meteor of this much damage at every 5th minion that falls while it's up (Impending Doom). */
   | 'meteor'

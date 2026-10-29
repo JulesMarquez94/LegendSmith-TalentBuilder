@@ -1885,7 +1885,7 @@ export class Arena {
    */
   private minionFell() {
     const lords = this.lords()
-    for (const s of lords) if (s.effect.feed > 0) s.endsAt = Math.min(this.time + s.effect.duration, s.endsAt + s.effect.feed)
+    for (const s of lords) s.endsAt += s.effect.feed
     const doom = lords.find((s) => s.effect.meteor > 0)
     if (!doom) return
     this.addBuff({ id: DOOM, name: 'Impending Doom', duration: Math.max(0.1, doom.endsAt - this.time), maxStacks: 5 }, false)
