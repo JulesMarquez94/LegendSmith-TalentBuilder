@@ -211,6 +211,9 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
       if (e.feed > 0) out.push({ key: key('feed'), label: 'Fed', value: e.feed, format: seconds, better: 'up', detail: 'longer for each minion that falls' })
       if (e.meteor > 0) out.push({ key: key('meteor'), label: 'Meteor', value: e.meteor, format: amount, better: 'up', detail: 'at every 5th minion that falls' })
       if (e.sustain > 0) out.push({ key: key('sustain'), label: 'Each attack', value: e.sustain, format: seconds, better: 'up', detail: 'added to your other minions' })
+      if (e.explode > 0) out.push({ key: key('explode'), label: 'Explodes for', value: e.explode, format: amount, better: 'up', detail: 'when it falls, every enemy within 6 yd' })
+      if (e.explodeLeft > 0) out.push({ key: key('explodeLeft'), label: 'Time left', value: e.explodeLeft, format: amount, better: 'up', detail: 'more per second left, shared out' })
+      if (e.fury > 0) out.push({ key: key('fury'), label: 'Each attack', value: e.fury, format: (n) => `+${pct(n)}%`, better: 'up', detail: 'more damage, up to 10 times' })
       break
     case 'aura':
       for (const [stat, n] of Object.entries(e.stats ?? {})) {

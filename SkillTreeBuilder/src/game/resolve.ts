@@ -316,6 +316,10 @@ function resolveEffectWith(
     patron: get('patron').add > 0 ? 1 : 0,
     burst: get('burst').add > 0 ? 1 : 0,
     burstSplash: Math.max(0, get('burstSplash').add),
+    // Damage, so Power and the summon's "more damage" talents raise them too, as for the meteor.
+    explode: Math.max(0, get('explode').add) * power * (1 + get('amount').pct / 100),
+    explodeLeft: Math.max(0, get('explodeLeft').add) * power * (1 + get('amount').pct / 100),
+    fury: Math.max(0, get('fury').add),
     auto: effect.auto,
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))

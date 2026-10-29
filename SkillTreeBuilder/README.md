@@ -59,7 +59,7 @@ already in another slot swaps the two and keeps both builds.
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
 Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
-Carrion Curse, Overlord and Plague.
+Carrion Curse, Overlord, Plague and Raise Ghoul.
 
 ## The artifacts
 
@@ -345,12 +345,27 @@ Rot's rolling stacks, they all run out together. Its talents raise the cap, add 
 the hit stronger per stack (Twist the Knife), add stacks from any direct damage (Infected), burst the
 stacks when they run out, spread one to a neighbour, and make all your DoTs stronger per stack.
 
-**Raise Ghoul** is playable now (it was display-only): a 1.5 sec cast that raises a ghoul for 20 sec,
-hitting your target for 90 every 1.5 sec, up to 3 at once (another replaces the oldest). Ghouls are
-**summons**, a new effect type: minions of their own that fight in melee around your target and then
-fall, unlike the book's imps, which are its resource. They count for Minion power. Its tree: more
-minion damage and attack speed, longer-lasting ghouls, more at once (Horde), Grave Rot on their hits,
-pools of decay, a Ghoul Lord every 4th cast, and Corpse Explosion when one falls.
+**Raise Ghoul** (any damage weapon, made for the book): a 2 sec cast that costs 3 imps and raises a
+ghoul for 24 sec, clawing your target for 150 every 2 sec, up to 3 at once (another replaces the
+oldest). Ghouls are **summons**: minions of their own that fight in melee around your target and then
+fall, unlike the book's imps, which are its resource. They count for Minion power. Its tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Grave Patience | 2 | Your ghouls last 4/8 sec longer |
+| 1 | Unholy Might | 3 | Your minions deal 6/12/18% more damage |
+| 1 | Quick Rites | 2 | Raise Ghoul casts 0.25/0.5 sec faster |
+| 2 | Horde (needs Grave Patience) | 2 | 1/2 more ghouls at once |
+| 2 | Frenzied Claws (needs Unholy Might) | 2 | Your ghouls attack 0.25/0.5 sec sooner (every 1.75/1.5 sec) |
+| 2 | Undying Hunger | 2 | Whenever you crit, your ghouls last 0.25/0.5 sec longer, at most once a second |
+| 3 | Corpse Explosion (needs Horde) | 2 | A ghoul that dies or expires explodes for 150/300 on every enemy within 6 yd of its target |
+| 3 | Mounting Fury (needs Frenzied Claws) | 2 | Each attack a ghoul makes gives it 2/4% more damage, up to 10 times |
+| 4 | Volatile Remains (needs Corpse Explosion) | 1 | The explosion deals 60 more for each second the ghoul had left, shared out among the enemies it hits |
+
+Ghouls only fall early when a newer one replaces the oldest or something takes them (Soul Feast), so
+that's when Volatile Remains pays. The mechanics behind it: a summon's `explode`, `explodeLeft` and
+`fury` (scaled like other damage: Power and "more minion damage" raise the explosion), and an
+`extendSummons` action (Undying Hunger).
 
 The **Ashwood Longbow** shoots from 40 yd. Focus starts empty, up to 100, and only shooting fills it:
 **Swift Arrow** is a 1.5 sec cast that hits for 330 and gives 10 focus (hold the key to keep shooting).

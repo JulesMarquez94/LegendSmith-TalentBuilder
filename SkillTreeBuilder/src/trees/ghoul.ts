@@ -1,17 +1,20 @@
 import { counted, int, sec } from '../game/format.ts'
 import type { TreeDef } from '../talents/types.ts'
-import { apply, damage, dot, hostileZone, more, plus, proc, summon, talent } from './authoring.ts'
+import { more, plus, proc, summon, talent } from './authoring.ts'
 
 // A spell, so every damage weapon can raise ghouls. Ghouls are minions of their own: they fight for a
 // while and then fall, unlike the summoning book's imps, which are its resource. "Your minions" talents
-// reach both; "your ghouls" talents match Raise Ghoul's minions only, so its rot, pools and explosions
-// never feed their own procs.
+// reach both; "your ghouls" talents match Raise Ghoul's minions only.
 
-/** Raise Ghoul's own minions (the ghouls and the Ghoul Lord), not the rot and pools they leave. */
+/** Raise Ghoul's own minions. */
 const GHOULS = { all: ['raise-ghoul', 'minion'] }
+
+/** How often a ghoul attacks before talents: Frenzied Claws takes seconds off it. */
+const ATTACK_EVERY = 2
 
 export const raiseGhoul: TreeDef = {
   id: 'raise-ghoul',
+  reviewed: true,
   kind: 'damage',
   role: 'damage',
   madeFor: 'tome-of-summoning',
@@ -20,17 +23,17 @@ export const raiseGhoul: TreeDef = {
   pointsPerRow: 2,
   ability: {
     name: 'Raise Ghoul',
-    castTime: '1.5 sec cast',
+    castTime: '2 sec cast',
     range: '20 range',
-    description: 'Raise a ghoul that fights for you for 20 sec. You can have up to 3 ghouls at once.',
+    description: 'Raise a ghoul that fights for you for 24 sec, clawing your target every 2 sec. Up to 3 at once.',
   },
   spec: {
     // A summon spell, so talents for summon spells (Quick Invocation) reach it.
     tags: ['summon'],
-    cost: 2,
-    castTime: 1.5,
+    cost: 3,
+    castTime: 2,
     range: 20,
-    effects: [summon(90, 1.5, 20, 3, { name: 'Ghoul' })],
+    effects: [summon(150, ATTACK_EVERY, 24, 3, { name: 'Ghoul' })],
     text: (a) => {
       const e = a.effects[0]
       return (
@@ -42,83 +45,92 @@ export const raiseGhoul: TreeDef = {
   },
   talents: [
     talent({
-      id: 'ravenous',
-      name: 'Ravenous',
+      id: 'grave-patience',
+      name: 'Grave Patience',
       row: 0,
       col: 0,
-      per: [8, 16, 24],
-      text: 'Your minions deal {}% more damage.',
-      does: (v) => [more('amount', 'minion', v)],
-    }),
-    talent({
-      id: 'grave-pact',
-      name: 'Grave Pact',
-      row: 0,
-      col: 2,
-      per: [4.5, 9],
+      per: [4, 8],
       text: 'Your ghouls last {} sec longer.',
       does: (v) => [plus('duration', GHOULS, v)],
     }),
     talent({
-      id: 'rotting-claws',
-      name: 'Rotting Claws',
-      row: 1,
-      col: 0,
-      requires: 'ravenous',
-      text: "Your ghouls' attacks leave Grave Rot on their target: 25 damage every sec for 6 sec.",
-      does: () => [proc('hit', GHOULS, [apply(dot(25, 6, 1, 'event', { name: 'Grave Rot' }))])],
+      id: 'unholy-might',
+      name: 'Unholy Might',
+      row: 0,
+      col: 1,
+      per: [6, 12, 18],
+      text: 'Your minions deal {}% more damage.',
+      does: (v) => [more('amount', 'minion', v)],
+    }),
+    talent({
+      id: 'quick-rites',
+      name: 'Quick Rites',
+      row: 0,
+      col: 3,
+      per: [0.25, 0.5],
+      text: 'Raise Ghoul casts {} sec faster.',
+      does: (v) => [plus('castTime', 'raise-ghoul', -v)],
     }),
     talent({
       id: 'horde',
       name: 'Horde',
       row: 1,
-      col: 2,
-      requires: 'grave-pact',
+      col: 0,
+      requires: 'grave-patience',
       per: [1, 2],
       text: 'You can have {} more ghouls at once.',
       does: (v) => [plus('max', GHOULS, v)],
     }),
     talent({
-      id: 'frenzied-pack',
-      name: 'Frenzied Pack',
-      row: 2,
-      col: 2,
-      requires: 'horde',
-      per: [8, 16, 24],
-      text: 'Your minions attack {}% faster.',
-      does: (v) => [more('tickRate', 'minion', v)],
-    }),
-    talent({
-      id: 'unhallowed-ground',
-      name: 'Unhallowed Ground',
-      row: 2,
-      col: 3,
-      per: [40, 80, 120],
-      text: "Every 5th attack from your ghouls leaves a pool of decay under its target: {} damage every sec for 5 sec.",
-      does: (v) => [
-        proc('hit', GHOULS, [apply(hostileZone(v, 5, 1, 4, { name: 'Unhallowed Ground', target: 'event' }))], {
-          every: 5,
-        }),
-      ],
-    }),
-    talent({
-      id: 'ghoul-lord',
-      name: 'Ghoul Lord',
-      row: 3,
+      id: 'frenzied-claws',
+      name: 'Frenzied Claws',
+      row: 1,
       col: 1,
-      requires: 'frenzied-pack',
-      text: 'Every 4th Raise Ghoul also raises a Ghoul Lord: 200 damage every 1.5 sec for 20 sec.',
-      does: () => [proc('cast', 'raise-ghoul', [apply(summon(200, 1.5, 20, 1, { name: 'Ghoul Lord' }))], { every: 4 })],
+      requires: 'unholy-might',
+      per: [0.25, 0.5],
+      text: "Your ghouls' attacks come {} sec sooner.",
+      // Attack speed that takes exactly that off the 2 sec (before haste).
+      does: (v) => [more('tickRate', GHOULS, (ATTACK_EVERY / (ATTACK_EVERY - v) - 1) * 100)],
+    }),
+    talent({
+      id: 'undying-hunger',
+      name: 'Undying Hunger',
+      row: 1,
+      col: 3,
+      per: [0.25, 0.5],
+      text: 'Whenever you crit, your ghouls last {} sec longer. At most once a second.',
+      does: (v) => [proc('crit', 'damage', [{ do: 'extendSummons', match: GHOULS, seconds: v }], { cooldown: 1 })],
     }),
     talent({
       id: 'corpse-explosion',
       name: 'Corpse Explosion',
+      row: 2,
+      col: 0,
+      requires: 'horde',
+      per: [150, 300],
+      text: 'When one of your ghouls dies or expires, it explodes for {} damage to every enemy within 6 yd of its target.',
+      does: (v) => [plus('explode', GHOULS, v)],
+    }),
+    talent({
+      id: 'mounting-fury',
+      name: 'Mounting Fury',
+      row: 2,
+      col: 2,
+      requires: 'frenzied-claws',
+      per: [2, 4],
+      text: 'Each attack your ghouls make gives them {}% more damage, up to 10 times.',
+      does: (v) => [plus('fury', GHOULS, v)],
+    }),
+    talent({
+      id: 'volatile-remains',
+      name: 'Volatile Remains',
       row: 3,
-      col: 3,
-      requires: 'unhallowed-ground',
-      per: [150, 300, 450],
-      text: 'When one of your ghouls falls, it explodes for {} damage to every enemy within 6 yd of its target.',
-      does: (v) => [proc('expire', GHOULS, [apply(damage(v, 'event', { radius: 6, name: 'Corpse Explosion' }))])],
+      col: 0,
+      requires: 'corpse-explosion',
+      text:
+        "Corpse Explosion deals 60 more damage for each second the ghoul had left, shared out among the enemies it hits. " +
+        'A ghoul replaced by a newer one, or taken early, explodes harder.',
+      does: () => [plus('explodeLeft', GHOULS, 60)],
     }),
   ],
 }
