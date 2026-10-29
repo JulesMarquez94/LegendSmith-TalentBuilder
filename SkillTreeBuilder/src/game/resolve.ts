@@ -304,6 +304,13 @@ function resolveEffectWith(
     splash: Math.max(0, scaled(effect.splash ?? 0, get('splash'))),
     soloSplash: Math.max(0, get('soloSplash').add + get('soloSplash').pct),
     keepChance: Math.min(100, Math.max(0, (effect.keepChance ?? 0) + get('keepChance').add)),
+    empower: Math.max(0, scaled(effect.empower ?? 0, get('empower'))),
+    hasten: Math.max(0, scaled(effect.hasten ?? 0, get('hasten'))),
+    feed: Math.max(0, get('feed').add),
+    // Damage, so Power and the summon's own "more damage" talents raise it too.
+    meteor: Math.max(0, get('meteor').add) * power * (1 + get('amount').pct / 100),
+    sustain: Math.max(0, get('sustain').add),
+    patron: get('patron').add > 0 ? 1 : 0,
     auto: effect.auto,
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))

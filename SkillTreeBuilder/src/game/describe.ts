@@ -41,6 +41,7 @@ export function describeCondition(when: Condition): string {
   if (when.stacksOf !== undefined) parts.push('for each stack on it')
   if (when.single) parts.push('when it hits only one enemy')
   if (when.alone !== undefined) parts.push('while on only one enemy')
+  if (when.perMinion) parts.push('for each minion you command')
   return parts.join(', ')
 }
 
@@ -204,6 +205,12 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
       })
       out.push({ key: key('duration'), label: 'Lasts', value: e.duration, format: seconds, better: 'up' })
       out.push({ key: key('max'), label: 'At once', value: e.max, format: String, better: 'up', detail: 'one more replaces the oldest' })
+      if (e.radius > 0) out.push({ key: key('radius'), label: 'Hits around', value: e.radius, format: (n) => `${yd(n)} yd`, better: 'up', detail: 'every enemy that close to its target' })
+      if (e.empower > 0) out.push({ key: key('empower'), label: 'Minions deal', value: e.empower, format: (n) => `+${pct(n)}%`, better: 'up', detail: 'your other minions, while it’s up' })
+      if (e.hasten > 0) out.push({ key: key('hasten'), label: 'Minions attack', value: e.hasten, format: (n) => `${pct(n)}% faster`, better: 'up', detail: 'your other minions, while it’s up' })
+      if (e.feed > 0) out.push({ key: key('feed'), label: 'Fed', value: e.feed, format: seconds, better: 'up', detail: 'longer for each minion that falls' })
+      if (e.meteor > 0) out.push({ key: key('meteor'), label: 'Meteor', value: e.meteor, format: amount, better: 'up', detail: 'at every 5th minion that falls' })
+      if (e.sustain > 0) out.push({ key: key('sustain'), label: 'Each attack', value: e.sustain, format: seconds, better: 'up', detail: 'added to your other minions' })
       break
     case 'aura':
       for (const [stat, n] of Object.entries(e.stats ?? {})) {

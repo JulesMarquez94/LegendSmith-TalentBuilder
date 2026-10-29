@@ -38,6 +38,9 @@ const QUEUE_WINDOW = 0.35
 const DASH_TIME = 0.15
 /** The buff that shows a teleport's return window. */
 const RECALL = 'recall'
+/** The buff that counts your fallen minions toward an Overlord's meteor. */
+const DOOM = 'impending-doom'
+const METEOR_RADIUS = 5
 /** Adds swing at the tank this often. */
 const ADD_SWING = 2
 
@@ -211,6 +214,9 @@ export interface Imp {
 /** A minion an ability raised (a ghoul): it fights on its own until its time runs out. */
 export interface Summon {
   id: number
+  /** Minion attack-speed buffs (`tickRate`) and your ultimate's haste when it was raised, already in its pace. */
+  tick0: number
+  ultHaste0: number
   /** The same for every one of a kind, so `max` counts them. */
   key: string
   name: string
@@ -235,6 +241,8 @@ export interface ActiveBuff {
   stacks: number
   /** Your whole group gets its stats. */
   group: boolean
+  /** It came from your ultimate (Dark Patron gives its haste to the Overlord). */
+  ultimate?: boolean
 }
 
 /** The tags a `gain` event carries, so talents can aim at it with 'resource'. */
@@ -938,7 +946,7 @@ export class Arena {
       case 'buff':
         if (e.buff) {
           const stats = e.buff.stats?.speed !== undefined ? { ...e.buff.stats, speed: e.speed } : (e.buff.stats ?? {})
-          this.addBuff({ ...e.buff, stats, duration: e.duration }, false)
+          this.addBuff({ ...e.buff, stats, duration: e.duration }, false, ctx.ability?.kind === 'cooldown')
         }
         break
       case 'summon':
@@ -1038,6 +1046,8 @@ export class Arena {
       for (const c of e.conditionals) bonus += this.enemyBonus(c, enemy, ctx)
       // Minion power: more damage for each minion you command.
       amount *= (1 + bonus / 100) * (1 + (this.stats().minionPower * (this.imps.length + this.summons.length)) / 100)
+      // An Overlord's presence: more damage for every other minion.
+      if (e.family === 'minion' && e.empower <= 0) amount *= 1 + this.lordSum('empower') / 100
       crit = this.decks.draw(`crit:${e.key}`, e.critChance)
       if (crit) amount *= e.critMultiplier
     }
@@ -1241,7 +1251,7 @@ export class Arena {
   }
 
   /** Talent buffs get Potency here; buff effects (Sprint) already have it, so they pass `potency: false`. */
-  private addBuff(spec: BuffSpec, potency = true) {
+  private addBuff(spec: BuffSpec, potency = true, ultimate = false) {
     const duration = potency ? spec.duration * (1 + this.stats().potency / 100) : spec.duration
     const existing = this.buffs.find((b) => b.id === spec.id)
     const stacks = existing ? Math.min(spec.maxStacks ?? 1, existing.stacks + 1) : 1
@@ -1257,6 +1267,7 @@ export class Arena {
       lostUnless: spec.lostUnless,
       stacks,
       group: !!spec.group,
+      ultimate,
     })
   }
 
@@ -1623,6 +1634,7 @@ export class Arena {
     if (when.stacksOf) {
       n = enemy.dots.filter((d) => matches(when.stacksOf!, d.effect.tags)).reduce((sum, d) => sum + this.liveStacks(d), 0)
     }
+    if (when.perMinion) n = this.imps.length + this.summons.filter((x) => x.effect.empower <= 0).length
     return c.pct * n
   }
 
@@ -1845,6 +1857,47 @@ export class Arena {
   private removeImp(imp: Imp) {
     this.imps = this.imps.filter((x) => x !== imp)
     this.ring(this.impPos(imp), 1.2, '#ff8a5c')
+    this.minionFell()
+  }
+
+  /** Your Overlords: summons whose presence empowers your other minions. */
+  private lords(): Summon[] {
+    return this.summons.filter((s) => s.effect.empower > 0)
+  }
+
+  private lordSum(key: 'empower' | 'hasten'): number {
+    return this.lords().reduce((sum, s) => sum + s.effect[key], 0)
+  }
+
+  /** Minion attack-speed buffs on right now that match these tags, in %. */
+  private buffTick(tags: ReadonlySet<string>): number {
+    return this.buffMods().reduce((sum, m) => (m.key === 'tickRate' && matches(m.match, tags) ? sum + (m.pct ?? 0) + (m.add ?? 0) : sum), 0)
+  }
+
+  /** The haste your ultimate's buffs give you right now. */
+  private ultimateHaste(): number {
+    return this.buffs.reduce((sum, b) => (b.ultimate ? sum + (b.stats.haste ?? 0) * b.stacks : sum), 0)
+  }
+
+  /**
+   * One of your minions (an imp or a summon, Overlords aside) fell: it ran out, was spent or was
+   * replaced. Overlords that feed on it last longer, and every 5th one calls their meteor.
+   */
+  private minionFell() {
+    const lords = this.lords()
+    for (const s of lords) if (s.effect.feed > 0) s.endsAt = Math.min(this.time + s.effect.duration, s.endsAt + s.effect.feed)
+    const doom = lords.find((s) => s.effect.meteor > 0)
+    if (!doom) return
+    this.addBuff({ id: DOOM, name: 'Impending Doom', duration: Math.max(0.1, doom.endsAt - this.time), maxStacks: 5 }, false)
+    const b = this.buffs.find((x) => x.id === DOOM)!
+    if (b.stacks < 5) return
+    this.buffs = this.buffs.filter((x) => x !== b)
+    const target = this.mainTarget(ENEMY_RANGE)
+    if (!target) return
+    this.ring(target.pos, METEOR_RADIUS, doom.effect.color)
+    for (const enemy of this.enemies.filter((x) => x.alive && dist(x.pos, target.pos) <= METEOR_RADIUS + x.radius)) {
+      this.hitEnemy(enemy, doom.effect.meteor, doom.effect, this.summonContext(doom, enemy), { label: 'Meteor' })
+    }
   }
 
   /**
@@ -1886,7 +1939,7 @@ export class Arena {
     if (!e) return
     for (const imp of this.imps) {
       if (this.time < imp.nextAttack) continue
-      imp.nextAttack = this.time + e.interval
+      imp.nextAttack = this.time + e.interval / (1 + this.lordSum('hasten') / 100)
       const target = this.mainTarget(ENEMY_RANGE)
       if (!target) continue
       this.beam(this.impPos(imp), target.pos, '#ff8a5c')
@@ -1901,6 +1954,8 @@ export class Arena {
     if (same.length >= e.max) this.dismiss(same[0])
     const s: Summon = {
       id: this.nextId++,
+      tick0: this.buffTick(e.tags),
+      ultHaste0: this.ultimateHaste(),
       key: e.key,
       name,
       effect: e,
@@ -1919,6 +1974,8 @@ export class Arena {
     const target = this.mainTarget(ENEMY_RANGE)
     this.ring(this.summonPos(s), 1.2, s.effect.color)
     this.emit({ kind: 'expire', tags: s.effect.tags, ctx: this.summonContext(s, target), enemy: target ?? undefined })
+    if (s.effect.empower <= 0) this.minionFell()
+    else if (!this.lords().length) this.buffs = this.buffs.filter((b) => b.id !== DOOM)
   }
 
   /** Where a summon stands: in melee around the enemy it's fighting, or beside you with nothing to fight. */
@@ -1940,13 +1997,33 @@ export class Arena {
         continue
       }
       while (this.time >= s.nextAttack) {
-        s.nextAttack += s.effect.interval
+        s.nextAttack += s.effect.interval / this.summonPace(s)
         const target = this.mainTarget(ENEMY_RANGE)
         if (!target) continue
         this.beam(this.summonPos(s), target.pos, s.effect.color)
         this.hitEnemy(target, s.effect.amount, s.effect, this.summonContext(s, target), { label: s.name, quiet: true })
+        // A volley (the Overlord's) hits every other enemy that close to its target too.
+        if (s.effect.radius > 0) {
+          const near = this.enemies.filter((x) => x !== target && x.alive && dist(x.pos, target.pos) <= s.effect.radius + x.radius)
+          for (const x of near) this.hitEnemy(x, s.effect.amount, s.effect, this.summonContext(s, x), { label: s.name, quiet: true })
+        }
+        if (s.effect.sustain > 0) {
+          for (const imp of this.imps) imp.endsAt += s.effect.sustain
+          for (const o of this.summons) if (o.effect.empower <= 0) o.endsAt += s.effect.sustain
+        }
       }
     }
+  }
+
+  /**
+   * How much faster a summon attacks than when it was raised: speed buffs since then, an Overlord's
+   * presence (for other minions) and, with Dark Patron, your ultimate's haste (for the Overlord).
+   */
+  private summonPace(s: Summon): number {
+    let pace = (1 + this.buffTick(s.effect.tags) / 100) / (1 + s.tick0 / 100)
+    if (s.effect.empower <= 0) pace *= 1 + this.lordSum('hasten') / 100
+    else if (s.effect.patron > 0) pace *= (1 + this.ultimateHaste() / 100) / (1 + s.ultHaste0 / 100)
+    return pace
   }
 
   // ---------- Timers ----------

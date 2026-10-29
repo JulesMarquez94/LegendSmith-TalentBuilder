@@ -144,6 +144,18 @@ export type EffectKey =
   | 'returnWindow'
   /** % chance a curse's stack bursts without being taken (Undying Hex). */
   | 'keepChance'
+  /** A summon (the Overlord): % more damage for every other minion while it's up. */
+  | 'empower'
+  /** A summon: % faster attacks for every other minion while it's up. */
+  | 'hasten'
+  /** A summon: seconds it gains when one of your other minions falls, never past its full duration. */
+  | 'feed'
+  /** A summon: a meteor of this much damage at every 5th minion that falls while it's up (Impending Doom). */
+  | 'meteor'
+  /** A summon: seconds its every attack adds to your other minions. */
+  | 'sustain'
+  /** A summon: above 0, it attacks faster by the haste your ultimate's buffs give you, live. */
+  | 'patron'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -297,6 +309,10 @@ export interface EffectSpec {
   splash?: number
   /** A curse: % chance a stack bursts without being taken. */
   keepChance?: number
+  /** A summon: % more damage for your other minions while it's up. */
+  empower?: number
+  /** A summon: % faster attacks for your other minions while it's up. */
+  hasten?: number
   /**
    * Fires only when its ability goes off on its own (`autocast`), and then instead of the others:
    * Emanation turns Miasma's zone into a Pox around you every 10 sec.
@@ -338,6 +354,8 @@ export interface Condition {
   single?: boolean
   /** Only one enemy has one of your effects matching this (Concentrated Pox). Enemies only. */
   alone?: Match
+  /** The bonus counts once for each minion you command, Overlords aside (Lord of the Legion). */
+  perMinion?: boolean
 }
 
 export interface ModMechanic {
@@ -548,6 +566,12 @@ export interface ResolvedEffect {
   splash: number
   soloSplash: number
   keepChance: number
+  empower: number
+  hasten: number
+  feed: number
+  meteor: number
+  sustain: number
+  patron: number
   auto?: boolean
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
