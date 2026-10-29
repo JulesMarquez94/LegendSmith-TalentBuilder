@@ -238,8 +238,8 @@ with an `auto` effect: an effect that fires only when the ability goes off on it
 others. Concentrated Pox uses an `alone` condition: only one enemy has the matching DoT.
 
 An ability can also be **made for** a weapon (`madeFor`: Harvest for the book). That's a label: the
-picker shows it and lists the ones made for your weapon first. The Plague tree keeps its art and
-layout from the deck, with its X values filled in.
+picker shows it and lists the ones made for your weapon first. The Plague tree keeps its layout from
+the deck, with its X values filled in, and uses the tinted placeholder icons like every other tree.
 
 **Doom Bolt** is the big single-target spell, and it **spends all your resource**: its cost (3) is the
 minimum, and it grows with everything past it. Spending twice the cost is twice the damage, so 2,000
@@ -478,7 +478,8 @@ Everything lives in `src/trees/`:
 - `healer/`: the Lifewarden Staff, the Tome of Dawn and the heals and ultimates. `mobility.ts`: Dash,
   Teleport, Sprint.
 - `tank/`: the Sword & Shield, the Greatsword and the tank abilities. `spear.ts`: the Spear.
-- `plague.ts`: the Plague tree from `Plague - Skill Tree.pptx`, using the art in `../Art/Plague/`.
+- `plague.ts`: the Plague tree from `Plague - Skill Tree.pptx`. It no longer shows the images in
+  `../Art/Plague/`; the files are still there.
 - `playtest.ts`: made-up necromancer abilities so every damage slot has options.
 
 **Add a display-only tree:** copy `plague.ts`, set its `kind` (`damage`, `heal`, `cooldown` or

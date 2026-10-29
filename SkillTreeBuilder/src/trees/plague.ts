@@ -17,15 +17,12 @@ export const plague: TreeDef = {
   kind: 'damage',
   role: 'damage',
   madeFor: 'tome-of-summoning',
-  artFolder: 'Plague',
-  background: 'Plague-Background',
   color: '#7ccf3a',
   columns: 4,
   pointsPerRow: 2,
 
   ability: {
     name: 'Plague',
-    icon: 'Plague',
     castTime: 'Instant',
     range: '40 range',
     description: 'Plague the target. This ability rotates between inflicting Pox, Blight and Malady after each use.',
@@ -33,21 +30,18 @@ export const plague: TreeDef = {
   effects: [
     {
       name: 'Pox',
-      icon: 'Pox',
       castTime: 'Instant',
       range: '40 range',
       description: 'Plague the target, causing 90 Decay damage every sec for 12 sec.',
     },
     {
       name: 'Blight',
-      icon: 'Blight',
       castTime: 'Instant',
       range: '40 range',
       description: 'Plague the target, causing 70 Decay damage every sec for 18 sec.',
     },
     {
       name: 'Malady',
-      icon: 'Malady',
       castTime: 'Instant',
       range: '40 range',
       description: 'Plague the target, causing 55 Decay damage every sec for 24 sec.',
@@ -79,7 +73,6 @@ export const plague: TreeDef = {
     talent({
       id: 'lasting-plagues',
       name: 'Lasting Plagues',
-      icon: 'Lasting Plagues',
       row: 0,
       col: 1,
       per: [3, 6],
@@ -89,7 +82,6 @@ export const plague: TreeDef = {
     talent({
       id: 'potent-plagues',
       name: 'Potent Plagues',
-      icon: 'Potent Plagues',
       row: 0,
       col: 2,
       per: [9, 18],
@@ -101,7 +93,6 @@ export const plague: TreeDef = {
     talent({
       id: 'pandemic',
       name: 'Pandemic',
-      icon: 'Pandemic',
       row: 1,
       col: 0,
       text: 'Your direct damage to a target with a plague spreads a fresh plague to one enemy within 15 yd that does not have one.',
@@ -110,7 +101,6 @@ export const plague: TreeDef = {
     {
       id: 'volatile-plague',
       name: 'Volatile Plague',
-      icon: 'Volatile Plague',
       row: 1,
       col: 1,
       maxRank: 3,
@@ -129,7 +119,6 @@ export const plague: TreeDef = {
     talent({
       id: 'critical-condition',
       name: 'Critical Condition',
-      icon: 'Critical Condition',
       row: 2,
       col: 0,
       text: 'Whenever you critically strike a target with direct damage, your plagues on it instantly deal 2 sec worth of damage.',
@@ -138,7 +127,6 @@ export const plague: TreeDef = {
     talent({
       id: 'aggravating',
       name: 'Aggravating',
-      icon: 'Aggravating',
       row: 2,
       col: 2,
       requires: 'potent-plagues',
@@ -151,7 +139,6 @@ export const plague: TreeDef = {
     {
       id: 'terminal',
       name: 'Terminal',
-      icon: 'Terminal',
       row: 3,
       col: 0,
       maxRank: 3,
@@ -162,7 +149,6 @@ export const plague: TreeDef = {
     talent({
       id: 'bursting-sores',
       name: 'Bursting Sores',
-      icon: 'Bursting Sores',
       row: 3,
       col: 1,
       requires: 'volatile-plague',
@@ -172,7 +158,6 @@ export const plague: TreeDef = {
     talent({
       id: 'convalescence',
       name: 'Convalescence',
-      icon: 'convalescence',
       row: 3,
       col: 3,
       requires: 'aggravating',
