@@ -141,7 +141,7 @@ The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, **
 cast that summons one for **14 sec**. Every imp attacks your target on its own (40 every 1.5 sec), and
 its spells are paid for by **sacrificing imps**, the one with the least time left first. An imp whose
 time runs out leaves and takes its point of resource with it. Minion power raises all your damage for
-each imp you command.
+each imp you command, so its values are a tenth of other stats': an epic item carries 0.4%, not 4%.
 
 The book's own tree:
 
@@ -155,7 +155,7 @@ The book's own tree:
 | 2 | Quick Invocation (needs Quick Summons) | 2 | Every second you move gives a stack: your next summon spell casts 4/8% faster per stack, instantly at 100% |
 | 3 | Spawning (needs Frenzied Imps) | 2 | Imp attacks have a 2/4% chance to summon another imp, at most once every 15 sec |
 | 3 | Stubborn Imps | 2 | Each sacrificed imp has a 5/10% chance to survive, and isn't spent |
-| 4 | Dark Bargain (needs Stubborn Imps) | 1 | Every sacrificed imp gives, at random, +1% haste, +1% crit, +2% echo or +0.5% minion power for 10 sec; it stacks, but new stacks don't refresh it |
+| 4 | Dark Bargain (needs Stubborn Imps) | 1 | Every sacrificed imp gives, at random, +1% haste, +1% crit, +2% echo or +0.05% minion power for 10 sec; it stacks, but new stacks don't refresh it |
 | 4 | Twin Summons (needs Quick Invocation) | 1 | Every third Summon Imp summons 2 imps |
 
 The new mechanics behind it:
@@ -264,8 +264,8 @@ talents (resource and cooldown per extra hit) and area-damage talents reach them
 
 **Blood Frenzy** is the damage dealer's ultimate: instant, free, a 3 min cooldown, and +20% haste for
 you for 30 sec (`src/trees/blood.ts`). Its tree: Bloodlust (+5/10% more haste), Lingering Rage (+5/10
-sec), Quickened Pulse (cooldown 30/60 sec shorter), Endless Frenzy (every ability you use while it's
-up adds 0.2/0.4 sec, needs Lingering Rage) and Twin Frenzy (2 charges at half the duration).
+sec), Quickened Pulse (cooldown 30/60 sec shorter), Twin Frenzy (2 charges at half the duration, needs
+Lingering Rage) and Endless Frenzy (every ability you use while it's up adds 0.2/0.4 sec).
 
 **Frenzy**: +15% haste for 8 sec, with no cooldown: you keep it up by paying for
 it again. Feeding Frenzy makes every ability you spend on extend it; other talents add crit, regen,
@@ -285,7 +285,7 @@ Minion hits are **minion damage**, not direct damage. Its tree:
 | 2 | Carrion Spray (needs Feast) | 2 | Each stack splashes 15/30% of its damage onto every other enemy within 8 yd |
 | 2 | Frenzied Feeding (needs Bloodied) | 2 | Each stack makes your minions attack 3/6% faster for 4 sec, up to 5 times |
 | 3 | Swarming Brood | 2 | Each stack adds 0.05/0.1 sec to every minion you command |
-| 3 | Carrion Feast (needs Frenzied Feeding) | 2 | Each stack gives +0.05/0.1% minion power for 10 sec, up to 20 times |
+| 3 | Carrion Feast (needs Frenzied Feeding) | 2 | Each stack gives +0.005/0.01% minion power for 10 sec, up to 20 times |
 | 4 | Undying Hex (needs Gorging Hex) | 2 | Each stack has a 10/20% chance to burst without being taken |
 
 The mechanics behind it: a `curseStack` action (Gorging Hex), `extendMinions` (imps and summons), a
@@ -429,7 +429,8 @@ Marathon.
 ## Gear and stats
 
 Twelve trinket slots, as in the overview: item level sets Power (a %, three times the overview's,
-see below) and Health, rarity sets the two stats (common 1% … epic 4%), and Echo and Minion power
+see below) and Health, rarity sets the two stats (common 1% … epic 4%; Minion power a tenth of that,
+since it counts for every minion you command), and Echo and Minion power
 take one of the two. Click a slot to make a test trinket, or pick a **Gear set** preset. Hover a stat
 for where it comes from.
 
@@ -447,10 +448,11 @@ leans starts its name with its bigger stat's word (Quick, Keen, Brutal, Enduring
 The **Gear set** picker has prebuilt sets in two groups:
 
 - **Main stat** (epic, item level 120): one set per stat, Haste, Critical, Crit damage, Potency, Echo
-  and Minion power. All 12 items lean all the way toward the stat (6% each, +72% in all), going round
+  and Minion power. All 12 items lean all the way toward the stat (6% each, +72% in all; 0.6% and
+  +7.2% for Minion power), going round
   its pairs for the second stat.
 - **Even split** (100% / 100% on every item): the **Even mix** (epic, item level 120: Haste and Potency
-  20%, Critical and Crit damage 16%, Echo and Minion power 12%), and sets of one pair in all 12 slots:
+  20%, Critical and Crit damage 16%, Echo 12%, Minion power 1.2%), and sets of one pair in all 12 slots:
   Critical and Haste, Potency and Haste (common, item level 60), Haste and Potency (rare 100, epic
   120), Critical and Crit damage (epic 120). The overview's own example set is there too.
 

@@ -132,11 +132,18 @@ export const trinketPower = (t: Trinket) => Math.round(t.itemLevel * 0.315 * 10)
 
 export const trinketHealth = (t: Trinket) => Math.round(t.itemLevel * 9.5)
 
+/**
+ * How much of a stat an item carries for the rarity's value. Minion power counts once for every minion
+ * you command, so an item has a tenth of it: an epic one 0.4%, not 4%.
+ */
+const STAT_WEIGHT: Partial<Record<GearStat, number>> = { minionPower: 0.1 }
+
 /** The two stats' values: twice the rarity's value, split between them (the rarity's value each when even). */
 export function trinketStatValues(t: Trinket): [number, number] {
   const value = RARITY_INFO[t.rarity].value
   const split = splitOf(t)
-  return [(value * split) / 100, (value * (200 - split)) / 100]
+  const weight = (i: 0 | 1) => STAT_WEIGHT[t.stats[i]] ?? 1
+  return [(value * split * weight(0)) / 100, (value * (200 - split) * weight(1)) / 100]
 }
 
 /** Separate from item level: past level 60 the item level keeps climbing and this stays at 60. */
@@ -163,7 +170,8 @@ export function unequip(gear: Gear, slot: TrinketSlot): Gear {
 /** What the worn trinkets add to the character. */
 export function gearTotals(gear: Gear): Partial<CharStats> {
   const totals: Partial<Record<CharStat, number>> = {}
-  const add = (stat: CharStat, n: number) => (totals[stat] = Math.round(((totals[stat] ?? 0) + n) * 10) / 10)
+  // To the hundredth: Minion power comes in small steps (0.15% on an uncommon item leaning away from it).
+  const add = (stat: CharStat, n: number) => (totals[stat] = Math.round(((totals[stat] ?? 0) + n) * 100) / 100)
   for (const slot of TRINKET_SLOTS) {
     const t = gear[slot]
     if (!t) continue

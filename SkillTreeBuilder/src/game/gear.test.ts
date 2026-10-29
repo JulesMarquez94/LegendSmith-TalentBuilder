@@ -65,10 +65,11 @@ describe('the prebuilt sets', () => {
     for (const stat of GEAR_STATS) {
       const set = GEAR_PRESETS.find((p) => p.id === `main-${stat}`)!
       const items = TRINKET_SLOTS.map((s) => set.gear[s]!)
-      expect(items.every((t) => trinketStatValues(t)[t.stats.indexOf(stat)] === 6), stat).toBe(true)
-      // 12 items at 6%; the main stat comes out on top.
+      // 12 items at 6% each (a tenth of that for Minion power, which counts per minion); it comes out on top.
+      const each = stat === 'minionPower' ? 0.6 : 6
+      expect(items.every((t) => Math.abs(trinketStatValues(t)[t.stats.indexOf(stat)] - each) < 1e-9), stat).toBe(true)
       const sums = totals(set.id)
-      expect(sums[stat], stat).toBe(72)
+      expect(sums[stat], stat).toBeCloseTo(12 * each)
       for (const other of GEAR_STATS) if (other !== stat) expect(sums[stat]!, `${stat} over ${other}`).toBeGreaterThan(sums[other] ?? 0)
     }
   })
@@ -81,7 +82,10 @@ describe('the prebuilt sets', () => {
   it('keep the even mix at 100% / 100% on every item', () => {
     const set = GEAR_PRESETS.find((p) => p.id === 'even-mix')!
     expect(TRINKET_SLOTS.every((s) => set.gear[s] && set.gear[s].split === undefined)).toBe(true)
-    expect(totals('even-mix')).toMatchObject({ haste: 20, crit: 16, critDamage: 16, potency: 20, echo: 12, minionPower: 12 })
+    // Minion power counts per minion: items carry a tenth of it.
+    const mix = totals('even-mix')
+    expect(mix).toMatchObject({ haste: 20, crit: 16, critDamage: 16, potency: 20, echo: 12 })
+    expect(mix.minionPower).toBeCloseTo(1.2)
   })
 })
 

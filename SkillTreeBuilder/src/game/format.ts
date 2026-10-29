@@ -24,7 +24,8 @@ export const yd = (n: number) => trim(n, 1)
 /** A stat value with its unit: "+12.6%", "13,800", "10 /sec". */
 export function statValue(stat: CharStat, n: number): string {
   const { unit } = STAT_INFO[stat]
-  if (unit === '%') return `${pct(n)}%`
+  // Minion power counts per minion, so its values are small: 0.04%.
+  if (unit === '%') return stat === 'minionPower' ? `${trim(n, 2)}%` : `${pct(n)}%`
   if (unit === 'per-sec') return `${trim(n, 1)} /sec`
   return int(n)
 }
@@ -34,4 +35,4 @@ export function statValue(stat: CharStat, n: number): string {
  * [1200, 2400] → "{1,200/2,400}".
  */
 export const ranks = (values: readonly number[]) =>
-  `{${values.map((v) => (Math.abs(v) >= 1000 ? int(v) : trim(v, 2))).join('/')}}`
+  `{${values.map((v) => (Math.abs(v) >= 1000 ? int(v) : trim(v, 3))).join('/')}}`

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { int, pct } from '../../game/format.ts'
+import { int, pct, statValue } from '../../game/format.ts'
 import {
   RARITY_INFO,
   requiredLevel,
@@ -42,7 +42,7 @@ export function ItemCard({ trinket }: { trinket: Trinket }) {
               <StatIcon stat={stat} size={14} />
               {STAT_INFO[stat].label}
             </span>
-            <b>+{pct(values[i])}%</b>
+            <b>+{statValue(stat, values[i])}</b>
           </div>
         ))}
         {splitOf(trinket) !== 100 && (
