@@ -404,17 +404,22 @@ describe("Miasma's tree", () => {
     expect(arena.resource).toBe(15)
   })
 
-  it('takes cooldown off on DoT ticks with Restless Fog, no more than once every 2 sec', () => {
-    const base = miasmaKit({ 'restless-fog': 2 })
-    const kit: Kit = { ...base, procs: base.procs.map((p) => ({ ...p, proc: { ...p.proc, chance: 100 } })) }
-    const recharge = (k: Kit) => {
+  it('takes 0.3/0.6 sec of cooldown off on DoT ticks with Restless Fog, on every tick that procs', () => {
+    const certain = (k: Kit): Kit => ({ ...k, procs: k.procs.map((p) => ({ ...p, proc: { ...p.proc, chance: 100 } })) })
+    expect(miasmaKit({ 'restless-fog': 1 }).procs[0].proc.chance).toBe(6)
+    const after = (k: Kit) => {
       const arena = ready(k)
       cast(arena, 1)
       run(arena, 2.5)
-      return arena.cooldowns.get('miasma')!.rechargeAt!
+      return { recharge: arena.cooldowns.get('miasma')!.rechargeAt!, ticks: damageOf(arena, 'Pox')!.hits }
     }
-    // Pox ticks on several enemies at 1 and 2 sec, but only the first tick takes a second off.
-    expect(recharge(miasmaKit({})) - recharge(kit)).toBeCloseTo(1)
+    const plain = after(miasmaKit({}))
+    // Pox ticks on several enemies at 1 and 2 sec, and every tick takes its share off: no internal cooldown.
+    for (const [rank, off] of [[1, 0.3], [2, 0.6]]) {
+      const fog = after(certain(miasmaKit({ 'restless-fog': rank })))
+      expect(fog.ticks).toBeGreaterThan(2)
+      expect(plain.recharge - fog.recharge).toBeCloseTo(off * fog.ticks)
+    }
   })
 })
 

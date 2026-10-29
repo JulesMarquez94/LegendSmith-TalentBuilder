@@ -222,7 +222,7 @@ per stack every second for 18 sec, each stack on its own timer. Its tree:
 
 | Row | Talent | Ranks | What it does |
 | --- | --- | --- | --- |
-| 1 | Restless Fog | 2 | Each tick of your DoTs has a 3/6% chance to take 1 sec off Miasma's cooldown, at most once every 2 sec |
+| 1 | Restless Fog | 2 | Each tick of your DoTs has a 6% chance to take 0.3/0.6 sec off Miasma's cooldown |
 | 1 | Lingering Pox | 3 | Each stack lasts 3/6/9 sec longer |
 | 1 | Clinging Cloud | 2 | The area is 2/4 yd wider and follows the enemy it was placed on |
 | 2 | Virulent Pox | 3 | Pox deals 10/20/30% more |

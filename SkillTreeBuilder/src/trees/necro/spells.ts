@@ -336,11 +336,9 @@ export const miasma: TreeDef = {
       name: 'Restless Fog',
       row: 0,
       col: 0,
-      per: [3, 6],
-      text:
-        "Each tick of your damage over time has a {}% chance to take 1 sec off Miasma's cooldown. " +
-        'Can’t happen more than once every 2 sec.',
-      does: (v) => [proc('hit', 'dot', [cooldown('miasma', 1)], { chance: v, cooldown: 2 })],
+      per: [0.3, 0.6],
+      text: "Each tick of your damage over time has a 6% chance to take {} sec off Miasma's cooldown.",
+      does: (v) => [proc('hit', 'dot', [cooldown('miasma', v)], { chance: 6 })],
     }),
     talent({
       id: 'lingering-pox',
