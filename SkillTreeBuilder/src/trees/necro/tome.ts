@@ -152,7 +152,7 @@ const tree: TreeDef = {
       col: 2,
       requires: 'stubborn-imps',
       text:
-        `Every imp you sacrifice gives you, at random, +1% haste, +1% critical chance, +2% echo or +0.05% minion ` +
+        `Every imp you sacrifice gives you, at random, +1% haste, +1% critical chance, +2% echo or +0.5% minion ` +
         `power for ${BARGAIN_SECONDS} sec. Each stacks, but a new stack doesn’t refresh its timer.`,
       does: () => [
         proc('sacrifice', 'sacrifice', [
@@ -162,7 +162,7 @@ const tree: TreeDef = {
               buff(bargain('haste', 'Haste', { haste: 1 })),
               buff(bargain('crit', 'Critical', { crit: 1 })),
               buff(bargain('echo', 'Echo', { echo: 2 })),
-              buff(bargain('minion-power', 'Minion power', { minionPower: 0.05 })),
+              buff(bargain('minion-power', 'Minion power', { minionPower: 0.5 })),
             ],
           },
         ]),

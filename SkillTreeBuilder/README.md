@@ -160,7 +160,7 @@ The book's own tree:
 | 2 | Quick Invocation (needs Quick Summons) | 2 | Every second you move gives a stack: your next summon spell casts 4/8% faster per stack, instantly at 100% |
 | 3 | Spawning (needs Frenzied Imps) | 2 | Imp attacks have a 2/4% chance to summon another imp, at most once every 15 sec |
 | 3 | Stubborn Imps | 2 | Each sacrificed imp has a 5/10% chance to survive, and isn't spent |
-| 4 | Dark Bargain (needs Stubborn Imps) | 1 | Every sacrificed imp gives, at random, +1% haste, +1% crit, +2% echo or +0.05% minion power for 10 sec; it stacks, but new stacks don't refresh it |
+| 4 | Dark Bargain (needs Stubborn Imps) | 1 | Every sacrificed imp gives, at random, +1% haste, +1% crit, +2% echo or +0.5% minion power for 10 sec; it stacks, but new stacks don't refresh it |
 | 4 | Twin Summons (needs Quick Invocation) | 1 | Every third Summon Imp summons 2 imps |
 
 The new mechanics behind it:
