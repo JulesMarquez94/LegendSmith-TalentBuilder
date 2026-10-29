@@ -119,7 +119,18 @@ describe('Power', () => {
 describe('design passes', () => {
   it('mark the trees we have done a pass on; the rest show as WIP', () => {
     expect(TREES.filter((t) => t.reviewed).map((t) => t.id).sort()).toEqual(
-      ['ashwood-longbow', 'blood-frenzy', 'carrion-curse', 'harvest', 'miasma', 'overlord', 'plague', 'teleport', 'tome-of-summoning'],
+      [
+        'ashwood-longbow',
+        'blood-frenzy',
+        'carrion-curse',
+        'festering-rot',
+        'harvest',
+        'miasma',
+        'overlord',
+        'plague',
+        'teleport',
+        'tome-of-summoning',
+      ],
     )
   })
 })

@@ -10,6 +10,7 @@ import {
   trinketName,
   trinketPower,
   trinketStatValues,
+  FULL_EPIC_MAX,
   type Gear,
   type Trinket,
 } from './gear.ts'
@@ -35,21 +36,29 @@ describe('trinkets', () => {
     expect(isValidPair('haste', 'haste')).toBe(false)
   })
 
-  it('add up, with rarity setting the two stats', () => {
+  it('add up, with rarity setting the two stats (a common item a quarter of an epic one)', () => {
     const totals = gearTotals({ Ring: ring, Necklace: { slot: 'Necklace', rarity: 'common', itemLevel: 50, stats: ['haste', 'potency'] } })
-    expect(totals).toMatchObject({ haste: 5, crit: 4, potency: 1, power: 53 })
+    // Even epic: Haste 30/18, Critical 50/18; even common: a quarter of 30/18 for Haste and Potency.
+    expect(totals.haste).toBeCloseTo(30 / 18 + 30 / 72, 2)
+    expect(totals.crit).toBeCloseTo(50 / 18, 2)
+    expect(totals.potency).toBeCloseTo(30 / 72, 2)
+    expect(totals.power).toBe(53)
   })
 })
 
 describe('leaning trinkets', () => {
-  it('split twice the rarity value between the stats, from 150% / 50% to 50% / 150%', () => {
-    expect(trinketStatValues(ring)).toEqual([4, 4])
-    expect(trinketStatValues({ ...ring, split: 150 })).toEqual([6, 2])
-    expect(trinketStatValues({ ...ring, split: 50 })).toEqual([2, 6])
-    expect(trinketStatValues({ ...ring, split: 125 })).toEqual([5, 3])
+  it('split between the stats from 150% / 50% to 50% / 150%, each on its own scale', () => {
+    // An epic item at 150% carries a twelfth of the stat's full-epic cap: Haste 2.5%, Critical 4.17%.
+    const close = (got: [number, number], want: [number, number]) => {
+      expect(got[0]).toBeCloseTo(want[0])
+      expect(got[1]).toBeCloseTo(want[1])
+    }
+    close(trinketStatValues(ring), [30 / 18, 50 / 18])
+    close(trinketStatValues({ ...ring, split: 150 }), [30 / 12, 50 / 36])
+    close(trinketStatValues({ ...ring, split: 50 }), [30 / 36, 50 / 12])
+    close(trinketStatValues({ ...ring, split: 125 }), [(30 / 18) * 1.25, (50 / 18) * 0.75])
     // Never past 150% / 50%.
-    expect(trinketStatValues({ ...ring, split: 200 })).toEqual([6, 2])
-    expect(gearTotals({ Ring: { ...ring, split: 150 } })).toMatchObject({ haste: 6, crit: 2 })
+    close(trinketStatValues({ ...ring, split: 200 }), [30 / 12, 50 / 36])
   })
 
   it('start their name with the stat they lean toward', () => {
@@ -61,31 +70,48 @@ describe('leaning trinkets', () => {
 describe('the prebuilt sets', () => {
   const totals = (id: string) => gearTotals(GEAR_PRESETS.find((p) => p.id === id)!.gear)
 
-  it('build one set around each stat, every item leaning all the way toward it', () => {
+  it('build one set around each stat that reaches its full-epic cap, and no more', () => {
+    // Haste 30%, Critical 50%, Crit damage 50%, Potency 30%, Echo 30%, Minion power 5%.
+    expect(FULL_EPIC_MAX).toEqual({ haste: 30, crit: 50, critDamage: 50, potency: 30, echo: 30, minionPower: 5 })
     for (const stat of GEAR_STATS) {
       const set = GEAR_PRESETS.find((p) => p.id === `main-${stat}`)!
       const items = TRINKET_SLOTS.map((s) => set.gear[s]!)
-      // 12 items at 6% each (a tenth of that for Minion power, which counts per minion); it comes out on top.
-      const each = stat === 'minionPower' ? 0.6 : 6
+      const each = FULL_EPIC_MAX[stat] / 12
       expect(items.every((t) => Math.abs(trinketStatValues(t)[t.stats.indexOf(stat)] - each) < 1e-9), stat).toBe(true)
-      const sums = totals(set.id)
-      expect(sums[stat], stat).toBeCloseTo(12 * each)
-      for (const other of GEAR_STATS) if (other !== stat) expect(sums[stat]!, `${stat} over ${other}`).toBeGreaterThan(sums[other] ?? 0)
+      expect(totals(set.id)[stat], stat).toBeCloseTo(FULL_EPIC_MAX[stat], 1)
     }
   })
 
   it('wear one stat pair in all 12 slots: only names are unique', () => {
-    expect(totals('common-crit')).toMatchObject({ haste: 12, crit: 12 })
-    expect(totals('epic-crit')).toMatchObject({ crit: 48, critDamage: 48 })
+    const common = totals('common-crit')
+    expect(common.haste).toBeCloseTo(30 / 6, 1)
+    expect(common.crit).toBeCloseTo(50 / 6, 1)
+  })
+
+  it('wear every stat pair in epic: even, and leaning all the way either way', () => {
+    // 14 pairs (Echo and Minion power never share an item): 14 even sets and 28 leaning ones.
+    expect(GEAR_PRESETS.filter((p) => p.id.startsWith('pair-'))).toHaveLength(14)
+    expect(GEAR_PRESETS.filter((p) => p.id.startsWith('lean-'))).toHaveLength(28)
+    // Even: two thirds of each cap. Critical main, Haste low: all of Critical's cap, a third of Haste's.
+    const even = totals('pair-haste-crit')
+    expect(even.haste).toBeCloseTo(20, 1)
+    expect(even.crit).toBeCloseTo(100 / 3, 1)
+    const critMain = totals('lean-crit-haste')
+    expect(critMain.crit).toBeCloseTo(50, 1)
+    expect(critMain.haste).toBeCloseTo(10, 1)
+    expect(GEAR_PRESETS.find((p) => p.id === 'lean-crit-haste')!.name).toBe('Critical main, Haste low')
   })
 
   it('keep the even mix at 100% / 100% on every item', () => {
     const set = GEAR_PRESETS.find((p) => p.id === 'even-mix')!
     expect(TRINKET_SLOTS.every((s) => set.gear[s] && set.gear[s].split === undefined)).toBe(true)
-    // Minion power counts per minion: items carry a tenth of it.
+    // Haste and Potency on 5 items, Critical and Crit damage on 4, Echo and Minion power on 3: even epic
+    // items carry two thirds of a full lean, so a stat on n items gets n / 18 of its cap.
     const mix = totals('even-mix')
-    expect(mix).toMatchObject({ haste: 20, crit: 16, critDamage: 16, potency: 20, echo: 12 })
-    expect(mix.minionPower).toBeCloseTo(1.2)
+    const expected = { haste: 5, potency: 5, crit: 4, critDamage: 4, echo: 3, minionPower: 3 } as const
+    for (const [stat, n] of Object.entries(expected)) {
+      expect(mix[stat as keyof typeof expected], stat).toBeCloseTo((FULL_EPIC_MAX[stat as keyof typeof expected] * n) / 18, 1)
+    }
   })
 })
 

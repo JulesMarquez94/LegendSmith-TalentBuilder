@@ -184,103 +184,131 @@ export const harvest: TreeDef = {
 
 // ---------- Festering Rot: one DoT that stacks without end, each stack on its own timer ----------
 
+/** Festering Rot's stacks. */
+const FESTER = 'festering-rot'
+
 export const festeringRot: TreeDef = {
   ...book,
   id: 'festering-rot',
+  reviewed: true,
   color: '#8a9a3c',
   ability: {
     name: 'Festering Rot',
     castTime: 'Instant',
     range: '40 range',
-    description: 'Add a stack of rot to your target. Every stack keeps its own timer, and there is no limit.',
+    description: 'Add a stack of rot to your target that deals a little damage over 24 sec. Every stack keeps its own timer.',
   },
   spec: {
-    cost: 1,
+    cost: 3,
     range: 40,
-    effects: [dot(30, 30, 1, 'target', { rolling: true, name: 'Festering Rot' })],
+    effects: [dot(20, 24, 1, 'target', { rolling: true, name: 'Festering Rot' })],
     text: (a) => {
       const e = a.effects[0]
+      const stacks = e.stacks > 1 ? `${e.stacks} stacks` : 'a stack'
+      const each =
+        e.burst > 0
+          ? `Each stack deals nothing over time, then ${int(e.amount * (e.duration / e.interval))} damage at once when its ` +
+            `${sec(e.duration)} sec run out` +
+            (e.burstSplash > 0 ? `, and ${int(e.burstSplash)}% of it to every other enemy within 8 yd` : '')
+          : `Each stack deals ${int(e.amount)} damage every ${sec(e.interval)} sec for ${sec(e.duration)} sec`
       return (
-        `Adds ${e.stacks > 1 ? `${e.stacks} stacks` : 'a stack'} of Festering Rot to the enemy ` +
-        `nearest your crosshair within ${yd(a.range)} yd. Each stack deals ${int(e.amount)} damage every ` +
-        `${sec(e.interval)} sec for ${sec(e.duration)} sec on its own timer, so stacks roll off one by one and never all ` +
-        `refresh. Costs ${counted(a.cost, a.resource)}.`
+        `Adds ${stacks} of Festering Rot to the enemy nearest your crosshair within ${yd(a.range)} yd. ${each}, on its ` +
+        `own timer, so stacks roll off one by one. Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },
   talents: [
+    // Row 1
     talent({
-      id: 'corrosion',
-      name: 'Corrosion',
+      id: 'lasting-rot',
+      name: 'Lasting Rot',
       row: 0,
       col: 0,
+      per: [3, 6, 9],
+      text: 'Each stack of Festering Rot lasts {} sec longer.',
+      does: (v) => [plus('duration', FESTER, v)],
+    }),
+    talent({
+      id: 'putrid-rot',
+      name: 'Putrid Rot',
+      row: 0,
+      col: 1,
       per: [6, 12, 18],
       text: 'Your damage-over-time effects deal {}% more damage.',
       does: (v) => [more('amount', 'dot', v)],
     }),
     talent({
-      id: 'fester',
-      name: 'Fester',
+      id: 'swollen-rot',
+      name: 'Swollen Rot',
       row: 0,
-      col: 1,
-      per: [6, 12],
-      text: 'Each stack of Festering Rot deals {} more damage per tick.',
-      does: (v) => [plus('amount', 'festering-rot', v)],
+      col: 3,
+      text: 'Festering Rot costs 2 more, but adds 1 more stack at a time.',
+      // A % of the cost, so it means the same on any weapon: 3 and 2 more is 5.
+      does: () => [more('cost', FESTER, 200 / 3), plus('stacks', FESTER, 1)],
+    }),
+
+    // Row 2
+    talent({
+      id: 'feeding-rot',
+      name: 'Feeding Rot',
+      row: 1,
+      col: 0,
+      requires: 'lasting-rot',
+      per: [0.3, 0.6],
+      text: 'Your direct damage adds {} sec to every stack of Festering Rot on its target.',
+      does: (v) => [proc('hit', 'direct-damage', [{ do: 'extend', match: FESTER, seconds: v, scope: 'event' }])],
     }),
     talent({
-      id: 'double-dose',
-      name: 'Double Dose',
+      id: 'rotting-flesh',
+      name: 'Rotting Flesh',
       row: 1,
       col: 1,
-      requires: 'fester',
-      text: 'Festering Rot adds 2 stacks at a time.',
-      does: () => [plus('stacks', 'festering-rot', 1)],
+      requires: 'putrid-rot',
+      per: [0.5, 1],
+      text: 'Each stack of Festering Rot on an enemy makes it take {}% more damage from you.',
+      does: (v) => [more('amount', 'damage', v, { stacksOf: FESTER })],
     }),
     talent({
-      id: 'thrifty-rot',
-      name: 'Thrifty Rot',
+      id: 'quickening-rot',
+      name: 'Quickening Rot',
       row: 1,
-      col: 2,
-      per: [20, 40],
-      text: 'Festering Rot has a {}% chance to give back its cost.',
-      does: (v) => [proc('cast', 'festering-rot', [refund(100)], { chance: v })],
+      col: 3,
+      per: [0.9, 0.8],
+      text: 'Festering Rot ticks every {} sec instead of every 1.',
+      does: (v) => [more('tickRate', FESTER, (1 / v - 1) * 100)],
     }),
+
+    // Row 3
     talent({
-      id: 'spreading-rot',
-      name: 'Spreading Rot',
+      id: 'bursting-rot',
+      name: 'Bursting Rot',
       row: 2,
-      col: 0,
-      per: [10, 20, 30],
-      text: 'Your direct damage has a {}% chance to add a stack of Festering Rot to its target.',
-      does: (v) => [proc('hit', 'direct-damage', [{ do: 'fire', ability: 'festering-rot', at: 'event' }], { chance: v })],
+      col: 1,
+      text:
+        'Festering Rot no longer deals damage over time: each stack deals all of its damage at once when it runs out.',
+      does: () => [plus('burst', FESTER, 1)],
     }),
     talent({
-      id: 'putrid-burst',
-      name: 'Putrid Burst',
+      id: 'ripe-burst',
+      name: 'Ripe Burst',
       row: 2,
       col: 2,
-      per: [5, 10, 15],
-      text: 'Your damage-over-time effects have +{}% critical chance.',
-      does: (v) => [plus('critChance', 'dot', v)],
+      requires: 'bursting-rot',
+      per: [0.5, 1],
+      text: 'Your direct damage takes {} sec off every stack of Festering Rot on its target.',
+      does: (v) => [proc('hit', 'direct-damage', [{ do: 'extend', match: FESTER, seconds: -v, scope: 'event' }])],
     }),
+
+    // Row 4
     talent({
-      id: 'plague-carrier',
-      name: 'Plague Carrier',
+      id: 'rot-bomb',
+      name: 'Rot Bomb',
       row: 3,
-      col: 0,
-      requires: 'spreading-rot',
-      text: 'Your area damage has a 10% chance to add a stack of Festering Rot to each enemy it hits.',
-      does: () => [proc('hit', 'aoe', [{ do: 'fire', ability: 'festering-rot', at: 'event' }], { chance: 10 })],
-    }),
-    talent({
-      id: 'necrosis',
-      name: 'Necrosis',
-      row: 3,
-      col: 2,
-      requires: 'putrid-burst',
-      per: [1, 2, 3],
-      text: 'Enemies take {}% more damage from you for each stack of Festering Rot on them.',
-      does: (v) => [more('amount', 'damage', v, { stacksOf: 'festering-rot' })],
+      col: 1,
+      requires: 'bursting-rot',
+      per: [50, 100],
+      text: 'When a stack of Festering Rot bursts, every other enemy within 8 yd of its target takes {}% of it too.',
+      does: (v) => [plus('burstSplash', FESTER, v)],
     }),
   ],
 }

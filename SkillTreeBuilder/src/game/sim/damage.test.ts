@@ -46,8 +46,8 @@ describe('the summoning book', () => {
     arena.press(1)
     arena.step(DT)
     expect(arena.notice?.text).toBe('Not enough imps')
-    cast(arena, 0)
-    run(arena, 1)
+    // Festering Rot costs 3.
+    arena.resource = 3
     cast(arena, 1)
     expect(arena.imps).toHaveLength(0)
   })
@@ -99,13 +99,13 @@ describe('the summoning book', () => {
   it('sacrifices the imp with the least time left first', () => {
     const arena = new Arena(kitFor(book, ['festering-rot', null, null, null, null, null]), DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 30 }
-    cast(arena, 0)
-    run(arena, 1)
-    cast(arena, 0)
-    const [older, newer] = arena.imps
+    arena.resource = 4
+    run(arena, 0.1)
+    // Four imps, each with a second more left than the one before; Festering Rot costs 3.
+    arena.imps.forEach((imp, i) => (imp.endsAt = arena.time + 10 + i))
+    const newest = arena.imps[3]
     cast(arena, 1)
-    expect(arena.imps).toEqual([newer])
-    expect(older.endsAt).toBeLessThan(newer.endsAt)
+    expect(arena.imps).toEqual([newest])
   })
 
   it('has no cooldown on Harvest: only imps limit it', () => {
@@ -122,15 +122,15 @@ describe('the summoning book', () => {
 
   it('keeps every Festering Rot stack on its own timer', () => {
     const arena = new Arena(noCrits(kitFor(book, ['festering-rot', null, null, null, null, null])), DUMMIES, { seed: 1 })
-    for (let i = 0; i < 3; i++) cast(arena, 0)
+    arena.resource = 9
     cast(arena, 1)
     run(arena, 5)
     cast(arena, 1)
     run(arena, 1)
     cast(arena, 1)
     expect(arena.boss.dots[0].stacks).toHaveLength(3)
-    // The first stack rolls off on its own; the other two keep going.
-    run(arena, 25)
+    // 24 sec each: the first stack rolls off on its own; the other two keep going.
+    run(arena, 19)
     expect(arena.boss.dots[0].stacks).toHaveLength(2)
   })
 
@@ -193,7 +193,7 @@ describe('the daggers', () => {
     arena.player.pos = { x: 30, y: 30 }
     arena.resource = 6
     cast(arena, 1)
-    expect(arena.resource).toBe(5)
+    expect(arena.resource).toBe(3)
   })
 
   it('let Doom Bolt spend all their combo points too', () => {
@@ -569,7 +569,7 @@ describe('the bow', () => {
     const kit = kitFor(bow, ['harvest', 'backstab', 'festering-rot', null, null, null])
     expect(kit.slots[1]!.cost).toBe(50)
     expect(kit.slots[2]!.effects.find((e) => e.type === 'restore')?.restore).toBe(20)
-    expect(kit.slots[3]!.cost).toBe(10)
+    expect(kit.slots[3]!.cost).toBe(30)
     expect(kit.slots[1]!.text).toContain('Costs 50 focus')
     // Talents in the bow's own tree add plain focus on top.
     const fletched = kitFor(bow, [null, null, null, null, null, null], { 'ashwood-longbow': { fletching: 2 } })
@@ -1131,5 +1131,72 @@ describe('Overlord', () => {
       return damageOf(arena, 'Overlord')!.hits
     }
     expect(volleys({ 'dark-patron': 1 })).toBeGreaterThan(volleys({}))
+  })
+})
+
+describe("Festering Rot's tree", () => {
+  const rotKit = (ranks: Record<string, number> = {}) => {
+    const kit = noCrits(kitFor(book, ['festering-rot', 'harvest', null, null, null, null], { 'festering-rot': ranks }))
+    return { ...kit, character: { ...kit.character, stats: { ...kit.character.stats, crit: 0 } } }
+  }
+  const rotting = (kit: Kit) => {
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 15
+    cast(arena, 1)
+    return arena
+  }
+  const rotOn = (arena: Arena) => arena.boss.dots.find((d) => d.name === 'Festering Rot')!
+
+  it('costs 3 imps and adds a stack of 20 a second for 24 sec', () => {
+    const a = rotKit().slots[1]!
+    expect(a).toMatchObject({ cost: 3, castTime: 0 })
+    expect(a.effects[0]).toMatchObject({ amount: 20, duration: 24, interval: 1, stacks: 1 })
+  })
+
+  it('costs 2 more for 2 stacks at a time with Swollen Rot, and ticks every 0.8 sec with Quickening Rot', () => {
+    const a = rotKit({ 'swollen-rot': 1, 'quickening-rot': 2 }).slots[1]!
+    expect(a.cost).toBeCloseTo(5)
+    expect(a.effects[0].stacks).toBe(2)
+    expect(a.effects[0].interval).toBeCloseTo(0.8)
+  })
+
+  it('lasts longer for your direct damage with Feeding Rot', () => {
+    const arena = rotting(rotKit({ 'lasting-rot': 1, 'feeding-rot': 2 }))
+    run(arena, 1.1)
+    const end = rotOn(arena).stacks[0]
+    cast(arena, 2)
+    expect(rotOn(arena).stacks[0] - end).toBeCloseTo(0.6)
+  })
+
+  it('makes the target take more of your damage for each stack with Rotting Flesh', () => {
+    const per = (ranks: Record<string, number>) => {
+      const arena = rotting(rotKit(ranks))
+      run(arena, 3)
+      const imps = damageOf(arena, 'Imp') ?? damageOf(arena, 'Minion')!
+      return imps.damage / imps.hits
+    }
+    // One stack: 1% more.
+    expect(per({ 'putrid-rot': 2, 'rotting-flesh': 2 })).toBeCloseTo(per({}) * 1.01)
+  })
+
+  it('deals all of it at once when a stack runs out with Bursting Rot, around the target too with Rot Bomb', () => {
+    const arena = rotting(rotKit({ 'putrid-rot': 2, 'bursting-rot': 1, 'rot-bomb': 2 }))
+    run(arena, 10)
+    expect(damageOf(arena, 'Festering Rot')).toBeUndefined()
+    run(arena, 14.1)
+    const burst = damageOf(arena, 'Festering Rot burst')!
+    // 20 × 1.12 a second for 24 sec, on the boss and every small dummy within 8 yd of it.
+    expect(burst.hits).toBeGreaterThan(1)
+    expect(burst.damage / burst.hits).toBeCloseTo(20 * 1.12 * 24)
+    expect(arena.boss.dots.some((d) => d.name === 'Festering Rot')).toBe(false)
+  })
+
+  it('takes time off every stack for your direct damage with Ripe Burst', () => {
+    const arena = rotting(rotKit({ 'bursting-rot': 1, 'ripe-burst': 2 }))
+    run(arena, 1.1)
+    const end = rotOn(arena).stacks[0]
+    cast(arena, 2)
+    expect(end - rotOn(arena).stacks[0]).toBeCloseTo(1)
   })
 })

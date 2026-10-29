@@ -58,8 +58,8 @@ already in another slot swaps the two and keeps both builds.
 
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
-Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Blood Frenzy, Teleport, Carrion Curse,
-Overlord and Plague.
+Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
+Carrion Curse, Overlord and Plague.
 
 ## The artifacts
 
@@ -146,7 +146,7 @@ The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, **
 cast that summons one for **14 sec**. Every imp attacks your target on its own (40 every 1.5 sec), and
 its spells are paid for by **sacrificing imps**, the one with the least time left first. An imp whose
 time runs out leaves and takes its point of resource with it. Minion power raises all your damage for
-each imp you command, so its values are a tenth of other stats': an epic item carries 0.4%, not 4%.
+each imp you command, so it stays small: twelve epic items reach 5% at most.
 
 The book's own tree:
 
@@ -174,7 +174,7 @@ The new mechanics behind it:
 
 | Slot | Choices |
 | --- | --- |
-| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (instant, 5 imps, no cooldown; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (5 imps, 30 sec cooldown; a 3 sec cloud that gives everyone inside a stack of Pox every second), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
+| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (instant, 5 imps, no cooldown; hits every enemy once per DoT on it), Festering Rot (3 imps; a stack of a small DoT, each on its own 24 sec timer), Miasma (5 imps, 30 sec cooldown; a 3 sec cloud that gives everyone inside a stack of Pox every second), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
 | Ultimate | Fervor (you and your group gain 30% haste for 20 sec), Blood Frenzy (+20% haste for you for 30 sec, 3 min cooldown) |
 
 The **Twin Daggers** build combo points (up to 6) with Quick Strike: hold the key to keep striking.
@@ -199,6 +199,24 @@ lists what it is in `traits`. Backstab, Eviscerate and Rupture need a blade, Fan
 bow's shots a bow, and a future cleave would need a large weapon. The picker shows the ones your weapon
 can't make at the bottom, dimmed, with what they need. Talents aim only at their own ability or at
 families: damage over time, direct damage, area damage, zones, finishers.
+
+**Festering Rot** (made for the book) is instant and costs 3: it adds a stack to your target that deals
+20 a second for 24 sec, every stack on its own timer, so they roll off one by one. Its tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Lasting Rot | 3 | Each stack lasts 3/6/9 sec longer |
+| 1 | Putrid Rot | 3 | Your DoTs deal 6/12/18% more |
+| 1 | Swollen Rot | 1 | Costs 2 more, but adds 1 more stack at a time |
+| 2 | Feeding Rot (needs Lasting Rot) | 2 | Your direct damage adds 0.3/0.6 sec to every stack on its target |
+| 2 | Rotting Flesh (needs Putrid Rot) | 2 | Each stack makes the enemy take 0.5/1% more damage from you |
+| 2 | Quickening Rot | 2 | It ticks every 0.9/0.8 sec instead of every 1 |
+| 3 | Bursting Rot | 1 | No damage over time: each stack deals all of it at once when it runs out |
+| 3 | Ripe Burst (needs Bursting Rot) | 2 | Your direct damage takes 0.5/1 sec off every stack on its target |
+| 4 | Rot Bomb (needs Bursting Rot) | 2 | A bursting stack also hits every other enemy within 8 yd for 50/100% of it |
+
+Bursting Rot is a rolling DoT's `burst`: its stacks don't tick, and one that runs out deals its whole
+damage over its duration at once; `burstSplash` (Rot Bomb) spreads it around.
 
 **Harvest** (made for the book) is instant and costs 5. Every enemy with your damage-over-time effects
 takes 550 for each one on it. Its tree:
@@ -434,9 +452,16 @@ Marathon.
 ## Gear and stats
 
 Twelve trinket slots, as in the overview: item level sets Power (a %, three times the overview's,
-see below) and Health, rarity sets the two stats (common 1% … epic 4%; Minion power a tenth of that,
-since it counts for every minion you command), and Echo and Minion power
-take one of the two. Click a slot to make a test trinket, or pick a **Gear set** preset. Hover a stat
+see below) and Health, rarity sets the size of the two stats (common a quarter of epic, uncommon a
+half, rare three quarters), and Echo and Minion power take one of the two. Each stat has its own scale
+(`FULL_EPIC_MAX` in `src/game/gear.ts`), set so twelve epic items all leaning toward it reach at most:
+
+| Haste | Critical | Crit damage | Potency | Echo | Minion power |
+| --- | --- | --- | --- | --- | --- |
+| 30% | 50% | 50% | 30% | 30% | 5% |
+
+So an epic item carries a twelfth of the cap at 150% (Haste 2.5%, Critical 4.17%), two thirds of that
+when even. Click a slot to make a test trinket, or pick a **Gear set** preset. Hover a stat
 for where it comes from.
 
 Items have **names**, as in WoW, and the name is all that's unique: you can't wear two items with the
@@ -444,22 +469,25 @@ same name (in any case), and nothing else limits a stat pair. Name an item in th
 to be named from its slot and stats ("Ring of Peerlessness"); those names never clash, so twelve Haste
 and Critical items, one per slot, can all be worn.
 
-Each trinket has a **balance**: twice the rarity's value split between its two stats, anywhere from
-150% / 50% to 50% / 150% in steps of 5% (a slider in the forge; 100% / 100% is even). An epic Haste and
-Critical item can be 6% / 2%, 5% / 3%, 4% / 4% and so on, never past 6% / 2%. An unnamed item that
+Each trinket has a **balance**: its stats split anywhere from 150% / 50% to 50% / 150% in steps of 5%
+(a slider in the forge; 100% / 100% is even). An epic Haste and Critical item can be 2.5% / 1.4%,
+1.7% / 2.8% (even), 0.8% / 4.2% and anything between, never past 150% / 50%. An unnamed item that
 leans starts its name with its bigger stat's word (Quick, Keen, Brutal, Enduring, Echoing, Lordly):
 "Quick Ring of Peerlessness". Items saved before the slider keep their balance (150% / 50% or even).
 
-The **Gear set** picker has prebuilt sets in two groups:
+The **Gear set** picker has prebuilt sets in four groups:
 
 - **Main stat** (epic, item level 120): one set per stat, Haste, Critical, Crit damage, Potency, Echo
-  and Minion power. All 12 items lean all the way toward the stat (6% each, +72% in all; 0.6% and
-  +7.2% for Minion power), going round
-  its pairs for the second stat.
+  and Minion power. All 12 items lean all the way toward the stat, so each set reaches its stat's
+  cap (Haste main: +30% Haste), going round its pairs for the second stat.
 - **Even split** (100% / 100% on every item): the **Even mix** (epic, item level 120: Haste and Potency
-  20%, Critical and Crit damage 16%, Echo 12%, Minion power 1.2%), and sets of one pair in all 12 slots:
-  Critical and Haste, Potency and Haste (common, item level 60), Haste and Potency (rare 100, epic
-  120), Critical and Crit damage (epic 120). The overview's own example set is there too.
+  8.3%, Critical and Crit damage 11.1%, Echo 5%, Minion power 0.83%), and sets of one pair in all 12 slots:
+  Critical and Haste, Potency and Haste (common, item level 60), Haste and Potency (rare 100). The
+  overview's own example set is there too.
+- **Pairs, even** (epic, item level 120): every one of the 14 stat pairs in all 12 slots at 100% /
+  100% ("Haste / Critical": 20% Haste, 33.3% Critical).
+- **Pairs, one main, one low** (epic, item level 120): every pair leaning all the way either way, 28
+  sets ("Critical main, Haste low": 50% Critical, 10% Haste).
 
 Every gear stat has an **icon** (Haste a lightning bolt, Critical a crosshair, Crit damage a burst,
 Potency an hourglass, Echo ripples, Minion power a skull). An equipped slot shows its two stats' icons,
