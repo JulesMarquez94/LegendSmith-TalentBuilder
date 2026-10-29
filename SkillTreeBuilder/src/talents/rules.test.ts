@@ -74,7 +74,7 @@ describe('describeRank', () => {
 describe('choices', () => {
   const choice = (id: string) => miasma.talents.find((t) => t.id === id)!
   // Enough points in the rows above to reach row 4.
-  const above = { 'concentrated-pox': 2, 'restless-fog': 2, 'virulent-pox': 2 }
+  const above = { 'lingering-pox': 2, 'restless-fog': 2, 'virulent-pox': 2 }
 
   it('let you take one of a choice pair, not both', () => {
     expect(canLearn(miasma, above, choice('emanation'), 6)).toBe(true)

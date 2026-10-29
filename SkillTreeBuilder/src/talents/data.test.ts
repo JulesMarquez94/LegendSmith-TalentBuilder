@@ -29,7 +29,7 @@ describe('tree data', () => {
     }
   })
 
-  it('keeps every talent of a small tree within reach of its 6 points', () => {
+  it('keeps every talent of a small tree within reach of its 5 points', () => {
     for (const tree of TREES.filter(isSmallTree)) {
       for (const t of tree.talents) {
         expect(t.row * tree.pointsPerRow, `${tree.id}/${t.id}`).toBeLessThan(capFor(tree, POINT_RULES))
@@ -84,8 +84,8 @@ describe('tree data', () => {
     expect(
       validateCatalog(TREES, ARTIFACTS, {
         ...STARTING_LOADOUT,
-        slots: ['lifewarden-staff', 'mend', null, null, 'army-of-the-dead', null, null, null],
+        slots: ['lifewarden-staff', 'mend', null, null, null, 'army-of-the-dead', null, null],
       }),
-    ).toEqual(['Starting slot 5 is a cooldown slot, but Army of the Dead is damage cooldown'])
+    ).toEqual(['Starting slot 6 is a cooldown slot, but Army of the Dead is damage cooldown'])
   })
 })

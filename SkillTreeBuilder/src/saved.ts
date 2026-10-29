@@ -1,6 +1,7 @@
 import { GEAR_STATS, isValidPair, RARITIES, TRINKET_SLOTS, type Gear, type Trinket } from './game/gear.ts'
 import { MAX_LEVEL } from './talents/levels.ts'
 import { capFor, setLevel, totalSpent, type Loadout } from './talents/loadout.ts'
+import { isPrerequisiteMet, isRivalTaken, isRowUnlocked } from './talents/rules.ts'
 import { setArtifact } from './talents/slots.ts'
 import { validateCatalog } from './talents/validate.ts'
 import { ARTIFACTS, POINT_RULES, STARTING_LOADOUT, TREES } from './trees/index.ts'
@@ -31,12 +32,18 @@ export function savedLoadout(): Loadout {
       ? { ...stored, slots: [...stored.slots, ...Array(STARTING_LOADOUT.slots.length - stored.slots.length).fill(null)] }
       : stored
   if (!padded || !Array.isArray(padded.slots)) return STARTING_LOADOUT
-  // An ability the weapon can no longer slot (a strike it can't make) comes out; the rest of the build stays.
-  const held = ARTIFACTS.find((a) => a.id === padded.artifact)
-  const loadout =
-    held && padded.slots[0] === (held.tree?.id ?? null)
-      ? { ...padded, slots: setArtifact({ ...padded, ranks: padded.ranks ?? {} }, held, TREES).slots }
+  // Builds saved with the ultimate in slot 5 and mobility in slot 6: the two traded places.
+  const kindAt = (i: number) => TREES.find((t) => t.id === padded.slots[i])?.kind
+  const ordered =
+    kindAt(4) === 'cooldown' || kindAt(5) === 'mobility'
+      ? { ...padded, slots: padded.slots.map((id, i) => (i === 4 ? padded.slots[5] : i === 5 ? padded.slots[4] : id)) }
       : padded
+  // An ability the weapon can no longer slot (a strike it can't make) comes out; the rest of the build stays.
+  const held = ARTIFACTS.find((a) => a.id === ordered.artifact)
+  const loadout =
+    held && ordered.slots[0] === (held.tree?.id ?? null)
+      ? { ...ordered, slots: setArtifact({ ...ordered, ranks: ordered.ranks ?? {} }, held, TREES).slots }
+      : ordered
   if (validateCatalog(TREES, ARTIFACTS, loadout).length > 0) return STARTING_LOADOUT
   // Keep only ranks for talents that still exist, within their max rank.
   const ranks = Object.fromEntries(
@@ -47,9 +54,16 @@ export function savedLoadout(): Loadout {
         const talent = tree.talents.find((t) => t.id === id)
         return talent !== undefined && Number.isInteger(rank) && rank > 0 && rank <= talent.maxRank
       })
-      // A tree whose points no longer fit its cap (an ultimate's went down to 6) starts over.
+      // A tree whose points no longer fit its cap (an ultimate's went down to 6), or that holds a talent
+      // it can no longer reach (moved below another, or behind a new arrow), starts over.
       const spent = kept.reduce((sum, [, rank]) => sum + rank, 0)
-      return [[treeId, spent > capFor(tree, POINT_RULES) ? {} : Object.fromEntries(kept)]]
+      const learned = Object.fromEntries(kept)
+      const reachable = tree.talents.every(
+        (t) =>
+          !learned[t.id] ||
+          (isRowUnlocked(tree, learned, t.row) && isPrerequisiteMet(tree, learned, t) && !isRivalTaken(tree, learned, t)),
+      )
+      return [[treeId, spent > capFor(tree, POINT_RULES) || !reachable ? {} : learned]]
     }),
   )
   // Talents needing more points than level 60 gives (60 before levels opened the slots, 52 now) start over.

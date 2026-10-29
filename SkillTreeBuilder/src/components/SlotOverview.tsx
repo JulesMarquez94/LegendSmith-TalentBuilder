@@ -10,7 +10,7 @@ interface Props {
   artifact: ArtifactDef
   /** Slots above it are still closed. */
   level: number
-  /** Points spent and the cap, per slot ("4/12"), or null for an empty slot. */
+  /** Points spent and the cap, per slot ("4/10"), or null for an empty slot. */
   points: readonly (string | null)[]
   onChoose: (index: number) => void
 }
