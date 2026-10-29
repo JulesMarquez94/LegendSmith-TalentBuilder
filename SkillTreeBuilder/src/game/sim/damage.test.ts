@@ -832,19 +832,105 @@ describe('Frenzy', () => {
 })
 
 describe('Carrion Curse', () => {
-  it("lets each minion hit take a stack for extra damage, until they're gone", () => {
+  it("costs 4 imps, curses for 20 stacks and 30 sec, and lets each minion hit take one for 90 damage, until they're gone", () => {
     const kit = noCrits(kitFor(book, ['carrion-curse', null, null, null, null, null]))
+    expect(kit.slots[1]).toMatchObject({ cost: 4, castTime: 0 })
     const arena = new Arena(kit, DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 30 }
     arena.resource = 10
     cast(arena, 1)
+    expect(arena.resource).toBe(6)
     const target = arena.enemies.find((e) => e.curses.length > 0)!
-    expect(target.curses[0].stacks).toBe(8)
-    run(arena, 6)
+    expect(target.curses[0].stacks).toBe(20)
+    expect(target.curses[0].endsAt - arena.time).toBeCloseTo(30, 0)
+    run(arena, 10)
     const curse = damageOf(arena, 'Carrion Curse')!
-    expect(curse.hits).toBe(8)
-    expect(curse.damage).toBeCloseTo(8 * 90)
+    expect(curse.hits).toBe(20)
+    expect(curse.damage).toBeCloseTo(20 * 90)
     expect(target.curses).toHaveLength(0)
+  })
+})
+
+describe("Carrion Curse's tree", () => {
+  const curseKit = (ranks: Record<string, number>) => {
+    const kit = noCrits(kitFor(book, ['carrion-curse', null, null, null, null, null], { 'carrion-curse': ranks }))
+    return { ...kit, character: { ...kit.character, stats: { ...kit.character.stats, crit: 0 } } }
+  }
+  /** Cursed, with 6 imps left to take the stacks. */
+  const cursed = (kit: Kit) => {
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 10
+    cast(arena, 1)
+    return { arena, target: arena.enemies.find((e) => e.curses.length > 0)! }
+  }
+
+  it('puts more stacks on with Deep Curse, and makes each deal more with Feast', () => {
+    const e = curseKit({ 'deep-curse': 2, feast: 3 }).slots[1]!.effects[0]
+    expect(e.stacks).toBe(26)
+    expect(e.amount).toBeCloseTo(90 * 1.3)
+  })
+
+  it('puts a stack back for your direct damage with Gorging Hex, never past the start', () => {
+    // The daggers have no minions: only Quick Strike, direct damage, touches the stacks.
+    const kit = noCrits(kitFor(daggers, ['carrion-curse', null, null, null, null, null], { 'carrion-curse': { 'gorging-hex': 1 } }))
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    // In reach of the big dummy: Quick Strike is melee.
+    arena.player.pos = { x: 30, y: 16 }
+    arena.resource = 5
+    cast(arena, 1)
+    const target = arena.enemies.find((e) => e.curses.length > 0)!
+    run(arena, 1.6)
+    target.curses[0].stacks = 10
+    cast(arena, 0)
+    expect(arena.meter.casts.get('Quick Strike')).toBe(1)
+    expect(target.curses[0].stacks).toBe(11)
+    target.curses[0].stacks = 20
+    run(arena, 1.6)
+    cast(arena, 0)
+    expect(target.curses[0].stacks).toBe(20)
+
+    // Minion hits are minion damage, not direct damage: the book's imps take stacks and put none back.
+    const book = cursed(curseKit({ 'gorging-hex': 1 }))
+    run(book.arena, 2)
+    const taken = damageOf(book.arena, 'Carrion Curse')!.hits
+    expect(taken).toBeGreaterThan(0)
+    expect(book.target.curses[0].stacks).toBe(20 - taken)
+  })
+
+  it('splashes each stack with Carrion Spray, without the splash counting as stacks taken', () => {
+    const { arena } = cursed(curseKit({ 'carrion-spray': 2, 'swarming-brood': 2 }))
+    // The imp that will last longest: Swarming Brood adds 0.1 sec to it for every stack taken.
+    const imp = arena.imps.reduce((a, b) => (b.endsAt > a.endsAt ? b : a))
+    const before = imp.endsAt
+    run(arena, 3)
+    const taken = damageOf(arena, 'Carrion Curse')!.hits
+    const splash = damageOf(arena, 'Carrion Curse splash')!
+    expect(splash.hits).toBeGreaterThan(taken)
+    expect(splash.damage / splash.hits).toBeCloseTo(90 * 0.3)
+    expect(imp.endsAt - before).toBeCloseTo(0.1 * taken)
+  })
+
+  it('gives minion power for every stack taken with Carrion Feast, up to 20 stacks', () => {
+    const { arena } = cursed(curseKit({ bloodied: 2, 'frenzied-feeding': 1, 'carrion-feast': 2 }))
+    const base = arena.stats().minionPower
+    run(arena, 1.6)
+    const taken = damageOf(arena, 'Carrion Curse')!.hits
+    expect(taken).toBeGreaterThan(0)
+    expect(arena.stats().minionPower - base).toBeCloseTo(0.1 * Math.min(20, taken))
+  })
+
+  it('lets a stack burst and stay with Undying Hex', () => {
+    expect(curseKit({ 'undying-hex': 2 }).slots[1]!.effects[0].keepChance).toBe(20)
+    const base = curseKit({})
+    const always: Kit = {
+      ...base,
+      slots: base.slots.map((a) => a && (a.treeId === 'carrion-curse' ? { ...a, effects: a.effects.map((e) => ({ ...e, keepChance: 100 })) } : a)),
+    }
+    const { arena, target } = cursed(always)
+    run(arena, 6)
+    expect(damageOf(arena, 'Carrion Curse')!.hits).toBeGreaterThan(20)
+    expect(target.curses[0].stacks).toBe(20)
   })
 })
 

@@ -272,9 +272,25 @@ it again. Feeding Frenzy makes every ability you spend on extend it; other talen
 stacking haste and haste for the group. Like every ability it grows in steps on the daggers (4 combo
 points: 30% haste).
 
-**Carrion Curse** (made for the book): curses the target with 8 stacks for 20 sec; each hit from one of
-your minions (imps, ghouls) takes a stack and deals 90 more damage. Its talents add stacks and damage,
-burst when it ends, give back resource or extend your DoTs per stack, and speed your minions up.
+**Carrion Curse** (made for the book): instant, costs 4 imps, and curses the target with 20 stacks for
+30 sec. Each hit from one of your minions (imps, ghouls) takes a stack and deals 90 damage to it.
+Minion hits are **minion damage**, not direct damage. Its tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Deep Curse | 2 | 3/6 more stacks |
+| 1 | Feast | 3 | Each stack deals 10/20/30% more |
+| 1 | Bloodied | 2 | Cursed enemies take 5/10% more damage from your minions |
+| 2 | Gorging Hex (needs Deep Curse) | 1 | Your direct damage puts a stack back, never past what the curse started with |
+| 2 | Carrion Spray (needs Feast) | 2 | Each stack splashes 15/30% of its damage onto every other enemy within 8 yd |
+| 2 | Frenzied Feeding (needs Bloodied) | 2 | Each stack makes your minions attack 3/6% faster for 4 sec, up to 5 times |
+| 3 | Swarming Brood | 2 | Each stack adds 0.05/0.1 sec to every minion you command |
+| 3 | Carrion Feast (needs Frenzied Feeding) | 2 | Each stack gives +0.05/0.1% minion power for 10 sec, up to 20 times |
+| 4 | Undying Hex (needs Gorging Hex) | 2 | Each stack has a 10/20% chance to burst without being taken |
+
+The mechanics behind it: a `curseStack` action (Gorging Hex), `extendMinions` (imps and summons), a
+curse's own `splash` (its splash hits drop the `debuff` tag, so talents fed by stacks taken don't fire
+on them) and `keepChance` (Undying Hex).
 
 **Festering Wound** (any damage weapon): hits for 350 and adds a stack of **Wound Rot**, 35 damage per
 stack every second for 6 sec. It's a **stacking DoT** (`maxStacks`): each cast adds a stack, up to 10,
