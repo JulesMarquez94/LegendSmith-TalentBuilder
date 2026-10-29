@@ -292,6 +292,29 @@ The mechanics behind it: a `curseStack` action (Gorging Hex), `extendMinions` (i
 curse's own `splash` (its splash hits drop the `debuff` tag, so talents fed by stacks taken don't fire
 on them) and `keepChance` (Undying Hex).
 
+**Overlord** (made for the book): instant, costs 4 imps, 30 sec cooldown. It summons an Overlord for
+30 sec, only one at a time (another one replaces it). Every 2 sec it casts **Shadow Bolt Volley** at
+your target, hitting it and every enemy within 6 yd for 150, and while it's up your other minions deal
+20% more damage. Its tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Overwhelming Power | 3 | The Overlord deals 10/20/30% more (its meteor too) |
+| 1 | Commanding Presence | 2 | While it's up, your other minions attack 5/10% faster |
+| 1 | Long Reign | 3 | It lasts 4/8/12 sec longer |
+| 2 | Lord of the Legion (needs Overwhelming Power) | 2 | It deals 1/2% more for each minion you command |
+| 2 | Dark Sustenance (needs Commanding Presence) | 2 | Each of its attacks adds 0.05/0.1 sec to your other minions |
+| 2 | Undying Master (needs Long Reign) | 2 | Each minion that dies or runs out adds 1/2 sec to it, never past its full duration |
+| 3 | Dark Patron | 1 | It benefits from your ultimate: your ultimate's haste speeds it up, even if it came first |
+| 3 | Impending Doom (needs Undying Master) | 2 | Each minion that falls gives a stack; at 5, a meteor hits every enemy within 5 yd of your target for 500/1000 |
+| 4 | Twin Overlords, **or** | 1 | You can have 2 Overlords at once |
+| 4 | Final Command | 1 | When it leaves (a new one replacing it counts), your minions attack 20% faster for 10 sec |
+
+The Overlord is a summon with new numbers on its effect: `radius` (its volley), `empower` and `hasten`
+(for your other minions while it's up), `feed`, `meteor`, `sustain` and `patron`. A minion falling (an
+imp running out or spent, a summon leaving) feeds it and counts toward Impending Doom, shown as a buff.
+Summons now follow attack-speed buffs that start after they arrive (Final Command, Frenzied Feeding).
+
 **Festering Wound** (any damage weapon): hits for 350 and adds a stack of **Wound Rot**, 35 damage per
 stack every second for 6 sec. It's a **stacking DoT** (`maxStacks`): each cast adds a stack, up to 10,
 and refreshes them all, so casting it again within 6 sec holds it at full (350 a second). Unlike Festering

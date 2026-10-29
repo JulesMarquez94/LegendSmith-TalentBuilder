@@ -5,6 +5,7 @@ import { GROUP_BUFFS } from './buffs.ts'
 import { aimedShot, multiShot, poisonArrow, rainOfArrows } from './archery.ts'
 import { ashwoodLongbow } from './bow.ts'
 import { carrionCurse } from './curse.ts'
+import { overlord } from './overlord.ts'
 import { doomBolt } from './doom.ts'
 import { frenzy } from './frenzy.ts'
 import { volley } from './volley.ts'
@@ -80,6 +81,7 @@ export const TREES: readonly TreeDef[] = [
   volley,
   frenzy,
   carrionCurse,
+  overlord,
   festeringWound,
   // Daggers
   eviscerate,

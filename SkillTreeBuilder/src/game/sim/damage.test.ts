@@ -1008,3 +1008,127 @@ describe('group buffs and shared ultimates', () => {
     expect(arena.groupStats().haste).toBe(30)
   })
 })
+
+describe('Overlord', () => {
+  const lordKit = (ranks: Record<string, number> = {}, extra: (string | null)[] = []) => {
+    const slots = ['overlord', null, null, null, null, null].map((id, i) => extra[i] ?? id)
+    const kit = noCrits(kitFor(book, slots, { overlord: ranks, 'blood-frenzy': {} }))
+    return { ...kit, character: { ...kit.character, stats: { ...kit.character.stats, crit: 0 } } }
+  }
+  /** The Overlord up, with 6 imps fighting beside it. */
+  const summoned = (kit: Kit) => {
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 10
+    cast(arena, 1)
+    return arena
+  }
+  const lordsOf = (arena: Arena) => arena.summons.filter((s) => s.name === 'Overlord')
+  const imp = (arena: Arena) => damageOf(arena, 'Imp') ?? damageOf(arena, 'Minion')!
+
+  it('costs 4 imps, lasts 30 sec on a 30 sec cooldown, and only one is up at a time', () => {
+    const kit = lordKit()
+    expect(kit.slots[1]).toMatchObject({ cost: 4, cooldown: 30, castTime: 0 })
+    const arena = summoned(kit)
+    expect(arena.resource).toBe(6)
+    expect(lordsOf(arena)).toHaveLength(1)
+    expect(lordsOf(arena)[0].endsAt - arena.time).toBeCloseTo(30, 0)
+    arena.cooldowns.get('overlord')!.charges = 1
+    arena.resource = 10
+    run(arena, 1)
+    cast(arena, 1)
+    expect(lordsOf(arena)).toHaveLength(1)
+  })
+
+  it('volleys its target and every enemy near it, and makes your imps hit 20% harder', () => {
+    const bare = new Arena(lordKit(), DUMMIES, { seed: 1 })
+    bare.player.pos = { x: 30, y: 30 }
+    bare.resource = 6
+    run(bare, 6)
+    const arena = summoned(lordKit())
+    run(arena, 6)
+    const volley = damageOf(arena, 'Overlord')!
+    // Three volleys or so, each on the big dummy and the small ones around it.
+    expect(volley.hits).toBeGreaterThan(5)
+    expect(volley.damage / volley.hits).toBeCloseTo(150)
+    expect(imp(arena).damage / imp(arena).hits).toBeCloseTo((imp(bare).damage / imp(bare).hits) * 1.2)
+  })
+
+  it('makes your other minions attack faster with Commanding Presence, and last longer with Dark Sustenance', () => {
+    // 12 sec: 8 attacks an imp at 1.5 sec each, 8 or 9 when 10% faster (each imp starts at its own moment).
+    const plain = summoned(lordKit())
+    run(plain, 12)
+    const quick = summoned(lordKit({ 'commanding-presence': 2 }))
+    run(quick, 12)
+    expect(imp(plain).hits).toBe(6 * 8)
+    expect(imp(quick).hits).toBeGreaterThan(imp(plain).hits)
+
+    const fed = summoned(lordKit({ 'dark-sustenance': 2 }))
+    const longest = fed.imps.reduce((a, b) => (b.endsAt > a.endsAt ? b : a))
+    const before = longest.endsAt
+    // Two volleys in 4.2 sec (half a second after it arrives, then every 2): 0.1 sec each.
+    run(fed, 4.2)
+    expect(longest.endsAt - before).toBeCloseTo(0.2)
+  })
+
+  it('deals more for each minion you command with Lord of the Legion', () => {
+    const arena = summoned(lordKit({ 'overwhelming-power': 3, 'lord-of-the-legion': 2 }))
+    run(arena, 1)
+    const volley = damageOf(arena, 'Overlord')!
+    // 30% more, then 2% for each of the 6 imps.
+    expect(volley.damage / volley.hits).toBeCloseTo(150 * 1.3 * 1.12)
+  })
+
+  it('lasts longer for every minion that falls with Undying Master, and calls a meteor at 5 with Impending Doom', () => {
+    const arena = summoned(lordKit({ 'undying-master': 2, 'impending-doom': 2 }))
+    const lord = lordsOf(arena)[0]
+    run(arena, 12)
+    const left = lord.endsAt - arena.time
+    // 5 imps go: 2 sec each.
+    arena.resource = 1
+    run(arena, 0.1)
+    expect(lord.endsAt - arena.time).toBeCloseTo(left - 0.1 + 10)
+    // The fifth called a meteor down.
+    const meteor = damageOf(arena, 'Meteor')!
+    expect(meteor.hits).toBeGreaterThan(0)
+    expect(meteor.damage / meteor.hits).toBeCloseTo(1000)
+    // Never past its full 30 sec.
+    arena.resource = 10
+    run(arena, 0.1)
+    arena.resource = 0
+    run(arena, 0.1)
+    expect(lord.endsAt - arena.time).toBeCloseTo(30, 0)
+    expect(lord.endsAt - arena.time).toBeLessThanOrEqual(30)
+  })
+
+  it('holds 2 at once with Twin Overlords', () => {
+    const arena = summoned(lordKit({ 'twin-overlords': 1 }))
+    arena.cooldowns.get('overlord')!.charges = 1
+    arena.resource = 10
+    run(arena, 1)
+    cast(arena, 1)
+    expect(lordsOf(arena)).toHaveLength(2)
+  })
+
+  it('frenzies your minions when it leaves with Final Command, a new one replacing it included', () => {
+    const arena = summoned(lordKit({ 'final-command': 1 }))
+    arena.cooldowns.get('overlord')!.charges = 1
+    arena.resource = 10
+    run(arena, 1)
+    cast(arena, 1)
+    expect(arena.buffs.find((b) => b.id === 'final-command')).toBeDefined()
+  })
+
+  it("speeds up with your ultimate's haste with Dark Patron, even when it came first", () => {
+    const volleys = (ranks: Record<string, number>) => {
+      const arena = summoned(lordKit(ranks, [null, null, null, null, 'blood-frenzy']))
+      // Past the global cooldown, then Blood Frenzy: 20% haste for 30 sec.
+      run(arena, 1.1)
+      cast(arena, 5)
+      expect(arena.buffs.some((b) => b.ultimate)).toBe(true)
+      run(arena, 12)
+      return damageOf(arena, 'Overlord')!.hits
+    }
+    expect(volleys({ 'dark-patron': 1 })).toBeGreaterThan(volleys({}))
+  })
+})
