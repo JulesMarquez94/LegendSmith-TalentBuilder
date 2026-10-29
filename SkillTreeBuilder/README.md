@@ -146,7 +146,7 @@ The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, **
 cast that summons one for **14 sec**. Every imp attacks your target on its own (40 every 1.5 sec), and
 its spells are paid for by **sacrificing imps**, the one with the least time left first. An imp whose
 time runs out leaves and takes its point of resource with it. Minion power raises all your damage for
-each imp you command, so its values are a tenth of other stats': an epic item carries 0.4%, not 4%.
+each imp you command, so it stays small: twelve epic items reach 5% at most.
 
 The book's own tree:
 
@@ -434,9 +434,16 @@ Marathon.
 ## Gear and stats
 
 Twelve trinket slots, as in the overview: item level sets Power (a %, three times the overview's,
-see below) and Health, rarity sets the two stats (common 1% … epic 4%; Minion power a tenth of that,
-since it counts for every minion you command), and Echo and Minion power
-take one of the two. Click a slot to make a test trinket, or pick a **Gear set** preset. Hover a stat
+see below) and Health, rarity sets the size of the two stats (common a quarter of epic, uncommon a
+half, rare three quarters), and Echo and Minion power take one of the two. Each stat has its own scale
+(`FULL_EPIC_MAX` in `src/game/gear.ts`), set so twelve epic items all leaning toward it reach at most:
+
+| Haste | Critical | Crit damage | Potency | Echo | Minion power |
+| --- | --- | --- | --- | --- | --- |
+| 30% | 50% | 50% | 30% | 30% | 5% |
+
+So an epic item carries a twelfth of the cap at 150% (Haste 2.5%, Critical 4.17%), two thirds of that
+when even. Click a slot to make a test trinket, or pick a **Gear set** preset. Hover a stat
 for where it comes from.
 
 Items have **names**, as in WoW, and the name is all that's unique: you can't wear two items with the
@@ -444,20 +451,19 @@ same name (in any case), and nothing else limits a stat pair. Name an item in th
 to be named from its slot and stats ("Ring of Peerlessness"); those names never clash, so twelve Haste
 and Critical items, one per slot, can all be worn.
 
-Each trinket has a **balance**: twice the rarity's value split between its two stats, anywhere from
-150% / 50% to 50% / 150% in steps of 5% (a slider in the forge; 100% / 100% is even). An epic Haste and
-Critical item can be 6% / 2%, 5% / 3%, 4% / 4% and so on, never past 6% / 2%. An unnamed item that
+Each trinket has a **balance**: its stats split anywhere from 150% / 50% to 50% / 150% in steps of 5%
+(a slider in the forge; 100% / 100% is even). An epic Haste and Critical item can be 2.5% / 1.4%,
+1.7% / 2.8% (even), 0.8% / 4.2% and anything between, never past 150% / 50%. An unnamed item that
 leans starts its name with its bigger stat's word (Quick, Keen, Brutal, Enduring, Echoing, Lordly):
 "Quick Ring of Peerlessness". Items saved before the slider keep their balance (150% / 50% or even).
 
 The **Gear set** picker has prebuilt sets in two groups:
 
 - **Main stat** (epic, item level 120): one set per stat, Haste, Critical, Crit damage, Potency, Echo
-  and Minion power. All 12 items lean all the way toward the stat (6% each, +72% in all; 0.6% and
-  +7.2% for Minion power), going round
-  its pairs for the second stat.
+  and Minion power. All 12 items lean all the way toward the stat, so each set reaches its stat's
+  cap (Haste main: +30% Haste), going round its pairs for the second stat.
 - **Even split** (100% / 100% on every item): the **Even mix** (epic, item level 120: Haste and Potency
-  20%, Critical and Crit damage 16%, Echo 12%, Minion power 1.2%), and sets of one pair in all 12 slots:
+  8.3%, Critical and Crit damage 11.1%, Echo 5%, Minion power 0.83%), and sets of one pair in all 12 slots:
   Critical and Haste, Potency and Haste (common, item level 60), Haste and Potency (rare 100, epic
   120), Critical and Crit damage (epic 120). The overview's own example set is there too.
 

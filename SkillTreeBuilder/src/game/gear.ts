@@ -4,8 +4,10 @@ import type { CharStat, CharStats } from './types.ts'
 // Trinket rules from the overview's "Trinkets and item cards", with names as in WoW:
 // - item level sets Power (a %) and Health (flat), always on the item;
 // - two stats, no more; Echo and Minion power are special affixes that take one of the two;
-// - rarity sets the stats' value (common 1% … epic 4%), and the item splits twice that between its two
-//   stats, anywhere from 150% / 50% to 50% / 150% of it (100% / 100% is even);
+// - rarity sets the stats' size (common a quarter of epic, uncommon a half, rare three quarters), each
+//   stat on its own scale (`FULL_EPIC_MAX`: twelve epic items leaning all the way toward Haste give
+//   30%, Critical 50%), and the item splits it between its two stats, anywhere from 150% / 50% to
+//   50% / 150% (100% / 100% is even);
 // - every item has a name, and the name is all that's unique: you can't wear two items with the same
 //   name, and nothing else limits a stat pair. Twelve Haste and Critical items, one in each slot, each
 //   with its own balance, can all be worn. An item you don't name is named from its slot and stats
@@ -133,17 +135,28 @@ export const trinketPower = (t: Trinket) => Math.round(t.itemLevel * 0.315 * 10)
 export const trinketHealth = (t: Trinket) => Math.round(t.itemLevel * 9.5)
 
 /**
- * How much of a stat an item carries for the rarity's value. Minion power counts once for every minion
- * you command, so an item has a tenth of it: an epic one 0.4%, not 4%.
+ * The most twelve epic items can give of each stat, every one of them leaning all the way toward it.
+ * Each stat's scale comes from this, so the caps hold however the stats are mixed. Minion power counts
+ * once for every minion you command, so it stays small.
  */
-const STAT_WEIGHT: Partial<Record<GearStat, number>> = { minionPower: 0.1 }
+export const FULL_EPIC_MAX: Record<GearStat, number> = {
+  haste: 30,
+  crit: 50,
+  critDamage: 50,
+  potency: 30,
+  echo: 30,
+  minionPower: 5,
+}
 
-/** The two stats' values: twice the rarity's value, split between them (the rarity's value each when even). */
+/** A stat's value per point of rarity value: the full-epic cap shared out over 12 epic items at 150%. */
+const statScale = (stat: GearStat) =>
+  FULL_EPIC_MAX[stat] / (TRINKET_SLOTS.length * RARITY_INFO.epic.value * (SPLIT_MAX / 100))
+
+/** The two stats' values: twice the rarity's value, split between them, each on its stat's scale. */
 export function trinketStatValues(t: Trinket): [number, number] {
   const value = RARITY_INFO[t.rarity].value
   const split = splitOf(t)
-  const weight = (i: 0 | 1) => STAT_WEIGHT[t.stats[i]] ?? 1
-  return [(value * split * weight(0)) / 100, (value * (200 - split) * weight(1)) / 100]
+  return [(value * split * statScale(t.stats[0])) / 100, (value * (200 - split) * statScale(t.stats[1])) / 100]
 }
 
 /** Separate from item level: past level 60 the item level keeps climbing and this stays at 60. */
@@ -170,8 +183,7 @@ export function unequip(gear: Gear, slot: TrinketSlot): Gear {
 /** What the worn trinkets add to the character. */
 export function gearTotals(gear: Gear): Partial<CharStats> {
   const totals: Partial<Record<CharStat, number>> = {}
-  // To the hundredth: Minion power comes in small steps (0.15% on an uncommon item leaning away from it).
-  const add = (stat: CharStat, n: number) => (totals[stat] = Math.round(((totals[stat] ?? 0) + n) * 100) / 100)
+  const add = (stat: CharStat, n: number) => (totals[stat] = (totals[stat] ?? 0) + n)
   for (const slot of TRINKET_SLOTS) {
     const t = gear[slot]
     if (!t) continue
@@ -180,6 +192,8 @@ export function gearTotals(gear: Gear): Partial<CharStats> {
     const values = trinketStatValues(t)
     t.stats.forEach((stat, i) => add(stat, values[i]))
   }
+  // Rounded once, at the end, to the hundredth: stats come in thirds and twelfths of a %.
+  for (const stat of Object.keys(totals) as CharStat[]) totals[stat] = Math.round(totals[stat]! * 100) / 100
   return totals
 }
 

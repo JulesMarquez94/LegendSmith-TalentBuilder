@@ -46,8 +46,9 @@ describe('gear', () => {
     // Level 60's own +200%, and the ring's 37.8%: worth 12.6% on top of level 60's numbers.
     expect(kit.character.stats.power).toBe(237.8)
     expect(mend.effects[0].amount).toBeCloseTo(1800 * 1.126)
-    expect(mend.castTime).toBeCloseTo(1.5 / 1.04)
-    expect(mend.effects[0].critChance).toBe(9)
+    // An even epic Haste and Critical ring: 30% and 50% over 18 (12 items at 150%) each, times its 1.5… 4 / 6.
+    expect(mend.castTime).toBeCloseTo(1.5 / (1 + 30 / 18 / 100))
+    expect(mend.effects[0].critChance).toBeCloseTo(5 + 50 / 18)
   })
 
   it('fits more ticks into the same duration with Haste, and lengthens it with Potency', () => {
