@@ -917,7 +917,7 @@ describe("Carrion Curse's tree", () => {
     run(arena, 1.6)
     const taken = damageOf(arena, 'Carrion Curse')!.hits
     expect(taken).toBeGreaterThan(0)
-    expect(arena.stats().minionPower - base).toBeCloseTo(0.01 * Math.min(20, taken))
+    expect(arena.stats().minionPower - base).toBeCloseTo(0.4 * Math.min(20, taken))
   })
 
   it('lets a stack burst and stay with Undying Hex', () => {

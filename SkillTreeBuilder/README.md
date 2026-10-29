@@ -290,7 +290,7 @@ Minion hits are **minion damage**, not direct damage. Its tree:
 | 2 | Carrion Spray (needs Feast) | 2 | Each stack splashes 15/30% of its damage onto every other enemy within 8 yd |
 | 2 | Frenzied Feeding (needs Bloodied) | 2 | Each stack makes your minions attack 3/6% faster for 4 sec, up to 5 times |
 | 3 | Swarming Brood | 2 | Each stack adds 0.05/0.1 sec to every minion you command |
-| 3 | Carrion Feast (needs Frenzied Feeding) | 2 | Each stack gives +0.005/0.01% minion power for 10 sec, up to 20 times |
+| 3 | Carrion Feast (needs Frenzied Feeding) | 2 | Each stack gives +0.2/0.4% minion power for 10 sec, up to 20 times |
 | 4 | Undying Hex (needs Gorging Hex) | 2 | Each stack has a 10/20% chance to burst without being taken |
 
 The mechanics behind it: a `curseStack` action (Gorging Hex), `extendMinions` (imps and summons), a
