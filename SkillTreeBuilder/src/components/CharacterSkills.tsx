@@ -3,7 +3,7 @@
  * for the open world: gathering, travel, events). It holds the loadout's last slot, which has nothing
  * to spec yet.
  */
-export function CharacterSkills() {
+export function CharacterSkills({ opensAt }: { opensAt?: number }) {
   return (
     <section className="character-skills" aria-label="Character skills">
       <div className="character-skills__name">Character skills</div>
@@ -11,7 +11,7 @@ export function CharacterSkills() {
         A bigger tree for your character itself, there whatever artifact you hold: talents for the open world
         (gathering, travel, events). Nothing to spec yet.
       </p>
-      <span className="tag">Coming later</span>
+      <span className="tag">{opensAt === undefined ? 'Coming later' : `Opens at level ${opensAt}`}</span>
     </section>
   )
 }

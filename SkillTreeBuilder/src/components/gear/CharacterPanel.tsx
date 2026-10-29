@@ -15,6 +15,7 @@ import { ItemCard } from './ItemCard.tsx'
 
 interface Props {
   artifact: ArtifactDef
+  level: number
   character: CharacterSheet
   gear: Gear
   onGear: (gear: Gear) => void
@@ -29,7 +30,7 @@ const PRESET_GROUPS = [...new Set(GEAR_PRESETS.flatMap((p) => (p.group ? [p.grou
  * The character third of the overview's character screen: 12 trinkets around Power, Health and the
  * resource, then the other stats in sections (secondary, defensive, extra).
  */
-export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
+export function CharacterPanel({ artifact, level, character, gear, onGear }: Props) {
   const tipId = useId()
   const [hover, hoverOn] = useHoverTarget<Hovered>()
   const [forging, setForging] = useState<TrinketSlot | null>(null)
@@ -77,7 +78,7 @@ export function CharacterPanel({ artifact, character, gear, onGear }: Props) {
       <header className="char__head">
         <ArtIcon label={artifact.name} tint={artifact.color} className="char__artifact" />
         <div>
-          <div className="char__title">Hero · Level 60</div>
+          <div className="char__title">Hero · Level {level}</div>
           <div className="char__sub">
             {seatOf(artifact)} · {artifact.name}
             {artifact.firstVersion && ' · First version'}

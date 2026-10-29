@@ -6,13 +6,15 @@ import { ArenaView } from './components/arena/ArenaView.tsx'
 import { CharacterSkills } from './components/CharacterSkills.tsx'
 import { CharacterPanel } from './components/gear/CharacterPanel.tsx'
 import { KIND_LABEL, SEATS, seatOf } from './components/labels.ts'
+import { LevelControl } from './components/LevelControl.tsx'
 import { SlotCard } from './components/SlotCard.tsx'
 import { SlotOverview } from './components/SlotOverview.tsx'
 import { abilityMeta } from './game/describe.ts'
 import type { Gear } from './game/gear.ts'
 import { buildKit } from './game/resolve.ts'
 import { save, savedGear, savedLoadout } from './saved.ts'
-import { capFor, pointsLeftFor, ranksIn, totalSpent } from './talents/loadout.ts'
+import { isSlotOpen, rulesAt, SLOT_LEVELS, slotLevel } from './talents/levels.ts'
+import { capFor, levelNeeded, pointsLeftFor, ranksIn, totalSpent } from './talents/loadout.ts'
 import { pointsSpent } from './talents/rules.ts'
 import { canMake, fitsKind, NEEDS_LABEL, slotKinds } from './talents/slots.ts'
 import type { ArtifactDef, TreeDef } from './talents/types.ts'
@@ -41,6 +43,8 @@ export default function App() {
   const [picking, setPicking] = useState<number | null>(null)
   const { loadout } = build
   const spent = totalSpent(loadout)
+  // The points to spend at this level; the per-tree caps stay the same.
+  const rules = rulesAt(POINT_RULES, loadout.level)
   const artifact = ARTIFACTS.find((a) => a.id === loadout.artifact) ?? ARTIFACTS[0]
   const kinds = slotKinds(artifact)
 
@@ -113,13 +117,16 @@ export default function App() {
           </button>
         </nav>
         {view === 'build' && <p className="topbar__help">Click to learn · Right-click or Shift-click to unlearn</p>}
+        <LevelControl level={loadout.level} needed={levelNeeded(loadout)} onLevel={build.level} />
         <div className="points">
           <span className="points__label">Talent points</span>
           <span className="points__left" aria-live="polite">
-            {POINT_RULES.total - spent}
+            {rules.total - spent}
           </span>
           <span className="points__total">
-            / {POINT_RULES.total} · max {POINT_RULES.perTree} per tree, {POINT_RULES.perSmall} per ultimate or group buff
+            {loadout.level <= SLOT_LEVELS
+              ? `/ ${rules.total} · the first comes at level ${SLOT_LEVELS + 1}`
+              : `/ ${rules.total} · max ${rules.perTree} per tree, ${rules.perSmall} per ultimate or group buff`}
           </span>
         </div>
         <button type="button" className="btn btn--lg" onClick={build.resetTalents} disabled={spent === 0}>
@@ -141,7 +148,7 @@ export default function App() {
         )}
 
         <div className="build">
-          <CharacterPanel artifact={artifact} character={kit.character} gear={gear} onGear={setGear} />
+          <CharacterPanel artifact={artifact} level={loadout.level} character={kit.character} gear={gear} onGear={setGear} />
 
           <div className="build__trees">
             <nav className="tabs skill-tabs" aria-label="Skill tab">
@@ -171,8 +178,9 @@ export default function App() {
                     kinds={kinds}
                     trees={trees}
                     artifact={artifact}
+                    level={loadout.level}
                     points={trees.map((tree) =>
-                      tree ? `${pointsSpent(tree, ranksIn(loadout, tree))}/${capFor(tree, POINT_RULES)}` : null,
+                      tree ? `${pointsSpent(tree, ranksIn(loadout, tree))}/${capFor(tree, rules)}` : null,
                     )}
                     onChoose={setPicking}
                   />
@@ -184,10 +192,11 @@ export default function App() {
                         key={index}
                         index={index}
                         kind={kind}
+                        opensAt={isSlotOpen(index, loadout.level) ? undefined : slotLevel(index)}
                         tree={tree}
                         ranks={tree ? ranksIn(loadout, tree) : {}}
-                        pointsLeft={tree ? pointsLeftFor(loadout, tree, POINT_RULES) : 0}
-                        cap={tree ? capFor(tree, POINT_RULES) : POINT_RULES.perTree}
+                        pointsLeft={tree ? pointsLeftFor(loadout, tree, rules) : 0}
+                        cap={tree ? capFor(tree, rules) : rules.perTree}
                         artifact={artifact}
                         live={kit.slots[index] ?? null}
                         kit={kit}
@@ -195,6 +204,7 @@ export default function App() {
                         onRemove={() => build.slot(index, null)}
                         onLearn={build.learn}
                         onUnlearn={build.unlearn}
+                        onTakeSide={build.takeSide}
                       />
                     )
                   })}
@@ -202,7 +212,7 @@ export default function App() {
                 <AbilityNumbers kinds={kinds} trees={trees} live={kit.slots} base={bare.slots} />
               </>
             ) : (
-              <CharacterSkills />
+              <CharacterSkills opensAt={isSlotOpen(7, loadout.level) ? undefined : slotLevel(7)} />
             )}
           </div>
         </div>

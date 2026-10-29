@@ -23,9 +23,15 @@ describe('the artifact', () => {
   })
 
   it('clears abilities and group buffs that no longer fit when it changes, keeping shared mobility', () => {
-    const start = { ...STARTING_LOADOUT, ranks: { mend: { 'greater-mend': 2 }, dash: { 'long-stride': 1 } } }
+    const start = {
+      ...STARTING_LOADOUT,
+      level: 60,
+      slots: ['lifewarden-staff', 'mend', 'renew', 'healing-rain', 'miracle', 'dash', 'vitality-aura', null],
+      ranks: { mend: { 'greater-mend': 2 }, dash: { 'long-stride': 1 } },
+    }
     const l = setArtifact(start, tomeOfSummoning, TREES)
     expect(l).toEqual({
+      level: 60,
       artifact: 'tome-of-summoning',
       slots: ['tome-of-summoning', null, null, null, null, 'dash', null, null],
       ranks: { dash: { 'long-stride': 1 } },
@@ -35,11 +41,13 @@ describe('the artifact', () => {
 
   it("drops strikes the new weapon can't make, and keeps its spells", () => {
     const daggers = {
+      level: 60,
       artifact: 'twin-daggers',
       slots: ['twin-daggers', 'backstab', 'harvest', 'doom-bolt', null, 'dash', null, null],
       ranks: { backstab: { 'ready-blade': 1 }, harvest: { 'keen-scythe': 1 } },
     }
     expect(setArtifact(daggers, ashwoodLongbow, TREES)).toEqual({
+      level: 60,
       artifact: 'ashwood-longbow',
       slots: ['ashwood-longbow', null, 'harvest', 'doom-bolt', null, 'dash', null, null],
       ranks: { harvest: { 'keen-scythe': 1 } },

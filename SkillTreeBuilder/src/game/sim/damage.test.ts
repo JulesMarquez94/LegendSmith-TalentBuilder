@@ -140,7 +140,7 @@ describe('the summoning book', () => {
     arena.resource = 5
     cast(arena, 1)
     run(arena, 4)
-    // The big dummy and the small ones around it are within 8 yd: three stacks each, 20 sec apiece.
+    // The big dummy and the small ones around it are within 8 yd: three stacks each, 18 sec apiece.
     const poxed = arena.enemies.map((e) => e.dots.find((d) => d.name === 'Pox')).filter((d) => d !== undefined)
     expect(poxed.length).toBeGreaterThanOrEqual(3)
     for (const d of poxed) expect(d.stacks).toHaveLength(3)
@@ -344,11 +344,25 @@ describe("Miasma's tree", () => {
   }
   const poxOn = (arena: Arena) => arena.boss.dots.find((d) => d.name === 'Pox')
 
-  it('stacks Pox faster with Thick Pox, longer with Lingering Pox, harder with Virulent Pox', () => {
-    const kit = miasmaKit({ 'thick-pox': 2, 'lingering-pox': 3, 'virulent-pox': 3 })
-    const p = kit.slots[1]!.effects[0].inflicts!
-    expect(p).toMatchObject({ stacks: 3, duration: 32 })
-    expect(p.amount).toBeCloseTo(30 * 1.3)
+  it('gives Pox that deals 15 a second for 18 sec, longer with Lingering Pox, harder with Virulent Pox', () => {
+    expect(miasmaKit({}).slots[1]!.effects[0].inflicts!).toMatchObject({ amount: 15, duration: 18, stacks: 1 })
+    const p = miasmaKit({ 'lingering-pox': 3, 'virulent-pox': 3 }).slots[1]!.effects[0].inflicts!
+    expect(p).toMatchObject({ stacks: 1, duration: 27 })
+    expect(p.amount).toBeCloseTo(15 * 1.3)
+  })
+
+  it('deals more with Concentrated Pox while Pox is on only one enemy', () => {
+    /** Pox damage after a cloud on the boss, with the other dummies gone or not. */
+    const poxDamage = (ranks: Record<string, number>, alone: boolean) => {
+      const arena = ready(miasmaKit(ranks))
+      if (alone) for (const e of arena.enemies) if (e !== arena.boss) e.alive = false
+      cast(arena, 1)
+      run(arena, 4)
+      return damageOf(arena, 'Pox')!.damage
+    }
+    expect(poxDamage({ 'concentrated-pox': 2 }, true)).toBeCloseTo(poxDamage({}, true) * 1.3)
+    // On several enemies, no bonus.
+    expect(poxDamage({ 'concentrated-pox': 2 }, false)).toBeCloseTo(poxDamage({}, false))
   })
 
   it('widens and follows with Clinging Cloud, and lasts longer with Thickening Fog', () => {
@@ -390,15 +404,17 @@ describe("Miasma's tree", () => {
     expect(arena.resource).toBe(15)
   })
 
-  it('takes cooldown off on DoT ticks with Restless Fog', () => {
+  it('takes cooldown off on DoT ticks with Restless Fog, no more than once every 2 sec', () => {
     const base = miasmaKit({ 'restless-fog': 2 })
     const kit: Kit = { ...base, procs: base.procs.map((p) => ({ ...p, proc: { ...p.proc, chance: 100 } })) }
-    const arena = ready(kit)
-    cast(arena, 1)
-    run(arena, 3.05)
-    // Three ticks of Pox on several enemies, each a second off the 30.
-    const cd = arena.cooldowns.get('miasma')!
-    expect(cd.rechargeAt! - arena.time).toBeLessThan(30 - 3 - 3)
+    const recharge = (k: Kit) => {
+      const arena = ready(k)
+      cast(arena, 1)
+      run(arena, 2.5)
+      return arena.cooldowns.get('miasma')!.rechargeAt!
+    }
+    // Pox ticks on several enemies at 1 and 2 sec, but only the first tick takes a second off.
+    expect(recharge(miasmaKit({})) - recharge(kit)).toBeCloseTo(1)
   })
 })
 

@@ -1,8 +1,8 @@
 # LegendSmith Talent Builder
 
 A WoW Classic–style talent builder for testing LegendSmith's skill trees. You hold an artifact (one of
-eight weapons: two tanks, two healers, two melee and two ranged damage dealers), fill eight slots, and
-each slotted ability brings its own talent tree. Trinkets set your stats, every ability shows its live numbers, and a **Test arena** lets
+eight weapons: two tanks, two healers, two melee and two ranged damage dealers), level up from 1 to 60,
+fill eight slots, and each slotted ability brings its own talent tree. Trinkets set your stats, every ability shows its live numbers, and a **Test arena** lets
 you play the build against dummies or a boss.
 
 ## Run it
@@ -25,14 +25,20 @@ repositories.
 
 ## Slots
 
-| Slot | Holds | Keyboard |
-| --- | --- | --- |
-| 1 | The artifact, with its own tree (its main attack) | Left click |
-| 2–4 | Role abilities: heals for a healer, damage for a damage dealer, tank abilities for a tank | Right click, Q, E |
-| 5 | An ultimate (big cooldown). Fervor fits every role | F |
-| 6 | A mobility ability, shared by every role | Shift |
-| 7 | A group buff for your role: passive, for you and your group | Passive |
-| 8 | The **character skill tree**, always there whatever you hold, on its own tab. Empty for now | — |
+| Slot | Holds | Keyboard | Opens at |
+| --- | --- | --- | --- |
+| 1 | The artifact, with its own tree (its main attack) | Left click | Level 1 |
+| 2–4 | Role abilities: heals for a healer, damage for a damage dealer, tank abilities for a tank | Right click, Q, E | Levels 2–4 |
+| 5 | An ultimate (big cooldown). Fervor fits every role | F | Level 5 |
+| 6 | A mobility ability, shared by every role | Shift | Level 6 |
+| 7 | A group buff for your role: passive, for you and your group | Passive | Level 7 |
+| 8 | The **character skill tree**, always there whatever you hold, on its own tab. Empty for now | — | Level 8 |
+
+You **start at level 1** with only slot 1, the artifact's main attack on the left mouse button. Each
+level up to 8 opens the next slot, and every level after that gives one talent point: none up to level
+8, 52 at level 60 (`src/talents/levels.ts`). Set the level in the top bar. It can't go below what your
+build needs (every filled slot open, a point for every rank): empty slots or reset talents to go lower.
+Closed slots show the level that opens them. Builds saved before levels load at level 60.
 
 The build view has two tabs above the trees. **Artifact skills** is a grid of 4 across and 2 down: the
 first block is an **overview** that lists slots 1–7 top to bottom with their key, ability and points
@@ -66,8 +72,8 @@ below with its role.
 
 ## Rules
 
-- **60 talent points** (one per level) to spend anywhere, but **no more than 12 in any one tree**, as in
-  the overview (`POINT_RULES` in `src/trees/index.ts`).
+- **52 talent points** at level 60 (one a level from level 9) to spend anywhere, but **no more than 12 in
+  any one tree** (`POINT_RULES` in `src/trees/index.ts`).
 - **Ultimates** (the cooldown slot) and **group buffs** have small trees: **6 points at most**
   (`perSmall`), about 5 talents and **exactly 9 ranks** (`SMALL_RANKS`), in the top three rows so 6
   points reach them all.
@@ -76,7 +82,10 @@ below with its role.
   other abilities (a whole family) or feed them (synergy) are favoured; tweaks to one ability's own
   numbers went first.
 - A **choice** is two talents you can take one of, not both (`excludes`). A pair counts once toward the
-  18, at the bigger of the two. The tooltip says which other talent it's a choice with.
+  18, at the bigger of the two, and must share a row. It shows as **one split icon**, halfway between
+  the two places: the left talent's icon top left, the right one's bottom right. Click it to open both
+  side by side, left and right, and pick one; picking the other side later swaps them. Right-click it
+  to unlearn.
 - Inside a tree, a row unlocks once **2 points** (`pointsPerRow`) have been spent in the rows above it,
   in any mix: row 2 needs 2, row 3 needs 4, row 4 needs 6.
 - A talent at the end of an arrow needs the talent the arrow comes from at **max rank**.
@@ -201,16 +210,16 @@ The new mechanics behind it:
 - `autocast` on an ability: passive, going off on its own every N sec. It uses up the buffs a cast would.
 
 **Miasma** (made for the book) costs 5 and has a 30 sec cooldown. It fills an 8 yd area around the enemy
-under your crosshair for 3 sec, and every second every enemy inside gets a stack of **Pox**: 30 damage
-per stack every second for 20 sec, each stack on its own timer. Its tree:
+under your crosshair for 3 sec, and every second every enemy inside gets a stack of **Pox**: 15 damage
+per stack every second for 18 sec, each stack on its own timer. Its tree:
 
 | Row | Talent | Ranks | What it does |
 | --- | --- | --- | --- |
-| 1 | Restless Fog | 2 | Each tick of your DoTs has a 3/6% chance to take 1 sec off Miasma's cooldown |
-| 1 | Thick Pox | 2 | Miasma gives 1/2 more stacks of Pox at a time |
+| 1 | Restless Fog | 2 | Each tick of your DoTs has a 3/6% chance to take 1 sec off Miasma's cooldown, at most once every 2 sec |
+| 1 | Concentrated Pox | 2 | Pox deals 15/30% more while it's on only one enemy |
 | 1 | Clinging Cloud | 2 | The area is 2/4 yd wider and follows the enemy it was placed on |
 | 2 | Virulent Pox | 3 | Pox deals 10/20/30% more |
-| 2 | Lingering Pox (needs Thick Pox) | 3 | Each stack lasts 4/8/12 sec longer |
+| 2 | Lingering Pox (needs Concentrated Pox) | 3 | Each stack lasts 3/6/9 sec longer |
 | 2 | Noxious Burst (needs Clinging Cloud) | 2 | Miasma deals 200/400 to every enemy in its area when placed |
 | 3 | Thickening Fog | 1 | Miasma lasts 1 sec longer |
 | 3 | Choking Burst (needs Noxious Burst) | 2 | Miasma's direct damage deals 4/8% more per stack of Pox on the enemy |
@@ -219,7 +228,7 @@ per stack every second for 20 sec, each stack on its own timer. Its tree:
 
 Emanation and Quickening Pulse are a choice: you can take one, not both. Emanation uses `autocast`
 with an `auto` effect: an effect that fires only when the ability goes off on its own, instead of its
-others.
+others. Concentrated Pox uses an `alone` condition: only one enemy has the matching DoT.
 
 An ability can also be **made for** a weapon (`madeFor`: Harvest for the book). That's a label: the
 picker shows it and lists the ones made for your weapon first. The Plague tree keeps its art and
@@ -249,8 +258,7 @@ talents (resource and cooldown per extra hit) and area-damage talents reach them
 **Blood Frenzy** is the damage dealer's ultimate: instant, free, a 3 min cooldown, and +20% haste for
 you for 30 sec (`src/trees/blood.ts`). Its tree: Bloodlust (+5/10% more haste), Lingering Rage (+5/10
 sec), Quickened Pulse (cooldown 30/60 sec shorter), Endless Frenzy (every ability you use while it's
-up adds 0.2/0.4 sec, needs Lingering Rage) and Twin Frenzy (2 charges at half the duration, needs
-Quickened Pulse).
+up adds 0.2/0.4 sec, needs Lingering Rage) and Twin Frenzy (2 charges at half the duration).
 
 **Frenzy**: +15% haste for 8 sec, with no cooldown: you keep it up by paying for
 it again. Feeding Frenzy makes every ability you spend on extend it; other talents add crit, regen,

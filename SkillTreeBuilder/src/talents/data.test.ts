@@ -75,6 +75,7 @@ describe('tree data', () => {
     ])
     expect(
       validateCatalog(TREES, ARTIFACTS, {
+        level: 60,
         artifact: 'tome-of-summoning',
         slots: ['tome-of-summoning', 'shadow-step', null, null, null, null, null, null],
         ranks: {},

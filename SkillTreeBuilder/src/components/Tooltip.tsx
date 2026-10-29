@@ -20,41 +20,14 @@ import {
 } from '../talents/rules.ts'
 import type { TalentDef, TreeDef } from '../talents/types.ts'
 import { ArtIcon } from './ArtIcon.tsx'
+import { placeBeside } from './place.ts'
 
-const EDGE = 8
-const GAP = 10
-
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(n, max))
-
-/**
- * Floats level with `anchor`, beside its nearest `[data-tooltip-side]` ancestor (the tree panel,
- * as in the deck) so it never covers other talents. Falls back to beside the anchor itself, then
- * below or above it, when the screen is too narrow.
- */
+/** A hover card, placed by `placeBeside`. */
 export function Tooltip({ id, anchor, children }: { id: string; anchor: HTMLElement; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
 
   // Placed after every render (before paint), since the content grows and shrinks as ranks change.
-  useLayoutEffect(() => {
-    const el = ref.current!
-    el.style.left = '0px'
-    const tip = el.getBoundingClientRect()
-    const a = anchor.getBoundingClientRect()
-    const side = anchor.closest('[data-tooltip-side]')?.getBoundingClientRect() ?? a
-    const vw = document.documentElement.clientWidth
-    const vh = document.documentElement.clientHeight
-    const fits = (x: number) => x >= EDGE && x + tip.width <= vw - EDGE
-    let left = [side.right + GAP, side.left - GAP - tip.width, a.right + GAP, a.left - GAP - tip.width].find(fits)
-    let top = a.top
-    if (left === undefined) {
-      left = clamp(a.left + a.width / 2 - tip.width / 2, EDGE, vw - EDGE - tip.width)
-      top = a.bottom + GAP + tip.height > vh - EDGE ? a.top - GAP - tip.height : a.bottom + GAP
-    }
-    top = clamp(top, EDGE, vh - EDGE - tip.height)
-    el.style.left = `${left}px`
-    el.style.top = `${top}px`
-    el.style.visibility = 'visible'
-  })
+  useLayoutEffect(() => placeBeside(ref.current!, anchor))
 
   return createPortal(
     <div ref={ref} id={id} role="tooltip" className="tooltip">

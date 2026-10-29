@@ -76,7 +76,6 @@ export const bloodFrenzy: TreeDef = {
       name: 'Twin Frenzy',
       row: 2,
       col: 0,
-      requires: 'quickened-pulse',
       text: 'Blood Frenzy holds 2 charges, but lasts half as long.',
       does: () => [plus('charges', 'blood-frenzy', 1), more('duration', 'blood-frenzy', -50)],
     }),

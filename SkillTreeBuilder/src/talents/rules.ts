@@ -73,6 +73,22 @@ export function canUnlearn(tree: TreeDef, ranks: Ranks, talent: TalentDef): bool
   )
 }
 
+/**
+ * One side of a choice can be taken: learned as usual, or, while the other side has points, swapped
+ * for it (every point of the other side comes out, then one goes into this one).
+ */
+export function canTakeSide(tree: TreeDef, ranks: Ranks, talent: TalentDef, pointsLeft: number): boolean {
+  const other = rival(tree, talent)
+  const taken = other ? rankOf(ranks, other) : 0
+  if (!other || taken === 0) return canLearn(tree, ranks, talent, pointsLeft)
+  let after = ranks
+  for (let i = 0; i < taken; i++) {
+    if (!canUnlearn(tree, after, other)) return false
+    after = { ...after, [other.id]: rankOf(after, other) - 1 }
+  }
+  return canLearn(tree, after, talent, pointsLeft + taken)
+}
+
 export function talentState(tree: TreeDef, ranks: Ranks, talent: TalentDef, pointsLeft: number): TalentState {
   const rank = rankOf(ranks, talent)
   if (rank >= talent.maxRank) return 'maxed'

@@ -40,6 +40,7 @@ export function describeCondition(when: Condition): string {
   if (when.each !== undefined) parts.push('for each of your effects on it')
   if (when.stacksOf !== undefined) parts.push('for each stack on it')
   if (when.single) parts.push('when it hits only one enemy')
+  if (when.alone !== undefined) parts.push('while on only one enemy')
   return parts.join(', ')
 }
 
