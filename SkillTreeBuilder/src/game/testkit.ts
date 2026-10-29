@@ -7,13 +7,15 @@ import { buildKit, type Kit } from './resolve.ts'
 
 /**
  * A kit for tests: tree ids for slots 2 onwards (the artifact's own tree always sits in slot 1).
- * Slots 2–4 are role abilities, then the ultimate, mobility and the group buff.
+ * Slots 2–4 are role abilities, then mobility, the ultimate and the group buff (tests only care about
+ * the order they pass). Level 60 unless `level` says otherwise.
  */
 export function kitFor(
   artifact: ArtifactDef,
   slots: (string | null)[],
   ranks: Record<string, Ranks> = {},
   gear: Gear = {},
+  level = 60,
 ): Kit {
   const ids = [artifact.tree?.id ?? null, ...slots]
   return buildKit({
@@ -22,6 +24,7 @@ export function kitFor(
     ranks,
     gear,
     catalog: TREES,
+    level,
   })
 }
 

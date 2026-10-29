@@ -320,7 +320,8 @@ export const sharpenedWill: TreeDef = {
     description: 'Passive. You and your group hit, heal and shield harder.',
   },
   spec: {
-    effects: [aura({ power: 6 })],
+    // Power counts a third as much as before levels gave +200% of it: three times the old numbers.
+    effects: [aura({ power: 18 })],
     text: (a) =>
       `Passive. You and your group have +${auraValue(a, 'power')} power: every hit, heal and shield lands harder.`,
   },
@@ -331,7 +332,7 @@ export const sharpenedWill: TreeDef = {
       name: 'Steeled Mind',
       row: 0,
       col: 1,
-      per: [1.5, 3],
+      per: [4.5, 9],
       text: 'You and your group have +{}% power.',
       does: (v) => [group('power', v)],
     }),
@@ -373,8 +374,8 @@ export const sharpenedWill: TreeDef = {
       row: 2,
       col: 1,
       requires: 'honed-intent',
-      text: 'When you cast your ultimate, you and your group have +10% power for 10 sec.',
-      does: () => [proc('cast', 'cooldown', [rally('shared-resolve', 'Shared Resolve', 10, { power: 10 })])],
+      text: 'When you cast your ultimate, you and your group have +30% power for 10 sec.',
+      does: () => [proc('cast', 'cooldown', [rally('shared-resolve', 'Shared Resolve', 10, { power: 30 })])],
     }),
   ],
 }

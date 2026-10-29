@@ -16,6 +16,19 @@ export const isSlotOpen = (index: number, level: number) => level >= slotLevel(i
 /** Talent points at a level: none up to 8, then one a level, 52 at 60. */
 export const pointsAt = (level: number) => Math.max(0, Math.min(level, MAX_LEVEL) - SLOT_LEVELS)
 
+/**
+ * How much stronger a level 60 hero is than a level 1: three times the Health and three times the
+ * damage, healing and shields. Ability numbers, item Power and buffs are written for level 60.
+ */
+export const LEVEL_GROWTH = 3
+
+/** A level's share of level 60's Health and power: a third at level 1, growing evenly to all of it. */
+export const levelShare = (level: number) =>
+  (1 + ((LEVEL_GROWTH - 1) * (Math.min(Math.max(level, 1), MAX_LEVEL) - 1)) / (MAX_LEVEL - 1)) / LEVEL_GROWTH
+
+/** The Power a level gives on its own: +0% at level 1, +200% at level 60. */
+export const levelPower = (level: number) => Math.round((levelShare(level) * LEVEL_GROWTH - 1) * 1000) / 10
+
 /** The point rules at a level: its points to spend, the same per-tree caps. */
 export const rulesAt = (rules: PointRules, level: number): PointRules => ({
   ...rules,

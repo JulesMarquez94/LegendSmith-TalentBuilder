@@ -209,7 +209,8 @@ function StatTip({ stat, line, resource }: { stat: CharStat; line: CharacterShee
       <div className="item__name">{withResource(info.label, resource)}</div>
       <div className="item__req">{withResource(info.help, resource)}</div>
       <div className="item__parts">
-        {part('Base', line.base)}
+        {/* Health and Power grow with level. */}
+        {part(stat === 'health' || stat === 'power' ? 'From level' : 'Base', line.base)}
         {line.gear !== 0 && part('Trinkets', line.gear)}
         {line.talents !== 0 && part('Talents', line.talents)}
         {part('Total', line.total)}

@@ -258,11 +258,12 @@ export const shadowStep: TreeDef = {
     description: 'Step through the shadows to a spot up to 15 range away.',
   },
   talents: [
+    // Row 1
     {
       id: 'far-step',
       name: 'Far Step',
       row: 0,
-      col: 1,
+      col: 0,
       maxRank: 3,
       description: "Increases Shadow Step's range by {2/4/6}.",
     },
@@ -271,16 +272,19 @@ export const shadowStep: TreeDef = {
       name: 'Quick Step',
       row: 0,
       col: 2,
-      maxRank: 3,
-      description: "Reduces Shadow Step's cooldown by {0.5/1/1.5} sec.",
+      maxRank: 2,
+      description: "Reduces Shadow Step's cooldown by {0.75/1.5} sec.",
     },
+
+    // Row 2
     {
-      id: 'shadow-trail',
-      name: 'Shadow Trail',
+      id: 'ambush',
+      name: 'Ambush',
       row: 1,
       col: 0,
-      maxRank: 1,
-      description: 'Shadow Step leaves a trail that slows enemies by 30% for 3 sec.',
+      maxRank: 2,
+      requires: 'far-step',
+      description: 'Your next attack after Shadow Step deals {15/30}% more damage.',
     },
     {
       id: 'double-step',
@@ -291,39 +295,15 @@ export const shadowStep: TreeDef = {
       requires: 'quick-step',
       description: 'Shadow Step holds 2 charges.',
     },
-    {
-      id: 'ambush',
-      name: 'Ambush',
-      row: 2,
-      col: 1,
-      maxRank: 3,
-      requires: 'far-step',
-      description: 'Your next attack after Shadow Step deals {10/20/30}% more damage.',
-    },
+
+    // Row 3
     {
       id: 'fade',
       name: 'Fade',
       row: 2,
-      col: 3,
-      maxRank: 3,
-      description: 'Shadow Step makes you untargetable for {0.5/1/1.5} sec.',
-    },
-    {
-      id: 'umbral-echo',
-      name: 'Umbral Echo',
-      row: 3,
       col: 1,
       maxRank: 1,
-      requires: 'ambush',
-      description: 'Shadow Step leaves an echo that repeats your next ability.',
-    },
-    {
-      id: 'night-runner',
-      name: 'Night Runner',
-      row: 3,
-      col: 2,
-      maxRank: 3,
-      description: 'After Shadow Step, you move {10/20/30}% faster for 3 sec.',
+      description: 'Shadow Step makes you untargetable for 1 sec.',
     },
   ],
 }
@@ -343,11 +323,12 @@ export const wraithWalk: TreeDef = {
     description: 'Become a wraith for 3 sec, moving 60% faster and passing through enemies.',
   },
   talents: [
+    // Row 1
     {
       id: 'swift-spirit',
       name: 'Swift Spirit',
       row: 0,
-      col: 1,
+      col: 0,
       maxRank: 3,
       description: 'Wraith Walk grants {10/20/30}% more movement speed.',
     },
@@ -359,6 +340,8 @@ export const wraithWalk: TreeDef = {
       maxRank: 2,
       description: 'Wraith Walk lasts {1/2} sec longer.',
     },
+
+    // Row 2
     {
       id: 'chilling-passage',
       name: 'Chilling Passage',
@@ -375,39 +358,15 @@ export const wraithWalk: TreeDef = {
       maxRank: 2,
       description: "Reduces Wraith Walk's cooldown by {3/6} sec.",
     },
+
+    // Row 3
     {
       id: 'spectral-ward',
       name: 'Spectral Ward',
       row: 2,
-      col: 0,
-      maxRank: 3,
-      description: 'You take {5/10/15}% less damage during Wraith Walk.',
-    },
-    {
-      id: 'soul-trail',
-      name: 'Soul Trail',
-      row: 2,
-      col: 1,
-      maxRank: 3,
-      requires: 'chilling-passage',
-      description: 'Enemies you pass through take {X/2X/3X} Shadow damage.',
-    },
-    {
-      id: 'phantasm',
-      name: 'Phantasm',
-      row: 3,
-      col: 0,
-      maxRank: 1,
-      requires: 'spectral-ward',
-      description: 'When Wraith Walk ends, you release a nova that fears nearby enemies for 2 sec.',
-    },
-    {
-      id: 'haunting',
-      name: 'Haunting',
-      row: 3,
       col: 2,
-      maxRank: 3,
-      description: 'Wraith Walk leaves a ghost behind that attacks nearby enemies for {2/3/4} sec.',
+      maxRank: 1,
+      description: 'You take 15% less damage during Wraith Walk.',
     },
   ],
 }

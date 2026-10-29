@@ -14,6 +14,13 @@ npm run dev
 
 Then open http://localhost:5173. The page remembers your build and gear in this browser.
 
+## Share a build
+
+The page's address always holds your build: artifact, level, abilities, talents and gear, packed
+after `#b=` (`src/share.ts`). Click **Copy build link** in the top bar (or copy the address) and send
+it: whoever opens it gets the same build, and it replaces the one saved in their browser. Anything in
+a link that no longer fits the trees (a renamed talent, a moved one) is dropped, as for a saved build.
+
 ## Publish it on GitHub Pages
 
 `.github/workflows/talent-builder-pages.yml` tests and builds the builder, then deploys it to GitHub
@@ -74,9 +81,9 @@ below with its role.
 
 - **52 talent points** at level 60 (one a level from level 9) to spend anywhere, but **no more than 10 in
   any one tree** (`POINT_RULES` in `src/trees/index.ts`).
-- **Ultimates** (the cooldown slot) and **group buffs** have small trees: **5 points at most**
-  (`perSmall`), about 5 talents and **exactly 9 ranks** (`SMALL_RANKS`), in the top three rows so 5
-  points reach them all.
+- **Ultimates** (the cooldown slot), **mobility** and **group buffs** have small trees: about 5
+  talents and **exactly 9 ranks** (`SMALL_RANKS`), in the top three rows. Ultimates and group buffs
+  take **5 points at most** (`perSmall`), mobility **6** (`perMobility`).
 - Every other tree's talents hold **exactly 18 ranks** in all (`TREE_RANKS`), so with 10 to spend you always
   leave 8 of them. The data test fails on a tree with more or fewer. Talents that reach
   other abilities (a whole family) or feed them (synergy) are favoured; tweaks to one ability's own
@@ -107,7 +114,7 @@ same on any weapon. Only an artifact's own tree may talk in its own units (mana,
 | --- | --- |
 | Heals (pick 3) | Mend (direct heal), Chain Heal (jumps, 6 sec cooldown), Healing Rain (zone, never two on one ally), Renew (HoT), Bloom (pays per ally to heal everyone your HoTs and zones touch), Conduit (passive: your main attack heals) |
 | Ultimate | Miracle (instant heal on everyone), Sanctuary (big zone for 12 sec), Lifetide (strong HoT that decays) |
-| Mobility | Dash (2 charges), Teleport, Sprint |
+| Mobility | Dash (2 charges), Teleport (not while casting, unless Spellstride), Sprint |
 
 Talents aim at **families and tags**, never at another ability: a talent may name its own ability
 ("Healing Rain's crits…") or a family ("your heal-over-time effects…"), and a data test fails if one
@@ -362,9 +369,28 @@ and its tree adds more. Healers pick more maximum health or more healing receive
 Haste, Critical or Power. Tanks get Damage reduction, Dodge or Speed. Like an ultimate's, a group
 buff's tree is small: 5 points, 5 talents, 9 ranks.
 
+## Mobility
+
+Mobility trees are small, like the ultimate's: 9 ranks, 6 points to spend. **Teleport** goes 15 yd the
+way you're moving every 15 sec, but not while you cast. Its tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Phase Shift | 3 | Cooldown 1.5/3/4.5 sec shorter |
+| 1 | Far Reach | 3 | Goes 3/6/9 yd farther |
+| 2 | Double Blink (needs Phase Shift) | 1 | 2 charges, but each takes 50% longer to come back |
+| 2 | Spellstride | 1 | Teleport while casting, and the cast goes on |
+| 3 | Recall (needs Far Reach) | 1 | Teleport again within 4 sec to go back where you were, for free |
+
+Spellstride lifts the ability's `notWhileCasting` with a `whileCasting` mod; Recall adds a
+`returnWindow` to the teleport (shown as a Recall buff while it's open). Dash keeps Long Stride, Quick
+Recovery, Fleetfoot, Triple Dash and Evasion; Sprint keeps Fleet, Stamina, Wind Runner, Unstoppable and
+Marathon.
+
 ## Gear and stats
 
-Twelve trinket slots, as in the overview: item level sets Power (a %) and Health, rarity sets the two
+Twelve trinket slots, as in the overview: item level sets Power (a %, three times the overview's,
+see below) and Health, rarity sets the two
 stats (common 1% … epic 4%), Echo and Minion power take one of the two, and the name comes from the
 pair, so you can't wear two "of Peerlessness" at once. Click a slot to make a test trinket, or pick a
 **Gear set** preset. Hover a stat for where it comes from.
@@ -389,7 +415,16 @@ Every gear stat has an **icon** (Haste a lightning bolt, Critical a crosshair, C
 Potency an hourglass, Echo ripples, Minion power a skull). An equipped slot shows its two stats' icons,
 the leaned stat's bigger, and the icons also mark the item cards, the forge and the stat sheet.
 
-- **Power** raises every heal, shield and damage number.
+- **Power** raises every heal, shield and damage number. Your level gives most of it: +0% at level 1,
+  +200% at level 60 (`levelPower`).
+- **Health** grows with level too: 800 at level 1, 2,400 at level 60, plus trinkets.
+
+Ability numbers are written for a level 60 hero with nothing on, whose level gives +200% Power, so a
+level 1 hero hits, heals and shields for a third of them (`LEVEL_GROWTH` in `src/talents/levels.ts`).
+To keep level 60 where it was, every other source of Power counts three times what it did: a trinket
+gives 0.315 per item level (the overview's 0.105, times three) and Sharpened Will +18%. The test arena
+scales with you: at a lower level the boss, its adds, the bots and every hit you take shrink the same
+way, so a fight is as hard at any level.
 - **Haste** speeds casts, the global cooldown and ticks. It never shortens a duration, so HoTs and zones fit in more ticks.
 - **Critical** and **Crit damage** set crit chance and size (crits land for 150% plus Crit damage).
 - **Potency** lengthens HoTs, zones, shields and buffs: duration × (1 + Potency).
@@ -429,7 +464,7 @@ casting it. Step out of the red pools.
 
 **You can't cast and move.** An ability with a cast time won't start while you walk ("You can't cast
 while moving"), and once a cast starts, walking waits until it ends. Instant abilities work on the
-move, and Dash and Teleport still work mid-cast.
+move, and Dash and Sprint still work mid-cast. Teleport doesn't, unless you take Spellstride.
 
 The meter shows healing per ability, overheal and crits, plus where your mana went and came from. The
 boss damage slider and "Nobody dies" make it easier or harder. Leaving the arena pauses the fight; change

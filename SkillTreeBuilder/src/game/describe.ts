@@ -222,6 +222,16 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
       break
     case 'move':
       out.push({ key: key('distance'), label: 'Distance', value: e.distance, format: (n) => `${yd(n)} yd`, better: 'up' })
+      if (e.returnWindow > 0) {
+        out.push({
+          key: key('returnWindow'),
+          label: 'Go back',
+          value: e.returnWindow,
+          format: (n) => `within ${sec(n)} sec`,
+          better: 'up',
+          detail: 'use it again, for free',
+        })
+      }
       break
     case 'buff':
       for (const [stat, n] of Object.entries(e.buff?.stats ?? {})) {

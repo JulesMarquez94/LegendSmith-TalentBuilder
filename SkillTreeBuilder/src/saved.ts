@@ -4,21 +4,20 @@ import { capFor, setLevel, totalSpent, type Loadout } from './talents/loadout.ts
 import { isPrerequisiteMet, isRivalTaken, isRowUnlocked } from './talents/rules.ts'
 import { setArtifact } from './talents/slots.ts'
 import { validateCatalog } from './talents/validate.ts'
+import { buildFromHash, type Build } from './share.ts'
 import { ARTIFACTS, POINT_RULES, STARTING_LOADOUT, TREES } from './trees/index.ts'
 
 // The build and gear are kept in this browser between visits, so a test setup survives a reload.
-// Anything that no longer matches the tree data (a renamed tree, a removed talent) is dropped.
+// A shared link's build (in the address, see share.ts) comes first. Either way, anything that no
+// longer matches the tree data (a renamed tree, a removed talent) is dropped.
 
 const KEY = 'legendsmith.builder.v2'
 
-interface Saved {
-  loadout: Loadout
-  gear: Gear
-}
-
-function read(): Partial<Saved> {
+function read(): Partial<Build> {
+  const shared = typeof location === 'undefined' ? null : buildFromHash(location.hash)
+  if (shared) return shared
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Saved>
+    return JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Build>
   } catch {
     return {}
   }
@@ -88,7 +87,7 @@ export function savedGear(): Gear {
   return Object.fromEntries(TRINKET_SLOTS.flatMap((s) => (validTrinket(gear[s], s) ? [[s, gear[s]]] : [])))
 }
 
-export function save(saved: Saved) {
+export function save(saved: Build) {
   try {
     localStorage.setItem(KEY, JSON.stringify(saved))
   } catch {
