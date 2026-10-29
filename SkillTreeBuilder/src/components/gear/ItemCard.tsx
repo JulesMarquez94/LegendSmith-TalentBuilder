@@ -3,11 +3,11 @@ import { int, pct } from '../../game/format.ts'
 import {
   RARITY_INFO,
   requiredLevel,
+  splitOf,
   trinketHealth,
   trinketName,
   trinketPower,
   trinketStatValues,
-  uniqueName,
   type Trinket,
 } from '../../game/gear.ts'
 import { STAT_INFO } from '../../game/stats.ts'
@@ -45,11 +45,14 @@ export function ItemCard({ trinket }: { trinket: Trinket }) {
             <b>+{pct(values[i])}%</b>
           </div>
         ))}
-        {trinket.lean !== undefined && (
-          <div className="item__lean">Leans toward {STAT_INFO[trinket.stats[trinket.lean]].label}: 150% and 50%</div>
+        {splitOf(trinket) !== 100 && (
+          <div className="item__lean">
+            Leans toward {STAT_INFO[trinket.stats[splitOf(trinket) > 100 ? 0 : 1]].label}: {splitOf(trinket)}% and{' '}
+            {200 - splitOf(trinket)}%
+          </div>
         )}
       </div>
-      <div className="item__unique">Unique: “{uniqueName(trinket)}” (only one worn)</div>
+      <div className="item__unique">Unique: only one “{trinketName(trinket)}” can be worn</div>
     </div>
   )
 }

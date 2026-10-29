@@ -1,6 +1,6 @@
 import { useId, useState, type CSSProperties, type HTMLAttributes } from 'react'
 import { int, statValue } from '../../game/format.ts'
-import { GEAR_PRESETS, RARITY_INFO, TRINKET_SLOTS, trinketName, type Gear, type TrinketSlot } from '../../game/gear.ts'
+import { GEAR_PRESETS, RARITY_INFO, splitOf, TRINKET_SLOTS, trinketName, type Gear, type TrinketSlot } from '../../game/gear.ts'
 import type { CharacterSheet } from '../../game/resolve.ts'
 import { SHEET_SECTIONS, STAT_INFO, TALENT_ONLY, withResource } from '../../game/stats.ts'
 import type { CharStat } from '../../game/types.ts'
@@ -56,10 +56,10 @@ export function CharacterPanel({ artifact, level, character, gear, onGear }: Pro
         {t ? (
           <>
             <span className="trinket__slot">{slot[0]}</span>
-            {/* The stat an item leans toward gets the bigger icon. */}
+            {/* The stat an item leans toward gets the bigger icon: 22 at 150%, 18 even, 14 at 50%. */}
             <span className="trinket__icons">
               {t.stats.map((stat, i) => (
-                <StatIcon key={stat} stat={stat} size={t.lean === undefined ? 18 : t.lean === i ? 22 : 13} />
+                <StatIcon key={stat} stat={stat} size={Math.round(18 + ((i === 0 ? splitOf(t) : 200 - splitOf(t)) - 100) * 0.08)} />
               ))}
             </span>
             <span className="trinket__ilvl">{t.itemLevel}</span>

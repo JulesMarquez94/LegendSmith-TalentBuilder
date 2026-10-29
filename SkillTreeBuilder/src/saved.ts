@@ -1,4 +1,4 @@
-import { GEAR_STATS, isValidPair, RARITIES, TRINKET_SLOTS, type Gear, type Trinket } from './game/gear.ts'
+import { GEAR_STATS, isValidPair, RARITIES, SPLIT_MAX, SPLIT_MIN, TRINKET_SLOTS, type Gear, type Trinket } from './game/gear.ts'
 import { MAX_LEVEL } from './talents/levels.ts'
 import { capFor, setLevel, totalSpent, type Loadout } from './talents/loadout.ts'
 import { isPrerequisiteMet, isRivalTaken, isRowUnlocked } from './talents/rules.ts'
@@ -71,20 +71,32 @@ export function savedLoadout(): Loadout {
   return setLevel(fitted, Number.isFinite(loadout.level) ? loadout.level : MAX_LEVEL)
 }
 
-const validTrinket = (t: Trinket | undefined, slot: string): t is Trinket =>
-  t !== undefined &&
-  t.slot === slot &&
-  RARITIES.includes(t.rarity) &&
-  Number.isFinite(t.itemLevel) &&
-  t.itemLevel > 0 &&
-  Array.isArray(t.stats) &&
-  t.stats.every((s) => GEAR_STATS.includes(s)) &&
-  isValidPair(t.stats[0], t.stats[1]) &&
-  (t.lean === undefined || t.lean === 0 || t.lean === 1)
+/** Items saved before balances were a slider leaned with `lean`: 0 toward the first stat, 1 the second. */
+type Stored = Trinket & { lean?: 0 | 1 }
+
+function validTrinket(stored: Stored | undefined, slot: string): Trinket | null {
+  if (!stored || stored.slot !== slot || !RARITIES.includes(stored.rarity)) return null
+  if (!Number.isFinite(stored.itemLevel) || stored.itemLevel <= 0) return null
+  if (!Array.isArray(stored.stats) || !stored.stats.every((s) => GEAR_STATS.includes(s))) return null
+  if (!isValidPair(stored.stats[0], stored.stats[1])) return null
+  const { lean, ...t } = stored
+  const split = t.split ?? (lean === 0 ? SPLIT_MAX : lean === 1 ? SPLIT_MIN : undefined)
+  const item: Trinket = { ...t }
+  delete item.split
+  if (split !== undefined && Number.isFinite(split) && split !== 100) item.split = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, split))
+  if (typeof t.name !== 'string' || !t.name.trim()) delete item.name
+  else item.name = t.name.slice(0, 60)
+  return item
+}
 
 export function savedGear(): Gear {
-  const gear = read().gear ?? {}
-  return Object.fromEntries(TRINKET_SLOTS.flatMap((s) => (validTrinket(gear[s], s) ? [[s, gear[s]]] : [])))
+  const gear = (read().gear ?? {}) as Partial<Record<string, Stored>>
+  return Object.fromEntries(
+    TRINKET_SLOTS.flatMap((s) => {
+      const t = validTrinket(gear[s], s)
+      return t ? [[s, t]] : []
+    }),
+  )
 }
 
 export function save(saved: Build) {

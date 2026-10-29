@@ -1,14 +1,17 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import {
+  defaultName,
   equip,
   GEAR_STATS,
   isValidPair,
-  type Lean,
   RARITIES,
   RARITY_INFO,
   SPECIAL_STATS,
+  SPLIT_MAX,
+  SPLIT_MIN,
+  SPLIT_STEP,
+  splitOf,
   trinketName,
-  uniqueName,
   type Gear,
   type GearStat,
   type Trinket,
@@ -27,7 +30,7 @@ interface Props {
 
 const DEFAULT: Omit<Trinket, 'slot'> = { rarity: 'rare', itemLevel: 100, stats: ['haste', 'potency'] }
 
-/** Makes a test trinket for one slot: rarity, item level and the two stats. */
+/** Makes a test trinket for one slot: its name, rarity, item level, the two stats and how they're split. */
 export function ForgeDialog({ slot, gear, onSave, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -47,11 +50,17 @@ export function ForgeDialog({ slot, gear, onSave, onClose }: Props) {
     stats[i] = stat
     setDraft({ ...draft, stats })
   }
-  const setLean = (lean: Lean | undefined) => {
-    const next: Trinket = { ...draft, lean }
-    if (lean === undefined) delete next.lean
+  const setSplit = (split: number) => {
+    const next: Trinket = { ...draft, split }
+    if (split === 100) delete next.split
     setDraft(next)
   }
+  const setName = (name: string) => {
+    const next: Trinket = { ...draft, name }
+    if (!name.trim()) delete next.name
+    setDraft(next)
+  }
+  const split = splitOf(draft)
   // A stat can't pair with itself, and Echo and Minion power can't share an item.
   const allowed = (i: 0 | 1, stat: GearStat) => {
     const other = draft.stats[i === 0 ? 1 : 0]
@@ -74,11 +83,24 @@ export function ForgeDialog({ slot, gear, onSave, onClose }: Props) {
         </h2>
         <p className="picker__sub">
           Make a test trinket. Rarity sets the two stats, item level sets Power and Health, and the balance splits
-          the stats evenly or leans toward one.
+          the stats between them, up to 150% and 50%. Only the name is unique: you can't wear two items with the
+          same name.
         </p>
 
         <div className="forge__grid">
           <div className="forge__form">
+            <label className="forge__field">
+              <span className="forge__label">Name</span>
+              <input
+                type="text"
+                className="forge__name"
+                maxLength={60}
+                value={draft.name ?? ''}
+                placeholder={defaultName(draft)}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+
             <fieldset className="forge__field">
               <legend>Rarity</legend>
               <div className="segmented">
@@ -132,30 +154,30 @@ export function ForgeDialog({ slot, gear, onSave, onClose }: Props) {
               </fieldset>
             ))}
 
-            <fieldset className="forge__field">
-              <legend>Balance</legend>
-              <div className="segmented">
-                {([undefined, 0, 1] as const).map((lean) => (
-                  <button
-                    key={String(lean)}
-                    type="button"
-                    className="segmented__btn"
-                    aria-pressed={draft.lean === lean}
-                    style={{ '--rc': lean === undefined ? '#d9e2e4' : STAT_INFO[draft.stats[lean]].color } as CSSProperties}
-                    onClick={() => setLean(lean)}
-                  >
-                    {lean === undefined ? 'Even · 100% / 100%' : `More ${STAT_INFO[draft.stats[lean]].label} · 150% / 50%`}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
+            <label className="forge__field">
+              <span className="forge__label">
+                Balance{' '}
+                <b>
+                  {STAT_INFO[draft.stats[0]].label} {split}% · {STAT_INFO[draft.stats[1]].label} {200 - split}%
+                </b>
+              </span>
+              <input
+                type="range"
+                min={SPLIT_MIN}
+                max={SPLIT_MAX}
+                step={SPLIT_STEP}
+                value={split}
+                onChange={(e) => setSplit(Number(e.target.value))}
+              />
+            </label>
           </div>
 
           <div className="forge__preview">
             <ItemCard trinket={draft} />
             {clash && (
               <p className="forge__warn">
-                Wearing this takes off your {trinketName(gear[clash]!)}: only one “{uniqueName(draft)}” can be worn.
+                Wearing this takes off your {clash}, {trinketName(gear[clash]!)}: only one “{trinketName(draft)}” can be
+                worn.
               </p>
             )}
           </div>
