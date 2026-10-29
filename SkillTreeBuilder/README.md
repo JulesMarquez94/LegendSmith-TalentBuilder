@@ -475,15 +475,19 @@ Each trinket has a **balance**: its stats split anywhere from 150% / 50% to 50% 
 leans starts its name with its bigger stat's word (Quick, Keen, Brutal, Enduring, Echoing, Lordly):
 "Quick Ring of Peerlessness". Items saved before the slider keep their balance (150% / 50% or even).
 
-The **Gear set** picker has prebuilt sets in two groups:
+The **Gear set** picker has prebuilt sets in four groups:
 
 - **Main stat** (epic, item level 120): one set per stat, Haste, Critical, Crit damage, Potency, Echo
   and Minion power. All 12 items lean all the way toward the stat, so each set reaches its stat's
   cap (Haste main: +30% Haste), going round its pairs for the second stat.
 - **Even split** (100% / 100% on every item): the **Even mix** (epic, item level 120: Haste and Potency
   8.3%, Critical and Crit damage 11.1%, Echo 5%, Minion power 0.83%), and sets of one pair in all 12 slots:
-  Critical and Haste, Potency and Haste (common, item level 60), Haste and Potency (rare 100, epic
-  120), Critical and Crit damage (epic 120). The overview's own example set is there too.
+  Critical and Haste, Potency and Haste (common, item level 60), Haste and Potency (rare 100). The
+  overview's own example set is there too.
+- **Pairs, even** (epic, item level 120): every one of the 14 stat pairs in all 12 slots at 100% /
+  100% ("Haste / Critical": 20% Haste, 33.3% Critical).
+- **Pairs, one main, one low** (epic, item level 120): every pair leaning all the way either way, 28
+  sets ("Critical main, Haste low": 50% Critical, 10% Haste).
 
 Every gear stat has an **icon** (Haste a lightning bolt, Critical a crosshair, Crit damage a burst,
 Potency an hourglass, Echo ripples, Minion power a skull). An equipped slot shows its two stats' icons,

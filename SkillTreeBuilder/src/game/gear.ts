@@ -280,6 +280,17 @@ export interface GearPreset {
 const MAIN = 'Main stat · epic, item level 120, every item 150% toward it'
 const EVEN = 'Even split · 100% / 100%'
 
+const PAIR_EVEN = 'Pairs · even (100% / 100%) · epic, item level 120'
+const PAIR_LEAN = 'Pairs · one main, one low (150% / 50%) · epic, item level 120'
+
+/** Twelve epic items of one stat pair, even or leaning (`split`, toward the first stat). */
+const pairSet = (stats: readonly [GearStat, GearStat], split?: number): Gear =>
+  Object.fromEntries(
+    TRINKET_SLOTS.map((slot) => [slot, { slot, rarity: 'epic', itemLevel: 120, stats, ...(split === undefined ? {} : { split }) } satisfies Trinket]),
+  )
+
+const statLabel = (stat: GearStat) => STAT_INFO[stat].label
+
 export const GEAR_PRESETS: readonly GearPreset[] = [
   { id: 'none', name: 'Nothing equipped', gear: {} },
   ...GEAR_STATS.map((stat) => ({
@@ -302,7 +313,11 @@ export const GEAR_PRESETS: readonly GearPreset[] = [
     gear: fill('common', 60, twelve(['haste', 'potency'])),
   },
   { id: 'rare-100', name: 'Haste and Potency · rare, item level 100', group: EVEN, gear: fill('rare', 100, twelve(['haste', 'potency'])) },
-  { id: 'epic-hp', name: 'Haste and Potency · epic, item level 120', group: EVEN, gear: fill('epic', 120, twelve(['haste', 'potency'])) },
-  { id: 'epic-crit', name: 'Critical and Crit damage · epic, item level 120', group: EVEN, gear: fill('epic', 120, twelve(['crit', 'critDamage'])) },
   { id: 'overview', name: "The overview's example set", group: EVEN, gear: OVERVIEW },
+  // Every stat pair: all 12 items even, then all 12 leaning one way, then the other.
+  ...ALL_PAIRS.map(([a, b]) => ({ id: `pair-${a}-${b}`, name: `${statLabel(a)} / ${statLabel(b)}`, group: PAIR_EVEN, gear: pairSet([a, b]) })),
+  ...ALL_PAIRS.flatMap(([a, b]) => [
+    { id: `lean-${a}-${b}`, name: `${statLabel(a)} main, ${statLabel(b)} low`, group: PAIR_LEAN, gear: pairSet([a, b], SPLIT_MAX) },
+    { id: `lean-${b}-${a}`, name: `${statLabel(b)} main, ${statLabel(a)} low`, group: PAIR_LEAN, gear: pairSet([a, b], SPLIT_MIN) },
+  ]),
 ]

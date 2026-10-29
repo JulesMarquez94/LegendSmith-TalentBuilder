@@ -86,9 +86,20 @@ describe('the prebuilt sets', () => {
     const common = totals('common-crit')
     expect(common.haste).toBeCloseTo(30 / 6, 1)
     expect(common.crit).toBeCloseTo(50 / 6, 1)
-    const epic = totals('epic-crit')
-    expect(epic.crit).toBeCloseTo((50 * 2) / 3, 1)
-    expect(epic.critDamage).toBeCloseTo((50 * 2) / 3, 1)
+  })
+
+  it('wear every stat pair in epic: even, and leaning all the way either way', () => {
+    // 14 pairs (Echo and Minion power never share an item): 14 even sets and 28 leaning ones.
+    expect(GEAR_PRESETS.filter((p) => p.id.startsWith('pair-'))).toHaveLength(14)
+    expect(GEAR_PRESETS.filter((p) => p.id.startsWith('lean-'))).toHaveLength(28)
+    // Even: two thirds of each cap. Critical main, Haste low: all of Critical's cap, a third of Haste's.
+    const even = totals('pair-haste-crit')
+    expect(even.haste).toBeCloseTo(20, 1)
+    expect(even.crit).toBeCloseTo(100 / 3, 1)
+    const critMain = totals('lean-crit-haste')
+    expect(critMain.crit).toBeCloseTo(50, 1)
+    expect(critMain.haste).toBeCloseTo(10, 1)
+    expect(GEAR_PRESETS.find((p) => p.id === 'lean-crit-haste')!.name).toBe('Critical main, Haste low')
   })
 
   it('keep the even mix at 100% / 100% on every item', () => {
