@@ -126,7 +126,7 @@ export const carrionCurse: TreeDef = {
       row: 2,
       col: 3,
       requires: 'frenzied-feeding',
-      per: [0.005, 0.01],
+      per: [0.2, 0.4],
       text: 'Each stack your minions take gives you +{}% minion power for 10 sec, stacking up to 20 times.',
       does: (v) => [
         proc('hit', STACK, [

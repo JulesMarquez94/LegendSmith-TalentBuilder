@@ -160,7 +160,7 @@ The book's own tree:
 | 2 | Quick Invocation (needs Quick Summons) | 2 | Every second you move gives a stack: your next summon spell casts 4/8% faster per stack, instantly at 100% |
 | 3 | Spawning (needs Frenzied Imps) | 2 | Imp attacks have a 2/4% chance to summon another imp, at most once every 15 sec |
 | 3 | Stubborn Imps | 2 | Each sacrificed imp has a 5/10% chance to survive, and isn't spent |
-| 4 | Dark Bargain (needs Stubborn Imps) | 1 | Every sacrificed imp gives, at random, +1% haste, +1% crit, +2% echo or +0.05% minion power for 10 sec; it stacks, but new stacks don't refresh it |
+| 4 | Dark Bargain (needs Stubborn Imps) | 1 | Every sacrificed imp gives, at random, +1% haste, +1% crit, +2% echo or +0.5% minion power for 10 sec; it stacks, but new stacks don't refresh it |
 | 4 | Twin Summons (needs Quick Invocation) | 1 | Every third Summon Imp summons 2 imps |
 
 The new mechanics behind it:
@@ -290,7 +290,7 @@ Minion hits are **minion damage**, not direct damage. Its tree:
 | 2 | Carrion Spray (needs Feast) | 2 | Each stack splashes 15/30% of its damage onto every other enemy within 8 yd |
 | 2 | Frenzied Feeding (needs Bloodied) | 2 | Each stack makes your minions attack 3/6% faster for 4 sec, up to 5 times |
 | 3 | Swarming Brood | 2 | Each stack adds 0.05/0.1 sec to every minion you command |
-| 3 | Carrion Feast (needs Frenzied Feeding) | 2 | Each stack gives +0.005/0.01% minion power for 10 sec, up to 20 times |
+| 3 | Carrion Feast (needs Frenzied Feeding) | 2 | Each stack gives +0.2/0.4% minion power for 10 sec, up to 20 times |
 | 4 | Undying Hex (needs Gorging Hex) | 2 | Each stack has a 10/20% chance to burst without being taken |
 
 The mechanics behind it: a `curseStack` action (Gorging Hex), `extendMinions` (imps and summons), a
