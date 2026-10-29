@@ -58,8 +58,8 @@ already in another slot swaps the two and keeps both builds.
 
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
-Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Blood Frenzy, Teleport, Carrion Curse,
-Overlord and Plague.
+Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
+Carrion Curse, Overlord and Plague.
 
 ## The artifacts
 
@@ -174,7 +174,7 @@ The new mechanics behind it:
 
 | Slot | Choices |
 | --- | --- |
-| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (instant, 5 imps, no cooldown; hits every enemy once per DoT on it), Festering Rot (one DoT that stacks without end, each stack on its own 30 sec timer), Miasma (5 imps, 30 sec cooldown; a 3 sec cloud that gives everyone inside a stack of Pox every second), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
+| Damage (pick 3) | Plague (free; rotates the Pox, Blight and Malady DoTs), Harvest (instant, 5 imps, no cooldown; hits every enemy once per DoT on it), Festering Rot (3 imps; a stack of a small DoT, each on its own 24 sec timer), Miasma (5 imps, 30 sec cooldown; a 3 sec cloud that gives everyone inside a stack of Pox every second), Necrotic Explosion (area burst), Ashfall (a damaging zone) |
 | Ultimate | Fervor (you and your group gain 30% haste for 20 sec), Blood Frenzy (+20% haste for you for 30 sec, 3 min cooldown) |
 
 The **Twin Daggers** build combo points (up to 6) with Quick Strike: hold the key to keep striking.
@@ -199,6 +199,24 @@ lists what it is in `traits`. Backstab, Eviscerate and Rupture need a blade, Fan
 bow's shots a bow, and a future cleave would need a large weapon. The picker shows the ones your weapon
 can't make at the bottom, dimmed, with what they need. Talents aim only at their own ability or at
 families: damage over time, direct damage, area damage, zones, finishers.
+
+**Festering Rot** (made for the book) is instant and costs 3: it adds a stack to your target that deals
+20 a second for 24 sec, every stack on its own timer, so they roll off one by one. Its tree:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Lasting Rot | 3 | Each stack lasts 3/6/9 sec longer |
+| 1 | Putrid Rot | 3 | Your DoTs deal 6/12/18% more |
+| 1 | Swollen Rot | 1 | Costs 2 more, but adds 1 more stack at a time |
+| 2 | Feeding Rot (needs Lasting Rot) | 2 | Your direct damage adds 0.3/0.6 sec to every stack on its target |
+| 2 | Rotting Flesh (needs Putrid Rot) | 2 | Each stack makes the enemy take 0.5/1% more damage from you |
+| 2 | Quickening Rot | 2 | It ticks every 0.9/0.8 sec instead of every 1 |
+| 3 | Bursting Rot | 1 | No damage over time: each stack deals all of it at once when it runs out |
+| 3 | Ripe Burst (needs Bursting Rot) | 2 | Your direct damage takes 0.5/1 sec off every stack on its target |
+| 4 | Rot Bomb (needs Bursting Rot) | 2 | A bursting stack also hits every other enemy within 8 yd for 50/100% of it |
+
+Bursting Rot is a rolling DoT's `burst`: its stacks don't tick, and one that runs out deals its whole
+damage over its duration at once; `burstSplash` (Rot Bomb) spreads it around.
 
 **Harvest** (made for the book) is instant and costs 5. Every enemy with your damage-over-time effects
 takes 550 for each one on it. Its tree:

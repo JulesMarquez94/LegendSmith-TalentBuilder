@@ -40,6 +40,8 @@ const RECALL = 'recall'
 /** The buff that counts your fallen minions toward an Overlord's meteor. */
 const DOOM = 'impending-doom'
 const METEOR_RADIUS = 5
+/** How far a bursting DoT's splash reaches (Rot Bomb). */
+const BURST_RADIUS = 8
 /** Adds swing at the tank this often. */
 const ADD_SWING = 2
 
@@ -2047,6 +2049,10 @@ export class Arena {
     for (const enemy of this.enemies) {
       for (const c of [...enemy.curses]) if (this.time >= c.endsAt || !enemy.alive) this.endCurse(enemy, c)
       for (const d of [...enemy.dots]) {
+        if (d.effect.burst > 0 && d.stacks.length) {
+          this.updateBurstingDot(enemy, d)
+          continue
+        }
         while (d.nextTick <= d.endsAt + 1e-6 && d.nextTick <= this.time && enemy.alive) {
           const stacks = d.stacks.length ? d.stacks.filter((t) => t >= d.nextTick - 1e-6).length : d.count
           if (stacks > 0) this.hitEnemy(enemy, this.tickOf(d) * stacks, d.effect, this.dotContext(d), { label: d.name, quiet: true })
@@ -2060,6 +2066,31 @@ export class Arena {
         }
       }
     }
+  }
+
+  /**
+   * A rolling DoT that bursts (Bursting Rot): no ticks; every stack whose time is up deals all the
+   * damage it would have ticked for over its duration, at once, and splashes some of it around.
+   */
+  private updateBurstingDot(enemy: Enemy, d: Dot) {
+    const popped = d.stacks.filter((t) => t <= this.time).length
+    d.stacks = d.stacks.filter((t) => t > this.time)
+    if (popped > 0 && enemy.alive) {
+      const amount = d.amount * (d.effect.duration / d.interval) * popped
+      const ctx = this.dotContext(d)
+      const dealt = this.hitEnemy(enemy, amount, d.effect, ctx, { label: `${d.name} burst` })
+      if (d.effect.burstSplash > 0 && dealt > 0) {
+        this.ring(enemy.pos, BURST_RADIUS, d.effect.color)
+        const near = this.enemies.filter((x) => x !== enemy && x.alive && dist(x.pos, enemy.pos) <= BURST_RADIUS + x.radius)
+        for (const x of near) {
+          this.hitEnemy(x, (dealt * d.effect.burstSplash) / 100, d.effect, ctx, { label: `${d.name} burst`, fixed: true, secondary: true })
+        }
+      }
+    }
+    if (!d.stacks.length || !enemy.alive) {
+      enemy.dots = enemy.dots.filter((x) => x !== d)
+      if (enemy.alive) this.emit({ kind: 'expire', tags: d.effect.tags, ctx: this.dotContext(d), enemy, dot: d })
+    } else d.endsAt = Math.max(...d.stacks)
   }
 
   private updateZones() {

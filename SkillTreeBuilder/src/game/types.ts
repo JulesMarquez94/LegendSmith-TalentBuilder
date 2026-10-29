@@ -158,6 +158,10 @@ export type EffectKey =
   | 'sustain'
   /** A summon: above 0, it attacks faster by the haste your ultimate's buffs give you, live. */
   | 'patron'
+  /** A rolling DoT: above 0, it doesn't tick; each stack deals all its damage at once when it runs out. */
+  | 'burst'
+  /** A bursting DoT: % of each burst that every other enemy within 8 yd of the target takes too. */
+  | 'burstSplash'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -574,6 +578,8 @@ export interface ResolvedEffect {
   meteor: number
   sustain: number
   patron: number
+  burst: number
+  burstSplash: number
   auto?: boolean
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */

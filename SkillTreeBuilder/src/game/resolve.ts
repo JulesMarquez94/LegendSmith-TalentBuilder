@@ -314,6 +314,8 @@ function resolveEffectWith(
     meteor: Math.max(0, get('meteor').add) * power * (1 + get('amount').pct / 100),
     sustain: Math.max(0, get('sustain').add),
     patron: get('patron').add > 0 ? 1 : 0,
+    burst: get('burst').add > 0 ? 1 : 0,
+    burstSplash: Math.max(0, get('burstSplash').add),
     auto: effect.auto,
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))
