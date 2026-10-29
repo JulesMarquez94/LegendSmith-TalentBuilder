@@ -28,9 +28,9 @@ const SLOT_FOR_CODE: Record<string, number> = {
   Digit6: 5,
   KeyQ: 2,
   KeyE: 3,
-  KeyF: 4,
-  ShiftLeft: 5,
-  ShiftRight: 5,
+  ShiftLeft: 4,
+  ShiftRight: 4,
+  KeyF: 5,
 }
 
 const MOVE_FOR_CODE: Record<string, Vec> = {

@@ -2,7 +2,7 @@ import type { Loadout } from './loadout.ts'
 import type { ArtifactDef, SlotKind, TreeDef, WeaponTrait } from './types.ts'
 
 /**
- * The eight slots: the artifact, three role abilities, the big cooldown, mobility, the group buff
+ * The eight slots: the artifact, three role abilities, mobility, the big cooldown, the group buff
  * (the artifact skill tab's grid, after its overview), and the character skill tree, on a tab of its
  * own. The artifact decides what the role slots hold and which group buffs fit.
  */
@@ -11,13 +11,13 @@ export const slotKinds = (artifact: ArtifactDef): readonly SlotKind[] => [
   artifact.roleKind,
   artifact.roleKind,
   artifact.roleKind,
-  'cooldown',
   'mobility',
+  'cooldown',
   'buff',
   'character',
 ]
 
-/** The slots the arena's action bar and keys use: the artifact, role abilities, ultimate, mobility. */
+/** The slots the arena's action bar and keys use: the artifact, role abilities, mobility, ultimate. */
 export const ACTION_SLOTS = 6
 
 /** "Needs a blade": what a weapon strike asks of the weapon, in words. */

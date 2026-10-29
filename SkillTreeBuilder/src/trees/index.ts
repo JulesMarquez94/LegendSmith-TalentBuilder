@@ -29,10 +29,10 @@ import { swordAndShield } from './tank/shield.ts'
 
 /**
  * One talent point a level from level 9 (levels 1–8 open the slots), 52 at level 60, and no more than
- * 12 in any one tree. The small trees, the ultimate's and the group buff's, take 6 at most. This is the
+ * 10 in any one tree. The small trees, the ultimate's and the group buff's, take 5 at most. This is the
  * most at level 60; `rulesAt` gives the points at a lower level.
  */
-export const POINT_RULES: PointRules = { total: pointsAt(MAX_LEVEL), perTree: 12, perSmall: 6 }
+export const POINT_RULES: PointRules = { total: pointsAt(MAX_LEVEL), perTree: 10, perSmall: 5 }
 
 /**
  * Every artifact that can be held, two per seat: tank, healer, melee and ranged damage. The picker

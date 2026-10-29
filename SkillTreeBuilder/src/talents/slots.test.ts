@@ -17,23 +17,23 @@ const tree = (id: string) => TREES.find((t) => t.id === id)!
 
 describe('the artifact', () => {
   it('decides what the role slots hold', () => {
-    expect(slotKinds(lifewardenStaff)).toEqual(['artifact', 'heal', 'heal', 'heal', 'cooldown', 'mobility', 'buff', 'character'])
-    expect(slotKinds(tomeOfSummoning)).toEqual(['artifact', 'damage', 'damage', 'damage', 'cooldown', 'mobility', 'buff', 'character'])
-    expect(slotKinds(swordAndShield)).toEqual(['artifact', 'tank', 'tank', 'tank', 'cooldown', 'mobility', 'buff', 'character'])
+    expect(slotKinds(lifewardenStaff)).toEqual(['artifact', 'heal', 'heal', 'heal', 'mobility', 'cooldown', 'buff', 'character'])
+    expect(slotKinds(tomeOfSummoning)).toEqual(['artifact', 'damage', 'damage', 'damage', 'mobility', 'cooldown', 'buff', 'character'])
+    expect(slotKinds(swordAndShield)).toEqual(['artifact', 'tank', 'tank', 'tank', 'mobility', 'cooldown', 'buff', 'character'])
   })
 
   it('clears abilities and group buffs that no longer fit when it changes, keeping shared mobility', () => {
     const start = {
       ...STARTING_LOADOUT,
       level: 60,
-      slots: ['lifewarden-staff', 'mend', 'renew', 'healing-rain', 'miracle', 'dash', 'vitality-aura', null],
+      slots: ['lifewarden-staff', 'mend', 'renew', 'healing-rain', 'dash', 'miracle', 'vitality-aura', null],
       ranks: { mend: { 'greater-mend': 2 }, dash: { 'long-stride': 1 } },
     }
     const l = setArtifact(start, tomeOfSummoning, TREES)
     expect(l).toEqual({
       level: 60,
       artifact: 'tome-of-summoning',
-      slots: ['tome-of-summoning', null, null, null, null, 'dash', null, null],
+      slots: ['tome-of-summoning', null, null, null, 'dash', null, null, null],
       ranks: { dash: { 'long-stride': 1 } },
     })
     expect(setArtifact(l, lifewardenStaff, TREES).slots[0]).toBe('lifewarden-staff')
@@ -43,13 +43,13 @@ describe('the artifact', () => {
     const daggers = {
       level: 60,
       artifact: 'twin-daggers',
-      slots: ['twin-daggers', 'backstab', 'harvest', 'doom-bolt', null, 'dash', null, null],
+      slots: ['twin-daggers', 'backstab', 'harvest', 'doom-bolt', 'dash', null, null, null],
       ranks: { backstab: { 'ready-blade': 1 }, harvest: { 'keen-scythe': 1 } },
     }
     expect(setArtifact(daggers, ashwoodLongbow, TREES)).toEqual({
       level: 60,
       artifact: 'ashwood-longbow',
-      slots: ['ashwood-longbow', null, 'harvest', 'doom-bolt', null, 'dash', null, null],
+      slots: ['ashwood-longbow', null, 'harvest', 'doom-bolt', 'dash', null, null, null],
       ranks: { harvest: { 'keen-scythe': 1 } },
     })
   })

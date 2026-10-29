@@ -29,8 +29,8 @@ repositories.
 | --- | --- | --- | --- |
 | 1 | The artifact, with its own tree (its main attack) | Left click | Level 1 |
 | 2–4 | Role abilities: heals for a healer, damage for a damage dealer, tank abilities for a tank | Right click, Q, E | Levels 2–4 |
-| 5 | An ultimate (big cooldown). Fervor fits every role | F | Level 5 |
-| 6 | A mobility ability, shared by every role | Shift | Level 6 |
+| 5 | A mobility ability, shared by every role | Shift | Level 5 |
+| 6 | An ultimate (big cooldown). Fervor fits every role | F | Level 6 |
 | 7 | A group buff for your role: passive, for you and your group | Passive | Level 7 |
 | 8 | The **character skill tree**, always there whatever you hold, on its own tab. Empty for now | — | Level 8 |
 
@@ -72,13 +72,13 @@ below with its role.
 
 ## Rules
 
-- **52 talent points** at level 60 (one a level from level 9) to spend anywhere, but **no more than 12 in
+- **52 talent points** at level 60 (one a level from level 9) to spend anywhere, but **no more than 10 in
   any one tree** (`POINT_RULES` in `src/trees/index.ts`).
-- **Ultimates** (the cooldown slot) and **group buffs** have small trees: **6 points at most**
-  (`perSmall`), about 5 talents and **exactly 9 ranks** (`SMALL_RANKS`), in the top three rows so 6
+- **Ultimates** (the cooldown slot) and **group buffs** have small trees: **5 points at most**
+  (`perSmall`), about 5 talents and **exactly 9 ranks** (`SMALL_RANKS`), in the top three rows so 5
   points reach them all.
-- Every other tree's talents hold **exactly 18 ranks** in all (`TREE_RANKS`), so with 12 to spend you always
-  leave a third of it: 6, 12, 18. The data test fails on a tree with more or fewer. Talents that reach
+- Every other tree's talents hold **exactly 18 ranks** in all (`TREE_RANKS`), so with 10 to spend you always
+  leave 8 of them. The data test fails on a tree with more or fewer. Talents that reach
   other abilities (a whole family) or feed them (synergy) are favoured; tweaks to one ability's own
   numbers went first.
 - A **choice** is two talents you can take one of, not both (`excludes`). A pair counts once toward the
@@ -216,10 +216,10 @@ per stack every second for 18 sec, each stack on its own timer. Its tree:
 | Row | Talent | Ranks | What it does |
 | --- | --- | --- | --- |
 | 1 | Restless Fog | 2 | Each tick of your DoTs has a 3/6% chance to take 1 sec off Miasma's cooldown, at most once every 2 sec |
-| 1 | Concentrated Pox | 2 | Pox deals 15/30% more while it's on only one enemy |
+| 1 | Lingering Pox | 3 | Each stack lasts 3/6/9 sec longer |
 | 1 | Clinging Cloud | 2 | The area is 2/4 yd wider and follows the enemy it was placed on |
 | 2 | Virulent Pox | 3 | Pox deals 10/20/30% more |
-| 2 | Lingering Pox (needs Concentrated Pox) | 3 | Each stack lasts 3/6/9 sec longer |
+| 2 | Concentrated Pox (needs Lingering Pox) | 2 | Pox deals 15/30% more while it's on only one enemy |
 | 2 | Noxious Burst (needs Clinging Cloud) | 2 | Miasma deals 200/400 to every enemy in its area when placed |
 | 3 | Thickening Fog | 1 | Miasma lasts 1 sec longer |
 | 3 | Choking Burst (needs Noxious Burst) | 2 | Miasma's direct damage deals 4/8% more per stack of Pox on the enemy |
@@ -360,7 +360,7 @@ stat (`parry`) and a new event (`parry`, its enemy is the one that swung), so it
 Every character slots one group buff for their role. It's passive: you and your group get its stats,
 and its tree adds more. Healers pick more maximum health or more healing received. Damage dealers pick
 Haste, Critical or Power. Tanks get Damage reduction, Dodge or Speed. Like an ultimate's, a group
-buff's tree is small: 6 points, 5 talents, 9 ranks.
+buff's tree is small: 5 points, 5 talents, 9 ranks.
 
 ## Gear and stats
 

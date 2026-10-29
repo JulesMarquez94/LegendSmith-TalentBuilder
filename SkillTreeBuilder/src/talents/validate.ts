@@ -5,12 +5,12 @@ import { canMake, fits, NEEDS_LABEL, slotKinds } from './slots.ts'
 import type { ArtifactDef, TreeDef } from './types.ts'
 
 /**
- * The ranks every tree's talents hold in all. With 12 points to spend per tree, a tree of 18 makes
- * you leave a third of it: 6, 12, 18.
+ * The ranks every tree's talents hold in all. With 10 points to spend per tree, a tree of 18 makes
+ * you leave 8 of them: you can't take everything.
  */
 export const TREE_RANKS = 18
 
-/** A small tree (an ultimate's or a group buff's): about 5 talents and 9 ranks, for its 6 points. */
+/** A small tree (an ultimate's or a group buff's): about 5 talents and 9 ranks, for its 5 points. */
 export const SMALL_RANKS = 9
 
 /** The ranks a tree must hold: 9 for an ultimate or a group buff, 18 for the rest. */

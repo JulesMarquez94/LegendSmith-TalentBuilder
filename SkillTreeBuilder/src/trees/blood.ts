@@ -3,7 +3,7 @@ import type { TreeDef } from '../talents/types.ts'
 import { more, plus, proc, selfBuff, talent } from './authoring.ts'
 
 // The damage dealer's ultimate: a long burst of haste for you alone (Fervor shares a shorter one with
-// your group). Like every ultimate, its tree is small: 9 ranks, 6 points to spend.
+// your group). Like every ultimate, its tree is small: 9 ranks, 5 points to spend.
 
 export const bloodFrenzy: TreeDef = {
   id: 'blood-frenzy',
