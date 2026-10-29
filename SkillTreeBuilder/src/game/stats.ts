@@ -14,6 +14,7 @@ export const BASE_STATS: CharStats = {
   potency: 0,
   echo: 0,
   minionPower: 0,
+  damageDone: 0,
   damageReduction: 0,
   dodge: 0,
   parry: 0,
@@ -65,7 +66,9 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     label: 'Power',
     color: '#ffffff',
     unit: '%',
-    help: 'Raises every heal, shield and damage number. From your level (+200% at 60) and trinket item level.',
+    help:
+      'Your base: from your level (+0% at 1, +200% at 60) and trinket item level, nothing else. Every heal, shield ' +
+      'and damage number is its base × (1 + Power); talents and other bonuses multiply on top.',
   },
   haste: {
     label: 'Haste',
@@ -92,6 +95,12 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     color: '#a6e65a',
     unit: '%',
     help: 'More damage per active minion. The healer kit has no minions, so it does nothing here.',
+  },
+  damageDone: {
+    label: 'Damage',
+    color: '#ff9a5c',
+    unit: '%',
+    help: 'More damage you deal, multiplying on top of Power. Group buffs give it; it is never Power itself.',
   },
   damageReduction: {
     label: 'Damage reduction',
@@ -204,6 +213,7 @@ export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[
     stats: [
       'echo',
       'minionPower',
+      'damageDone',
       'speed',
       'comboBonus',
       'splash',
@@ -232,4 +242,5 @@ export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>([
   'splash',
   'healthPct',
   'healingTaken',
+  'damageDone',
 ])

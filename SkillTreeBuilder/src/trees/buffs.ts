@@ -317,13 +317,13 @@ export const sharpenedWill: TreeDef = {
     name: 'Sharpened Will',
     castTime: 'Passive',
     range: 'Group',
-    description: 'Passive. You and your group hit, heal and shield harder.',
+    description: 'Passive. You and your group deal more damage.',
   },
   spec: {
-    // Power counts a third as much as before levels gave +200% of it: three times the old numbers.
-    effects: [aura({ power: 18 })],
+    // Power only comes from level and gear: this is Damage, a multiplier of its own.
+    effects: [aura({ damageDone: 6 })],
     text: (a) =>
-      `Passive. You and your group have +${auraValue(a, 'power')} power: every hit, heal and shield lands harder.`,
+      `Passive. You and your group deal ${auraValue(a, 'damageDone')} more damage: every hit lands harder.`,
   },
   talents: [
     // Row 1
@@ -332,9 +332,9 @@ export const sharpenedWill: TreeDef = {
       name: 'Steeled Mind',
       row: 0,
       col: 1,
-      per: [4.5, 9],
-      text: 'You and your group have +{}% power.',
-      does: (v) => [group('power', v)],
+      per: [1.5, 3],
+      text: 'You and your group deal {}% more damage.',
+      does: (v) => [group('damageDone', v)],
     }),
     talent({
       id: 'focused-breath',
@@ -374,8 +374,8 @@ export const sharpenedWill: TreeDef = {
       row: 2,
       col: 1,
       requires: 'honed-intent',
-      text: 'When you cast your ultimate, you and your group have +30% power for 10 sec.',
-      does: () => [proc('cast', 'cooldown', [rally('shared-resolve', 'Shared Resolve', 10, { power: 30 })])],
+      text: 'When you cast your ultimate, you and your group deal 10% more damage for 10 sec.',
+      does: () => [proc('cast', 'cooldown', [rally('shared-resolve', 'Shared Resolve', 10, { damageDone: 10 })])],
     }),
   ],
 }

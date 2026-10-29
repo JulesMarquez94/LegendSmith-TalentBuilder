@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { hasArt } from '../art.ts'
 import { SEATS, seatOf } from '../components/labels.ts'
 import { ARTIFACTS, POINT_RULES, STARTING_LOADOUT, TREES } from '../trees/index.ts'
-import { more, proc, restore, talent } from '../trees/authoring.ts'
+import { buff, more, proc, restore, stat, talent } from '../trees/authoring.ts'
 import { harvest } from '../trees/necro/spells.ts'
 import { plague } from '../trees/plague.ts'
 import type { TreeDef } from './types.ts'
@@ -87,5 +87,39 @@ describe('tree data', () => {
         slots: ['lifewarden-staff', 'mend', null, null, null, 'army-of-the-dead', null, null],
       }),
     ).toEqual(['Starting slot 6 is a cooldown slot, but Army of the Dead is damage cooldown'])
+  })
+})
+
+describe('Power', () => {
+  it('comes only from your level and gear: no talent or buff gives it', () => {
+    const powered: TreeDef = {
+      ...plague,
+      talents: plague.talents.map((t, i) =>
+        i === 0
+          ? talent({ id: t.id, name: t.name, row: t.row, col: t.col, per: [5, 10], text: '+{}% power.', does: (v) => [stat('power', v)] })
+          : i === 1
+            ? talent({
+                id: t.id,
+                name: t.name,
+                row: t.row,
+                col: t.col,
+                per: [1, 2],
+                text: '{} power.',
+                does: (v) => [proc('cast', 'plague', [buff({ id: 'x', name: 'X', duration: 5, stats: { power: v } })])],
+              })
+            : t,
+      ),
+    }
+    const problems = validateTree(powered, hasArt)
+    expect(problems).toContain(`${plague.talents[0].name} gives Power: Power only comes from your level and gear`)
+    expect(problems).toContain(`${plague.talents[1].name} gives Power: Power only comes from your level and gear`)
+  })
+})
+
+describe('design passes', () => {
+  it('mark the trees we have done a pass on; the rest show as WIP', () => {
+    expect(TREES.filter((t) => t.reviewed).map((t) => t.id).sort()).toEqual(
+      ['ashwood-longbow', 'blood-frenzy', 'carrion-curse', 'harvest', 'miasma', 'overlord', 'plague', 'teleport', 'tome-of-summoning'],
+    )
   })
 })

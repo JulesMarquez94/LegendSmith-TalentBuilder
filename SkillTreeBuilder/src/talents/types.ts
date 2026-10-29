@@ -72,6 +72,11 @@ export interface TreeDef {
   /** Made-up content for playtesting; tagged in the builder. */
   playtest?: boolean
   /**
+   * Its design has had a pass with the game's designer. A tree without it is a work in progress:
+   * greyed out and tagged WIP in the picker (still selectable), and tagged WIP in its slot.
+   */
+  reviewed?: boolean
+  /**
    * The artifact it was made with (Harvest: the summoning book), shown as a label in the picker and
    * listed first while you hold that weapon. Not a limit by itself: see `needs`.
    */

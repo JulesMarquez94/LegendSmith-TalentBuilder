@@ -56,6 +56,11 @@ Click **Change** on slot 1 to switch artifacts; the picker lists them by seat (T
 damage, Ranged damage). Abilities that don't fit the new role come out and refund their points. Click an empty slot (or **Change**) to pick an ability. Picking one that's
 already in another slot swaps the two and keeps both builds.
 
+Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
+selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
+Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Blood Frenzy, Teleport, Carrion Curse,
+Overlord and Plague.
+
 ## The artifacts
 
 Two for every seat in a group. Each artifact's `reach` (melee or ranged) and role set its seat, and the
@@ -141,7 +146,7 @@ The **Tome of Summoning** has imps for a resource, up to 15. Its main attack, **
 cast that summons one for **14 sec**. Every imp attacks your target on its own (40 every 1.5 sec), and
 its spells are paid for by **sacrificing imps**, the one with the least time left first. An imp whose
 time runs out leaves and takes its point of resource with it. Minion power raises all your damage for
-each imp you command.
+each imp you command, so its values are a tenth of other stats': an epic item carries 0.4%, not 4%.
 
 The book's own tree:
 
@@ -155,7 +160,7 @@ The book's own tree:
 | 2 | Quick Invocation (needs Quick Summons) | 2 | Every second you move gives a stack: your next summon spell casts 4/8% faster per stack, instantly at 100% |
 | 3 | Spawning (needs Frenzied Imps) | 2 | Imp attacks have a 2/4% chance to summon another imp, at most once every 15 sec |
 | 3 | Stubborn Imps | 2 | Each sacrificed imp has a 5/10% chance to survive, and isn't spent |
-| 4 | Dark Bargain (needs Stubborn Imps) | 1 | Every sacrificed imp gives, at random, +1% haste, +1% crit, +2% echo or +0.5% minion power for 10 sec; it stacks, but new stacks don't refresh it |
+| 4 | Dark Bargain (needs Stubborn Imps) | 1 | Every sacrificed imp gives, at random, +1% haste, +1% crit, +2% echo or +0.05% minion power for 10 sec; it stacks, but new stacks don't refresh it |
 | 4 | Twin Summons (needs Quick Invocation) | 1 | Every third Summon Imp summons 2 imps |
 
 The new mechanics behind it:
@@ -264,8 +269,8 @@ talents (resource and cooldown per extra hit) and area-damage talents reach them
 
 **Blood Frenzy** is the damage dealer's ultimate: instant, free, a 3 min cooldown, and +20% haste for
 you for 30 sec (`src/trees/blood.ts`). Its tree: Bloodlust (+5/10% more haste), Lingering Rage (+5/10
-sec), Quickened Pulse (cooldown 30/60 sec shorter), Endless Frenzy (every ability you use while it's
-up adds 0.2/0.4 sec, needs Lingering Rage) and Twin Frenzy (2 charges at half the duration).
+sec), Quickened Pulse (cooldown 30/60 sec shorter), Twin Frenzy (2 charges at half the duration, needs
+Lingering Rage) and Endless Frenzy (every ability you use while it's up adds 0.2/0.4 sec).
 
 **Frenzy**: +15% haste for 8 sec, with no cooldown: you keep it up by paying for
 it again. Feeding Frenzy makes every ability you spend on extend it; other talents add crit, regen,
@@ -285,7 +290,7 @@ Minion hits are **minion damage**, not direct damage. Its tree:
 | 2 | Carrion Spray (needs Feast) | 2 | Each stack splashes 15/30% of its damage onto every other enemy within 8 yd |
 | 2 | Frenzied Feeding (needs Bloodied) | 2 | Each stack makes your minions attack 3/6% faster for 4 sec, up to 5 times |
 | 3 | Swarming Brood | 2 | Each stack adds 0.05/0.1 sec to every minion you command |
-| 3 | Carrion Feast (needs Frenzied Feeding) | 2 | Each stack gives +0.05/0.1% minion power for 10 sec, up to 20 times |
+| 3 | Carrion Feast (needs Frenzied Feeding) | 2 | Each stack gives +0.005/0.01% minion power for 10 sec, up to 20 times |
 | 4 | Undying Hex (needs Gorging Hex) | 2 | Each stack has a 10/20% chance to burst without being taken |
 
 The mechanics behind it: a `curseStack` action (Gorging Hex), `extendMinions` (imps and summons), a
@@ -405,7 +410,7 @@ stat (`parry`) and a new event (`parry`, its enemy is the one that swung), so it
 
 Every character slots one group buff for their role. It's passive: you and your group get its stats,
 and its tree adds more. Healers pick more maximum health or more healing received. Damage dealers pick
-Haste, Critical or Power. Tanks get Damage reduction, Dodge or Speed. Like an ultimate's, a group
+Haste, Critical or Damage. Tanks get Damage reduction, Dodge or Speed. Like an ultimate's, a group
 buff's tree is small: 5 points, 5 talents, 9 ranks.
 
 ## Mobility
@@ -429,7 +434,8 @@ Marathon.
 ## Gear and stats
 
 Twelve trinket slots, as in the overview: item level sets Power (a %, three times the overview's,
-see below) and Health, rarity sets the two stats (common 1% … epic 4%), and Echo and Minion power
+see below) and Health, rarity sets the two stats (common 1% … epic 4%; Minion power a tenth of that,
+since it counts for every minion you command), and Echo and Minion power
 take one of the two. Click a slot to make a test trinket, or pick a **Gear set** preset. Hover a stat
 for where it comes from.
 
@@ -447,10 +453,11 @@ leans starts its name with its bigger stat's word (Quick, Keen, Brutal, Enduring
 The **Gear set** picker has prebuilt sets in two groups:
 
 - **Main stat** (epic, item level 120): one set per stat, Haste, Critical, Crit damage, Potency, Echo
-  and Minion power. All 12 items lean all the way toward the stat (6% each, +72% in all), going round
+  and Minion power. All 12 items lean all the way toward the stat (6% each, +72% in all; 0.6% and
+  +7.2% for Minion power), going round
   its pairs for the second stat.
 - **Even split** (100% / 100% on every item): the **Even mix** (epic, item level 120: Haste and Potency
-  20%, Critical and Crit damage 16%, Echo and Minion power 12%), and sets of one pair in all 12 slots:
+  20%, Critical and Crit damage 16%, Echo 12%, Minion power 1.2%), and sets of one pair in all 12 slots:
   Critical and Haste, Potency and Haste (common, item level 60), Haste and Potency (rare 100, epic
   120), Critical and Crit damage (epic 120). The overview's own example set is there too.
 
@@ -458,8 +465,10 @@ Every gear stat has an **icon** (Haste a lightning bolt, Critical a crosshair, C
 Potency an hourglass, Echo ripples, Minion power a skull). An equipped slot shows its two stats' icons,
 the bigger stat's bigger, and the icons also mark the item cards, the forge and the stat sheet.
 
-- **Power** raises every heal, shield and damage number. Your level gives most of it: +0% at level 1,
-  +200% at level 60 (`levelPower`).
+- **Power** is your base, and it comes from two places only, added together: your level (+0% at level
+  1, +200% at level 60, `levelPower`) and your trinkets (0.315 per item level). No talent or buff gives
+  it; the data test fails if one does.
+- **Damage** (group buffs: Sharpened Will) is % more damage, a multiplier of its own on top of Power.
 - **Health** grows with level too: 800 at level 1, 2,400 at level 60, plus trinkets.
 - **Haste** speeds casts, the global cooldown and ticks. It never shortens a duration, so HoTs and zones fit in more ticks.
 - **Critical** and **Crit damage** set crit chance and size (crits land for 150% plus Crit damage).
@@ -470,12 +479,14 @@ the bigger stat's bigger, and the icons also mark the item cards, the forge and 
 - **Parry** is a chance to turn aside an enemy's melee swing. It never comes from items: the Greatsword
   and its talents give it.
 
-Ability numbers are written for a level 60 hero with nothing on, whose level gives +200% Power, so a
-level 1 hero hits, heals and shields for a third of them (`LEVEL_GROWTH` in `src/talents/levels.ts`).
-To keep level 60 where it was, every other source of Power counts three times what it did: a trinket
-gives 0.315 per item level (the overview's 0.105, times three) and Sharpened Will +18%. The test arena
-scales with you: at a lower level the boss, its adds, the bots and every hit you take shrink the same
-way, so a fight is as hard at any level.
+**The math.** Every heal, shield and damage number is the ability's **base × (1 + Power)**, and
+everything else multiplies on top: talent bonuses, Damage, conditional bonuses, minion power, crits.
+With +100% Power an ability with a base of 10 deals 20, and a talent giving 10% more direct damage makes
+it 22. The base is a third of the number written in the tree data, which is written for a level 60
+hero with nothing on (+200% Power from level alone), so a level 1 hero hits, heals and shields for a
+third of a level 60 one (`LEVEL_GROWTH` in `src/talents/levels.ts`). **Ability numbers** shows the base
+in grey. The test arena scales with you: at a lower level the boss, its adds, the bots and every hit
+you take shrink the same way, so a fight is as hard at any level.
 
 The stat sheet shows Power and Health together at the top with the resource, then **Secondary**
 (Haste, Critical, Crit damage, Potency), **Defensive** (Damage reduction, Dodge, and Parry once
@@ -483,7 +494,7 @@ something gives it) and **Extra** (Echo, Minion power, Speed and anything only t
 give, like Rage when hit).
 
 **Ability numbers**, under the trees, shows every number on every slotted ability. Numbers flash green
-when they improve and red when they drop, with the base (nothing equipped or learned) in grey.
+when they improve and red when they drop, with the base (no Power, nothing equipped or learned) in grey.
 
 ## Test arena
 

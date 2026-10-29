@@ -25,6 +25,7 @@ const steadyPct = (seconds: number) => (seconds / CAST) * 100
 
 const tree: TreeDef = {
   id: 'ashwood-longbow',
+  reviewed: true,
   kind: 'artifact',
   role: 'damage',
   color: '#7fb069',

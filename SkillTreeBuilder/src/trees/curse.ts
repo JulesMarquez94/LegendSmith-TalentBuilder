@@ -11,6 +11,7 @@ const STACK = { all: ['carrion-curse', 'debuff'] }
 
 export const carrionCurse: TreeDef = {
   id: 'carrion-curse',
+  reviewed: true,
   kind: 'damage',
   role: 'damage',
   madeFor: 'tome-of-summoning',
@@ -125,7 +126,7 @@ export const carrionCurse: TreeDef = {
       row: 2,
       col: 3,
       requires: 'frenzied-feeding',
-      per: [0.05, 0.1],
+      per: [0.005, 0.01],
       text: 'Each stack your minions take gives you +{}% minion power for 10 sec, stacking up to 20 times.',
       does: (v) => [
         proc('hit', STACK, [

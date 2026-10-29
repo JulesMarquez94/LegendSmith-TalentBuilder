@@ -1225,6 +1225,25 @@ img {
   border-color: rgba(255, 120, 120, 0.5);
 }
 
+/* Not had a design pass yet: greyed out, still pickable. */
+.picker__option--wip {
+  opacity: 0.55;
+}
+
+.picker__option--wip .picker__icon {
+  filter: grayscale(1);
+}
+
+.picker__option--wip:hover:not(:disabled),
+.picker__option--wip:focus-visible {
+  opacity: 0.85;
+}
+
+.tag--wip {
+  color: #ffd27a;
+  border-color: rgba(255, 210, 122, 0.5);
+}
+
 .picker__icon {
   flex: none;
   width: 48px;

@@ -14,6 +14,7 @@ const TERMINAL_INTERVAL = [0.8, 0.6, 0.4]
 
 export const plague: TreeDef = {
   id: 'plague',
+  reviewed: true,
   kind: 'damage',
   role: 'damage',
   madeFor: 'tome-of-summoning',

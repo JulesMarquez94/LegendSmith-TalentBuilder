@@ -21,8 +21,8 @@ export function AbilityNumbers({ kinds, trees, live, base }: Props) {
       <header className="numbers__head">
         <h2 className="numbers__title">Ability numbers</h2>
         <p className="numbers__hint">
-          Live with your gear and talents. <span className="numbers__base">Grey</span> is the base with nothing equipped
-          or learned.
+          Live with your Power, gear and talents. <span className="numbers__base">Grey</span> is the base: no Power, nothing
+          equipped or learned. Power multiplies it, then talents multiply on top.
         </p>
       </header>
       <div className="numbers__grid">

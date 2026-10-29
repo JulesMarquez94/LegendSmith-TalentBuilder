@@ -7,6 +7,7 @@ import { more, plus, proc, selfBuff, talent } from './authoring.ts'
 
 export const bloodFrenzy: TreeDef = {
   id: 'blood-frenzy',
+  reviewed: true,
   kind: 'cooldown',
   role: 'damage',
   color: '#d4473f',
@@ -60,24 +61,24 @@ export const bloodFrenzy: TreeDef = {
       does: (v) => [plus('cooldown', 'blood-frenzy', -v)],
     }),
     talent({
-      id: 'endless-frenzy',
-      name: 'Endless Frenzy',
+      id: 'twin-frenzy',
+      name: 'Twin Frenzy',
       row: 1,
       col: 2,
       requires: 'lingering-rage',
-      per: [0.2, 0.4],
-      text: 'Every ability you use while Blood Frenzy is up makes it last {} sec longer.',
-      does: (v) => [proc('cast', '*', [{ do: 'extendBuff', buff: 'blood-frenzy', seconds: v }])],
+      text: 'Blood Frenzy holds 2 charges, but lasts half as long.',
+      does: () => [plus('charges', 'blood-frenzy', 1), more('duration', 'blood-frenzy', -50)],
     }),
 
     // Row 3
     talent({
-      id: 'twin-frenzy',
-      name: 'Twin Frenzy',
+      id: 'endless-frenzy',
+      name: 'Endless Frenzy',
       row: 2,
       col: 0,
-      text: 'Blood Frenzy holds 2 charges, but lasts half as long.',
-      does: () => [plus('charges', 'blood-frenzy', 1), more('duration', 'blood-frenzy', -50)],
+      per: [0.2, 0.4],
+      text: 'Every ability you use while Blood Frenzy is up makes it last {} sec longer.',
+      does: (v) => [proc('cast', '*', [{ do: 'extendBuff', buff: 'blood-frenzy', seconds: v }])],
     }),
   ],
 }

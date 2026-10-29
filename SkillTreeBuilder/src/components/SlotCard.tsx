@@ -54,6 +54,7 @@ export function SlotCard(props: Props) {
         <span className="slot__kind">{label}</span>
         {isArtifact && <span className="slot__name">{artifact.name}</span>}
         {tree?.playtest && <span className="tag">Playtest</span>}
+        {tree && !tree.reviewed && <span className="tag tag--wip">WIP</span>}
         {tree && !tree.spec && <span className="tag">Display only</span>}
         {(tree || isArtifact) && (
           <span className="slot__actions">

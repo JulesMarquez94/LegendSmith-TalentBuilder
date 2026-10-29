@@ -77,6 +77,18 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
   const total = treeRanks(tree)
   if (total !== ranksFor(tree)) problems.push(`${tree.ability.name}'s talents hold ${total} ranks in all, not ${ranksFor(tree)}`)
 
+  // Power comes from your level and gear only; talents and buffs give their own multipliers instead.
+  for (const t of tree.talents) {
+    if ((t.effects?.(t.maxRank) ?? []).flatMap(givenStats).includes('power')) {
+      problems.push(`${t.name} gives Power: Power only comes from your level and gear`)
+    }
+  }
+  for (const e of tree.spec?.effects ?? []) {
+    if (e.stats?.power !== undefined || e.buff?.stats?.power !== undefined) {
+      problems.push(`${tree.ability.name} gives Power: Power only comes from your level and gear`)
+    }
+  }
+
   for (const t of tree.talents) {
     if (t.excludes === undefined) continue
     const other = tree.talents.find((p) => p.id === t.excludes)
