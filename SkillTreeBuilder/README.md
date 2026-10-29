@@ -304,7 +304,7 @@ your target, hitting it and every enemy within 6 yd for 150, and while it's up y
 | 1 | Long Reign | 3 | It lasts 4/8/12 sec longer |
 | 2 | Lord of the Legion (needs Overwhelming Power) | 2 | It deals 1/2% more for each minion you command |
 | 2 | Dark Sustenance (needs Commanding Presence) | 2 | Each of its attacks adds 0.05/0.1 sec to your other minions |
-| 2 | Undying Master (needs Long Reign) | 2 | Each minion that dies or runs out adds 1/2 sec to it, never past its full duration |
+| 2 | Undying Master (needs Long Reign) | 2 | Each minion that dies or runs out adds 1/2 sec to it, with no cap |
 | 3 | Dark Patron | 1 | It benefits from your ultimate: your ultimate's haste speeds it up, even if it came first |
 | 3 | Impending Doom (needs Undying Master) | 2 | Each minion that falls gives a stack; at 5, a meteor hits every enemy within 5 yd of your target for 500/1000 |
 | 4 | Twin Overlords, **or** | 1 | You can have 2 Overlords at once |

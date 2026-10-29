@@ -100,7 +100,7 @@ export const overlord: TreeDef = {
       col: 3,
       requires: 'long-reign',
       per: [1, 2],
-      text: 'Every minion of yours that dies or runs out adds {} sec to the Overlord, never past its full duration.',
+      text: 'Every minion of yours that dies or runs out adds {} sec to the Overlord.',
       does: (v) => [plus('feed', OVERLORD, v)],
     }),
 

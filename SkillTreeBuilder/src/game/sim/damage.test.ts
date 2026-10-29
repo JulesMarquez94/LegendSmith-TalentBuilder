@@ -1092,13 +1092,14 @@ describe('Overlord', () => {
     const meteor = damageOf(arena, 'Meteor')!
     expect(meteor.hits).toBeGreaterThan(0)
     expect(meteor.damage / meteor.hits).toBeCloseTo(1000)
-    // Never past its full 30 sec.
+    // No cap: 10 more go, 20 sec more, past its full 30.
     arena.resource = 10
     run(arena, 0.1)
+    const now = lord.endsAt - arena.time
     arena.resource = 0
     run(arena, 0.1)
-    expect(lord.endsAt - arena.time).toBeCloseTo(30, 0)
-    expect(lord.endsAt - arena.time).toBeLessThanOrEqual(30)
+    expect(lord.endsAt - arena.time).toBeCloseTo(now - 0.1 + 20)
+    expect(lord.endsAt - arena.time).toBeGreaterThan(30)
   })
 
   it('holds 2 at once with Twin Overlords', () => {
