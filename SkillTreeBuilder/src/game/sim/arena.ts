@@ -1545,6 +1545,7 @@ export class Arena {
     if (when.inZone && !this.inZone(target)) return 0
     if (when.affected && !this.affected(target)) return 0
     if (when.targetSelf && !target.isPlayer) return 0
+    if (when.alone) return 0
     let n = 1
     if (when.each) n = target.hots.filter((h) => matches(when.each!, h.effect.tags)).length
     if (when.stacksOf) n = target.hots.filter((h) => matches(when.stacksOf!, h.effect.tags)).length
@@ -1555,6 +1556,9 @@ export class Arena {
   private enemyBonus(c: Conditional, enemy: Enemy, ctx?: CastContext): number {
     const when = c.when
     if (when.single && ctx?.victims !== 1) return 0
+    if (when.alone && this.enemies.filter((x) => x.alive && x.dots.some((d) => matches(when.alone!, d.effect.tags))).length !== 1) {
+      return 0
+    }
     if (when.targetBelow !== undefined && (enemy.hp / enemy.maxHp) * 100 >= when.targetBelow) return 0
     const has = (m: Match) => enemy.dots.some((d) => matches(m, d.effect.tags)) || enemy.curses.some((c) => matches(m, c.effect.tags))
     if (when.targetHas !== undefined && !has(when.targetHas)) return 0

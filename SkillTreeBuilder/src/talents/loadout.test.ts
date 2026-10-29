@@ -5,7 +5,12 @@ import { capFor, learn, pointsLeftFor, ranksIn, slotTree, totalSpent, type Loado
 import { pointsSpent } from './rules.ts'
 
 const RULES: PointRules = { total: 80, perTree: 15 }
-const START: Loadout = { artifact: 'tome-of-summoning', slots: [null, 'plague', 'bone-spear', null, null, null], ranks: {} }
+const START: Loadout = {
+  level: 60,
+  artifact: 'tome-of-summoning',
+  slots: [null, 'plague', 'bone-spear', null, null, null],
+  ranks: {},
+}
 
 const times = (n: number, id: string) => Array<string>(n).fill(id)
 // 17 clicks down the Plague tree in an order the row unlocks allow.

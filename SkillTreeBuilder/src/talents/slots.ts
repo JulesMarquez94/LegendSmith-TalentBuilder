@@ -58,5 +58,5 @@ export function setArtifact(loadout: Loadout, artifact: ArtifactDef, trees: read
     return tree && fits(tree, kinds[i], artifact) ? id : null
   })
   const ranks = Object.fromEntries(Object.entries(loadout.ranks).filter(([id]) => slots.includes(id)))
-  return { artifact: artifact.id, slots, ranks }
+  return { ...loadout, artifact: artifact.id, slots, ranks }
 }

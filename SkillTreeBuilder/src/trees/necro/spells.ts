@@ -290,7 +290,7 @@ export const festeringRot: TreeDef = {
 const POX = { all: ['miasma', 'dot'] } as const
 const MIASMA_RADIUS = 8
 const pox = (target: 'event' | 'self', extra: Partial<EffectSpec> = {}) =>
-  dot(30, 20, 1, target, { name: 'Pox', key: 'miasma:pox', rolling: true, ...extra })
+  dot(15, 18, 1, target, { name: 'Pox', key: 'miasma:pox', rolling: true, ...extra })
 
 export const miasma: TreeDef = {
   ...book,
@@ -337,17 +337,19 @@ export const miasma: TreeDef = {
       row: 0,
       col: 0,
       per: [3, 6],
-      text: "Each tick of your damage over time has a {}% chance to take 1 sec off Miasma's cooldown.",
-      does: (v) => [proc('hit', 'dot', [cooldown('miasma', 1)], { chance: v })],
+      text:
+        "Each tick of your damage over time has a {}% chance to take 1 sec off Miasma's cooldown. " +
+        'Can’t happen more than once every 2 sec.',
+      does: (v) => [proc('hit', 'dot', [cooldown('miasma', 1)], { chance: v, cooldown: 2 })],
     }),
     talent({
-      id: 'thick-pox',
-      name: 'Thick Pox',
+      id: 'concentrated-pox',
+      name: 'Concentrated Pox',
       row: 0,
       col: 1,
-      per: [1, 2],
-      text: 'Miasma gives {} more stacks of Pox at a time.',
-      does: (v) => [plus('stacks', POX, v)],
+      per: [15, 30],
+      text: 'Pox deals {}% more damage while it’s on only one enemy.',
+      does: (v) => [more('amount', POX, v, { alone: POX })],
     }),
     talent({
       id: 'clinging-cloud',
@@ -374,8 +376,8 @@ export const miasma: TreeDef = {
       name: 'Lingering Pox',
       row: 1,
       col: 1,
-      requires: 'thick-pox',
-      per: [4, 8, 12],
+      requires: 'concentrated-pox',
+      per: [3, 6, 9],
       text: 'Each stack of Pox lasts {} sec longer.',
       does: (v) => [plus('duration', POX, v)],
     }),

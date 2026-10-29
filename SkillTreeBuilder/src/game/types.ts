@@ -325,6 +325,8 @@ export interface Condition {
   stacksOf?: Match
   /** The cast hit only one enemy (Lone Reaper). */
   single?: boolean
+  /** Only one enemy has one of your effects matching this (Concentrated Pox). Enemies only. */
+  alone?: Match
 }
 
 export interface ModMechanic {

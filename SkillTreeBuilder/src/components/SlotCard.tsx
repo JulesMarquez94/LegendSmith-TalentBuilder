@@ -10,6 +10,8 @@ import { TalentTree } from './TalentTree.tsx'
 interface Props {
   index: number
   kind: SlotKind
+  /** The level that opens the slot, while it's still closed. */
+  opensAt?: number
   tree: TreeDef | undefined
   ranks: Ranks
   pointsLeft: number
@@ -21,12 +23,29 @@ interface Props {
   onRemove: () => void
   onLearn: (tree: TreeDef, talent: TalentDef) => void
   onUnlearn: (tree: TreeDef, talent: TalentDef) => void
+  onTakeSide: (tree: TreeDef, talent: TalentDef) => void
 }
 
 export function SlotCard(props: Props) {
-  const { index, kind, tree, ranks, pointsLeft, cap, artifact, live, kit, onChoose, onRemove, onLearn, onUnlearn } = props
+  const { index, kind, opensAt, tree, ranks, pointsLeft, cap, artifact, live, kit, onChoose, onRemove, onLearn, onUnlearn, onTakeSide } =
+    props
   const isArtifact = kind === 'artifact'
   const label = KIND_LABEL[kind]
+
+  if (opensAt !== undefined) {
+    return (
+      <section className="slot" aria-label={`Slot ${index + 1}: ${label}, opens at level ${opensAt}`}>
+        <header className="slot__head">
+          <span className="slot__num">{index + 1}</span>
+          <span className="slot__kind">{label}</span>
+        </header>
+        <div className="slot__empty slot__empty--locked">
+          <span className="slot__lock">Locked</span>
+          Opens at level {opensAt}
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="slot" aria-label={`Slot ${index + 1}: ${isArtifact ? `${label}, ${artifact.name}` : label}`}>
@@ -60,6 +79,7 @@ export function SlotCard(props: Props) {
           kit={kit}
           onLearn={(talent) => onLearn(tree, talent)}
           onUnlearn={(talent) => onUnlearn(tree, talent)}
+          onTakeSide={(talent) => onTakeSide(tree, talent)}
         />
       ) : isArtifact ? (
         <div className="artifact" style={{ '--tint': artifact.color } as CSSProperties}>
@@ -73,7 +93,7 @@ export function SlotCard(props: Props) {
           <span className="slot__plus" aria-hidden="true">
             +
           </span>
-          Add a {label.toLowerCase()} ability
+          Add {/^[aeiou]/i.test(label) ? 'an' : 'a'} {label.toLowerCase()} ability
         </button>
       )}
     </section>

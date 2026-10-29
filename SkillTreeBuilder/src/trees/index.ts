@@ -1,3 +1,4 @@
+import { MAX_LEVEL, pointsAt } from '../talents/levels.ts'
 import type { Loadout, PointRules } from '../talents/loadout.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
 import { GROUP_BUFFS } from './buffs.ts'
@@ -27,10 +28,11 @@ import { greatsword } from './tank/greatsword.ts'
 import { swordAndShield } from './tank/shield.ts'
 
 /**
- * One talent point per level up to 60, and no more than 12 in any one tree, as in the overview's
- * "Ability slots and talent trees". The small trees, the ultimate's and the group buff's, take 6 at most.
+ * One talent point a level from level 9 (levels 1–8 open the slots), 52 at level 60, and no more than
+ * 12 in any one tree. The small trees, the ultimate's and the group buff's, take 6 at most. This is the
+ * most at level 60; `rulesAt` gives the points at a lower level.
  */
-export const POINT_RULES: PointRules = { total: 60, perTree: 12, perSmall: 6 }
+export const POINT_RULES: PointRules = { total: pointsAt(MAX_LEVEL), perTree: 12, perSmall: 6 }
 
 /**
  * Every artifact that can be held, two per seat: tank, healer, melee and ranged damage. The picker
@@ -104,9 +106,11 @@ export const TREES: readonly TreeDef[] = [
 ]
 
 /** What the builder opens with: the healer kit, ready for the test arena. */
+/** You start at level 1, holding the staff, with only its main attack: each level up opens the next slot. */
 export const STARTING_LOADOUT: Loadout = {
+  level: 1,
   artifact: lifewardenStaff.id,
-  slots: [lifewardenStaff.tree!.id, 'mend', 'renew', 'healing-rain', 'miracle', 'dash', 'vitality-aura', null],
+  slots: [lifewardenStaff.tree!.id, null, null, null, null, null, null, null],
   ranks: {},
 }
 

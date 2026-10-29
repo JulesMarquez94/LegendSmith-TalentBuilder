@@ -82,6 +82,8 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
     const other = tree.talents.find((p) => p.id === t.excludes)
     if (other === undefined) problems.push(`${t.name} is a choice with "${t.excludes}", which isn't a talent in this tree`)
     else if (other === t) problems.push(`${t.name} is a choice with itself`)
+    // The pair shares one split icon, halfway between their two places.
+    else if (other.row !== t.row) problems.push(`${t.name} and ${other.name} are a choice, so they must share a row`)
   }
 
   for (const t of tree.talents) {

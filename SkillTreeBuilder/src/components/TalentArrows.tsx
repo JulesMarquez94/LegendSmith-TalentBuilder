@@ -1,5 +1,6 @@
 import { prerequisite, talentState, type Ranks } from '../talents/rules.ts'
-import type { TalentDef, TreeDef } from '../talents/types.ts'
+import type { TreeDef } from '../talents/types.ts'
+import { placeOf } from './choices.ts'
 import { ICON, iconX, iconY, PANEL_WIDTH, panelHeight } from './layout.ts'
 
 const GAP = 0.015 // between an arrow's ends and the icons
@@ -20,7 +21,7 @@ export function TalentArrows({ tree, ranks, pointsLeft, rows }: Props) {
       {tree.talents.map((talent) => {
         const pre = prerequisite(tree, talent)
         if (!pre) return null
-        const { line, head } = arrow(pre, talent)
+        const { line, head } = arrow(placeOf(tree, pre), placeOf(tree, talent))
         const lit = talentState(tree, ranks, talent, pointsLeft) !== 'locked'
         return (
           <g key={talent.id} className={lit ? 'arrow arrow--lit' : 'arrow'}>
@@ -33,8 +34,10 @@ export function TalentArrows({ tree, ranks, pointsLeft, rows }: Props) {
   )
 }
 
+type Place = { row: number; col: number }
+
 /** Routed like WoW: sideways within a row, straight down a column, otherwise out to the side and then down. */
-function arrow(from: TalentDef, to: TalentDef) {
+function arrow(from: Place, to: Place) {
   const fx = iconX(from.col)
   const fy = iconY(from.row)
   const tx = iconX(to.col)

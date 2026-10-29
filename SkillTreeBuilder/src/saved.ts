@@ -1,5 +1,6 @@
 import { GEAR_STATS, isValidPair, RARITIES, TRINKET_SLOTS, type Gear, type Trinket } from './game/gear.ts'
-import { capFor, type Loadout } from './talents/loadout.ts'
+import { MAX_LEVEL } from './talents/levels.ts'
+import { capFor, setLevel, totalSpent, type Loadout } from './talents/loadout.ts'
 import { setArtifact } from './talents/slots.ts'
 import { validateCatalog } from './talents/validate.ts'
 import { ARTIFACTS, POINT_RULES, STARTING_LOADOUT, TREES } from './trees/index.ts'
@@ -51,7 +52,10 @@ export function savedLoadout(): Loadout {
       return [[treeId, spent > capFor(tree, POINT_RULES) ? {} : Object.fromEntries(kept)]]
     }),
   )
-  return { ...loadout, ranks }
+  // Talents needing more points than level 60 gives (60 before levels opened the slots, 52 now) start over.
+  const fitted = { ...loadout, ranks: totalSpent({ ...loadout, ranks }) > POINT_RULES.total ? {} : ranks }
+  // Builds saved before levels were at level 60. Either way, never below what the build needs.
+  return setLevel(fitted, Number.isFinite(loadout.level) ? loadout.level : MAX_LEVEL)
 }
 
 const validTrinket = (t: Trinket | undefined, slot: string): t is Trinket =>
