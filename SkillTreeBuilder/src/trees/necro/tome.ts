@@ -21,6 +21,7 @@ const bargain = (id: string, name: string, stats: Partial<CharStats>): BuffSpec 
 
 const tree: TreeDef = {
   id: 'tome-of-summoning',
+  reviewed: true,
   kind: 'artifact',
   role: 'damage',
   color: '#c89b4c',

@@ -56,6 +56,11 @@ Click **Change** on slot 1 to switch artifacts; the picker lists them by seat (T
 damage, Ranged damage). Abilities that don't fit the new role come out and refund their points. Click an empty slot (or **Change**) to pick an ability. Picking one that's
 already in another slot swaps the two and keeps both builds.
 
+Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
+selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
+Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Blood Frenzy, Teleport, Carrion Curse,
+Overlord and Plague.
+
 ## The artifacts
 
 Two for every seat in a group. Each artifact's `reach` (melee or ranged) and role set its seat, and the
@@ -405,7 +410,7 @@ stat (`parry`) and a new event (`parry`, its enemy is the one that swung), so it
 
 Every character slots one group buff for their role. It's passive: you and your group get its stats,
 and its tree adds more. Healers pick more maximum health or more healing received. Damage dealers pick
-Haste, Critical or Power. Tanks get Damage reduction, Dodge or Speed. Like an ultimate's, a group
+Haste, Critical or Damage. Tanks get Damage reduction, Dodge or Speed. Like an ultimate's, a group
 buff's tree is small: 5 points, 5 talents, 9 ranks.
 
 ## Mobility
@@ -460,8 +465,10 @@ Every gear stat has an **icon** (Haste a lightning bolt, Critical a crosshair, C
 Potency an hourglass, Echo ripples, Minion power a skull). An equipped slot shows its two stats' icons,
 the bigger stat's bigger, and the icons also mark the item cards, the forge and the stat sheet.
 
-- **Power** raises every heal, shield and damage number. Your level gives most of it: +0% at level 1,
-  +200% at level 60 (`levelPower`).
+- **Power** is your base, and it comes from two places only, added together: your level (+0% at level
+  1, +200% at level 60, `levelPower`) and your trinkets (0.315 per item level). No talent or buff gives
+  it; the data test fails if one does.
+- **Damage** (group buffs: Sharpened Will) is % more damage, a multiplier of its own on top of Power.
 - **Health** grows with level too: 800 at level 1, 2,400 at level 60, plus trinkets.
 - **Haste** speeds casts, the global cooldown and ticks. It never shortens a duration, so HoTs and zones fit in more ticks.
 - **Critical** and **Crit damage** set crit chance and size (crits land for 150% plus Crit damage).
@@ -472,12 +479,14 @@ the bigger stat's bigger, and the icons also mark the item cards, the forge and 
 - **Parry** is a chance to turn aside an enemy's melee swing. It never comes from items: the Greatsword
   and its talents give it.
 
-Ability numbers are written for a level 60 hero with nothing on, whose level gives +200% Power, so a
-level 1 hero hits, heals and shields for a third of them (`LEVEL_GROWTH` in `src/talents/levels.ts`).
-To keep level 60 where it was, every other source of Power counts three times what it did: a trinket
-gives 0.315 per item level (the overview's 0.105, times three) and Sharpened Will +18%. The test arena
-scales with you: at a lower level the boss, its adds, the bots and every hit you take shrink the same
-way, so a fight is as hard at any level.
+**The math.** Every heal, shield and damage number is the ability's **base × (1 + Power)**, and
+everything else multiplies on top: talent bonuses, Damage, conditional bonuses, minion power, crits.
+With +100% Power an ability with a base of 10 deals 20, and a talent giving 10% more direct damage makes
+it 22. The base is a third of the number written in the tree data, which is written for a level 60
+hero with nothing on (+200% Power from level alone), so a level 1 hero hits, heals and shields for a
+third of a level 60 one (`LEVEL_GROWTH` in `src/talents/levels.ts`). **Ability numbers** shows the base
+in grey. The test arena scales with you: at a lower level the boss, its adds, the bots and every hit
+you take shrink the same way, so a fight is as hard at any level.
 
 The stat sheet shows Power and Health together at the top with the resource, then **Secondary**
 (Haste, Critical, Crit damage, Potency), **Defensive** (Damage reduction, Dodge, and Parry once
@@ -485,7 +494,7 @@ something gives it) and **Extra** (Echo, Minion power, Speed and anything only t
 give, like Rage when hit).
 
 **Ability numbers**, under the trees, shows every number on every slotted ability. Numbers flash green
-when they improve and red when they drop, with the base (nothing equipped or learned) in grey.
+when they improve and red when they drop, with the base (no Power, nothing equipped or learned) in grey.
 
 ## Test arena
 

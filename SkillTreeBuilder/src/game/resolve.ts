@@ -246,8 +246,11 @@ function resolveEffectWith(
   const tags = effectTags(tree, effect)
   const get = (key: ValueKey) => sum(mods, key, tags, stats)
 
-  // Numbers are written for level 60, whose level alone gives +200% Power: a third of it is the base.
-  const power = POWERED.has(family) ? (1 + stats.power / 100) / LEVEL_GROWTH : 1
+  // An ability's base is a third of the number written here (written for level 60, whose level alone
+  // gives +200% Power), and Power multiplies it: base × (1 + Power). Talents multiply on top.
+  // Damage also gets `damageDone`, its own multiplier.
+  const power =
+    (POWERED.has(family) ? (1 + stats.power / 100) / LEVEL_GROWTH : 1) * (tags.has('damage') ? 1 + stats.damageDone / 100 : 1)
   const durationMods = effect.fixedDuration ? { add: 0, pct: 0 } : get('duration')
   const potency = POTENT.has(family) && !effect.fixedDuration ? stats.potency : 0
   const duration = Math.max(0, (effect.duration ?? 0) + durationMods.add) * (1 + (durationMods.pct + potency) / 100)

@@ -42,6 +42,7 @@ const LONE_SPLASH = [50, 100]
 export const harvest: TreeDef = {
   ...book,
   id: 'harvest',
+  reviewed: true,
   color: '#b8e04a',
   ability: {
     name: 'Harvest',
@@ -295,6 +296,7 @@ const pox = (target: 'event' | 'self', extra: Partial<EffectSpec> = {}) =>
 export const miasma: TreeDef = {
   ...book,
   id: 'miasma',
+  reviewed: true,
   color: '#9b7fd1',
   ability: {
     name: 'Miasma',

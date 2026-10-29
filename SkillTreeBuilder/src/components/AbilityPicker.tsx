@@ -19,6 +19,8 @@ export interface PickerOption {
   locked?: string
   /** An artifact that's a first version, until its real design arrives. */
   firstVersion?: boolean
+  /** Not had a design pass yet: greyed out and tagged, but still pickable. */
+  wip?: boolean
   /** Options with the same group are listed together under it (artifacts by seat: "Tank", "Healer"…). */
   group?: string
   /** The slot it's in now (0-based), or -1. */
@@ -64,7 +66,9 @@ export function AbilityPicker({ slotIndex, title, subtitle, options, slotFilled,
             <li key={option.id}>
               <button
                 type="button"
-                className={option.locked ? 'picker__option picker__option--locked' : 'picker__option'}
+                className={['picker__option', option.locked && 'picker__option--locked', option.wip && 'picker__option--wip']
+                  .filter(Boolean)
+                  .join(' ')}
                 disabled={here || option.locked !== undefined}
                 onClick={() => choose(option.id)}
               >
@@ -88,6 +92,7 @@ export function AbilityPicker({ slotIndex, title, subtitle, options, slotFilled,
                       </span>
                     )}
                     {option.locked && <span className="tag tag--locked">{option.locked}</span>}
+                    {option.wip && <span className="tag tag--wip">WIP</span>}
                     {option.playtest && <span className="tag">Playtest</span>}
                     {option.displayOnly && <span className="tag">Display only</span>}
                     {option.firstVersion && <span className="tag">First version</span>}

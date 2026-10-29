@@ -1,6 +1,5 @@
 import { int } from '../format.ts'
 import { comboStrength, matches, spendStrength, tickAmount, type Kit, type ResolvedProc } from '../resolve.ts'
-import { LEVEL_GROWTH } from '../../talents/levels.ts'
 import { RUN_SPEED } from '../stats.ts'
 import type {
   Action,
@@ -2295,8 +2294,7 @@ export class Arena {
   /** Bots hit adds before the boss; adds swing at the tank. */
   private updateEnemies(dt: number) {
     const group = this.groupStats()
-    // Power is written three times over (a level 60 hero's own +200% shrinks each point), so a third for bots.
-    const botBoost = 1 + ((group.haste ?? 0) + (group.power ?? 0) / LEVEL_GROWTH) / 100 + (group.crit ?? 0) / 200
+    const botBoost = 1 + ((group.haste ?? 0) + (group.damageDone ?? 0)) / 100 + (group.crit ?? 0) / 200
     const dps = this.allies.reduce((sum, a) => (a.alive && !a.isPlayer ? sum + a.dps : sum), 0) * botBoost
     const adds = this.enemies.filter((e) => e.alive && !e.isBoss && Number.isFinite(e.hp))
     const target = adds[0] ?? (this.boss.alive ? this.boss : null)

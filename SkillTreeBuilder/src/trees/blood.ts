@@ -7,6 +7,7 @@ import { more, plus, proc, selfBuff, talent } from './authoring.ts'
 
 export const bloodFrenzy: TreeDef = {
   id: 'blood-frenzy',
+  reviewed: true,
   kind: 'cooldown',
   role: 'damage',
   color: '#d4473f',

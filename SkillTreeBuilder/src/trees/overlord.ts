@@ -10,6 +10,7 @@ const OVERLORD = 'overlord'
 
 export const overlord: TreeDef = {
   id: 'overlord',
+  reviewed: true,
   kind: 'damage',
   role: 'damage',
   madeFor: 'tome-of-summoning',

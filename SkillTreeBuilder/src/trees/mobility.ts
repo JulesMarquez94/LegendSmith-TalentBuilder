@@ -92,6 +92,7 @@ export const dash: TreeDef = {
 export const teleport: TreeDef = {
   ...mobility,
   id: 'teleport',
+  reviewed: true,
   color: '#b79cff',
   ability: {
     name: 'Teleport',

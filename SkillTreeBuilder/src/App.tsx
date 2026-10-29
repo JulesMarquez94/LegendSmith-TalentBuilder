@@ -57,7 +57,8 @@ export default function App() {
     return {
       trees,
       kit: buildKit({ artifact: held, trees, ranks: loadout.ranks, gear, catalog: TREES, level: loadout.level }),
-      bare: buildKit({ artifact: held, trees, ranks: {}, gear: {}, catalog: TREES, level: loadout.level }),
+      // The base: level 1 gives no Power, so these are the numbers Power and talents multiply.
+      bare: buildKit({ artifact: held, trees, ranks: {}, gear: {}, catalog: TREES, level: 1 }),
     }
   }, [loadout, gear])
 
@@ -87,6 +88,7 @@ export default function App() {
           meta: `${seatOf(a)} · ${a.resource}`,
           description: a.description,
           firstVersion: a.firstVersion,
+          wip: !a.tree?.reviewed,
           group: seatOf(a),
           at: a.id === artifact.id ? 0 : -1,
         }))
@@ -104,6 +106,7 @@ export default function App() {
         description: live?.text ?? tree.ability.description,
         playtest: tree.playtest,
         displayOnly: !tree.spec,
+        wip: !tree.reviewed,
         madeFor: maker && { name: maker.name, color: maker.color, yours: maker.id === artifact.id },
         locked: canMake(tree, artifact) ? undefined : `Needs ${NEEDS_LABEL[tree.needs!]}`,
         at: loadout.slots.indexOf(tree.id),

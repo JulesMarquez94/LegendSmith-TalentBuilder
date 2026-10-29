@@ -50,6 +50,8 @@ export type CharStat =
   | 'potency'
   | 'echo'
   | 'minionPower'
+  /** % more damage you deal, multiplying on top of Power (group buffs). Never Power itself. */
+  | 'damageDone'
   | 'damageReduction'
   /** % chance to avoid a hit completely. */
   | 'dodge'

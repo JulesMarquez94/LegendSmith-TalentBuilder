@@ -11,6 +11,7 @@ const STACK = { all: ['carrion-curse', 'debuff'] }
 
 export const carrionCurse: TreeDef = {
   id: 'carrion-curse',
+  reviewed: true,
   kind: 'damage',
   role: 'damage',
   madeFor: 'tome-of-summoning',
