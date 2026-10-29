@@ -1065,9 +1065,18 @@ export class Arena {
   private setOffCurse(enemy: Enemy) {
     const c = enemy.curses[0]
     if (!c || !enemy.alive) return
-    c.stacks -= 1
-    if (c.stacks <= 0) this.endCurse(enemy, c)
-    this.hitEnemy(enemy, c.effect.amount, c.effect, this.curseContext(c, enemy), { label: c.name, quiet: true, secondary: true })
+    // Undying Hex: now and then a stack bursts and stays.
+    if (!(c.effect.keepChance > 0 && this.decks.draw(`keep:${c.key}`, c.effect.keepChance))) {
+      c.stacks -= 1
+      if (c.stacks <= 0) this.endCurse(enemy, c)
+    }
+    const ctx = this.curseContext(c, enemy)
+    const dealt = this.hitEnemy(enemy, c.effect.amount, c.effect, ctx, { label: c.name, quiet: true, secondary: true })
+    if (c.effect.splash > 0 && dealt > 0) {
+      // Without 'debuff', so talents fed by taken stacks don't go off again for every enemy it splashes.
+      const tags = new Set([...c.effect.tags].filter((t) => t !== 'debuff'))
+      this.splashAround(enemy, (dealt * c.effect.splash) / 100, { ...c.effect, tags }, ctx, `${c.name} splash`)
+    }
   }
 
   private endCurse(enemy: Enemy, c: Curse) {
@@ -1400,6 +1409,15 @@ export class Arena {
       case 'extendImps':
         for (const imp of this.imps) imp.endsAt += action.seconds
         break
+      case 'extendMinions':
+        for (const imp of this.imps) imp.endsAt += action.seconds
+        for (const s of this.summons) s.endsAt += action.seconds
+        break
+      case 'curseStack': {
+        const c = (ev.enemy ?? ev.ctx.eventEnemy)?.curses.find((x) => matches(action.match, x.effect.tags))
+        if (c) c.stacks = Math.min(c.effect.stacks, c.stacks + action.stacks)
+        break
+      }
       case 'oneOf': {
         const pick = action.actions[Math.floor(this.rng() * action.actions.length)]
         if (pick) this.act(pick, rp, ev)

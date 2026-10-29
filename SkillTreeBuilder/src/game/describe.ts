@@ -186,6 +186,12 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
       })
       out.push({ key: key('stacks'), label: 'Stacks', value: e.stacks, format: String, better: 'up' })
       out.push({ key: key('duration'), label: 'Lasts', value: e.duration, format: seconds, better: 'up' })
+      if (e.splash > 0) {
+        out.push({ key: key('splash'), label: 'Splash', value: e.splash, format: percent, better: 'up', detail: 'of each stack, to every other enemy within 8 yd' })
+      }
+      if (e.keepChance > 0) {
+        out.push({ key: key('keepChance'), label: 'Stack kept', value: e.keepChance, format: percent, better: 'up', detail: 'chance a stack bursts and stays' })
+      }
       break
     case 'summon':
       out.push({

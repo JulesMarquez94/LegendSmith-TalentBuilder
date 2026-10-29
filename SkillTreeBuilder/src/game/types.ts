@@ -142,6 +142,8 @@ export type EffectKey =
   | 'soloSplash'
   /** Seconds after a teleport to use it again and go back where you were, for free (Recall). */
   | 'returnWindow'
+  /** % chance a curse's stack bursts without being taken (Undying Hex). */
+  | 'keepChance'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -293,6 +295,8 @@ export interface EffectSpec {
   taunt?: number
   /** % of each hit splashed onto every other enemy within 8 yd of the one it hit (Harvest's talents). */
   splash?: number
+  /** A curse: % chance a stack bursts without being taken. */
+  keepChance?: number
   /**
    * Fires only when its ability goes off on its own (`autocast`), and then instead of the others:
    * Emanation turns Miasma's zone into a Pox around you every 10 sec.
@@ -425,6 +429,10 @@ export type Action =
   | { do: 'trickle'; pct: number; seconds: number; extends?: boolean }
   /** Adds seconds to every imp you command (the book's minions, which last a while). */
   | { do: 'extendImps'; seconds: number }
+  /** Adds seconds to every minion you command: imps and summons (ghouls) alike. */
+  | { do: 'extendMinions'; seconds: number }
+  /** Adds stacks to your matching curse on the event's enemy, never past what it started with. */
+  | { do: 'curseStack'; match: Match; stacks: number }
   /** Does one of these, picked at random (Dark Bargain: haste, crit, echo or minion power). */
   | { do: 'oneOf'; actions: Action[] }
   /** Fires another ability's effects, slotted or not. */
@@ -539,6 +547,7 @@ export interface ResolvedEffect {
   taunt: number
   splash: number
   soloSplash: number
+  keepChance: number
   auto?: boolean
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
