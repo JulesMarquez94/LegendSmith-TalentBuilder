@@ -166,6 +166,66 @@ describe('cooldowns and charges', () => {
   })
 })
 
+describe('Teleport', () => {
+  const walkRight = { move: { x: 1, y: 0 }, aim: null, held: new Set<number>() }
+
+  it("won't go off mid-cast, unless Spellstride lets it, and then the cast goes on", () => {
+    const blocked = arenaWith(['mend', null, null, null, 'teleport'])
+    cast(blocked, 1)
+    const start = { ...blocked.player.pos }
+    cast(blocked, 5)
+    expect(blocked.notice?.text).toBe("You can't use Teleport while casting")
+    expect(blocked.player.pos).toEqual(start)
+
+    const free = arenaWith(['mend', null, null, null, 'teleport'], { teleport: { spellstride: 1 } })
+    cast(free, 1)
+    const from = { ...free.player.pos }
+    free.press(5)
+    free.step(DT, walkRight)
+    expect(free.cast?.ability.name).toBe('Mend')
+    expect(free.player.pos.x - from.x).toBeCloseTo(15, 0)
+  })
+
+  it('holds 2 charges with Double Blink, each half as slow again to come back', () => {
+    const teleport = healerKit([null, null, null, null, 'teleport'], { teleport: { 'phase-shift': 3, 'double-blink': 1 } }).slots[5]!
+    expect(teleport.charges).toBe(2)
+    expect(teleport.cooldown).toBeCloseTo((15 - 4.5) * 1.5)
+  })
+
+  it('goes back where you were with Recall, for free, within 4 sec', () => {
+    const arena = arenaWith([null, null, null, null, 'teleport'], { teleport: { 'far-reach': 3, recall: 1 } })
+    const start = { ...arena.player.pos }
+    arena.press(5)
+    arena.step(DT, walkRight)
+    expect(arena.player.pos.x - start.x).toBeCloseTo(24, 0)
+    expect(arena.buffs.some((b) => b.name === 'Recall')).toBe(true)
+    run(arena, 1)
+    cast(arena, 5)
+    // Back where the teleport started (one step of walking past where the test began).
+    expect(arena.player.pos.x).toBeCloseTo(start.x, 0)
+    expect(arena.player.pos.y).toBe(start.y)
+    expect(arena.buffs.some((b) => b.name === 'Recall')).toBe(false)
+    // Going back didn't use a charge: the one teleport did, so the next press waits for the cooldown.
+    expect(arena.cooldowns.get('teleport')!.charges).toBe(0)
+    cast(arena, 5)
+    expect(arena.notice?.text).toBe("Teleport isn't ready yet")
+  })
+
+  it('closes the way back after 4 sec', () => {
+    const arena = arenaWith([null, null, null, null, 'teleport'], { teleport: { 'double-blink': 1, recall: 1 } })
+    arena.press(5)
+    arena.step(DT, walkRight)
+    run(arena, 4.1)
+    expect(arena.buffs.some((b) => b.name === 'Recall')).toBe(false)
+    // The second charge is a new teleport, up this time, not a way back.
+    const there = { ...arena.player.pos }
+    arena.press(5)
+    arena.step(DT, { move: { x: 0, y: -1 }, aim: null, held: new Set() })
+    expect(arena.player.pos.x).toBeCloseTo(there.x)
+    expect(there.y - arena.player.pos.y).toBeCloseTo(15, 0)
+  })
+})
+
 describe('talent procs', () => {
   it('wash over every ally once more when Lifetide ends (Ebb and Flow)', () => {
     const arena = arenaWith([null, null, null, 'lifetide', null], { lifetide: { moonpull: 1, 'slow-ebb': 2, 'ebb-and-flow': 2 } })

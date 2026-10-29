@@ -7,12 +7,14 @@ import { CharacterSkills } from './components/CharacterSkills.tsx'
 import { CharacterPanel } from './components/gear/CharacterPanel.tsx'
 import { KIND_LABEL, SEATS, seatOf } from './components/labels.ts'
 import { LevelControl } from './components/LevelControl.tsx'
+import { ShareButton } from './components/ShareButton.tsx'
 import { SlotCard } from './components/SlotCard.tsx'
 import { SlotOverview } from './components/SlotOverview.tsx'
 import { abilityMeta } from './game/describe.ts'
 import type { Gear } from './game/gear.ts'
 import { buildKit } from './game/resolve.ts'
 import { save, savedGear, savedLoadout } from './saved.ts'
+import { buildHash } from './share.ts'
 import { isSlotOpen, rulesAt, SLOT_LEVELS, slotLevel } from './talents/levels.ts'
 import { capFor, levelNeeded, pointsLeftFor, ranksIn, totalSpent } from './talents/loadout.ts'
 import { pointsSpent } from './talents/rules.ts'
@@ -54,12 +56,23 @@ export default function App() {
     const trees = loadout.slots.map((id) => (id === null ? null : (TREE_BY_ID.get(id) ?? null)))
     return {
       trees,
-      kit: buildKit({ artifact: held, trees, ranks: loadout.ranks, gear, catalog: TREES }),
-      bare: buildKit({ artifact: held, trees, ranks: {}, gear: {}, catalog: TREES }),
+      kit: buildKit({ artifact: held, trees, ranks: loadout.ranks, gear, catalog: TREES, level: loadout.level }),
+      bare: buildKit({ artifact: held, trees, ranks: {}, gear: {}, catalog: TREES, level: loadout.level }),
     }
   }, [loadout, gear])
 
-  useEffect(() => save({ loadout, gear }), [loadout, gear])
+  useEffect(() => {
+    save({ loadout, gear })
+    // The address always holds the build, so the address bar is a link to it too.
+    history.replaceState(null, '', buildHash({ loadout, gear }))
+  }, [loadout, gear])
+
+  // A build link pasted into this tab changes only the hash: load it like a fresh visit.
+  useEffect(() => {
+    const reload = () => location.reload()
+    window.addEventListener('hashchange', reload)
+    return () => window.removeEventListener('hashchange', reload)
+  }, [])
 
   const options = (slot: number): PickerOption[] => {
     if (slot === 0) {
@@ -126,9 +139,10 @@ export default function App() {
           <span className="points__total">
             {loadout.level <= SLOT_LEVELS
               ? `/ ${rules.total} · the first comes at level ${SLOT_LEVELS + 1}`
-              : `/ ${rules.total} · max ${rules.perTree} per tree, ${rules.perSmall} per ultimate or group buff`}
+              : `/ ${rules.total} · max ${rules.perTree} per tree, ${rules.perMobility} per mobility, ${rules.perSmall} per ultimate or group buff`}
           </span>
         </div>
+        <ShareButton build={{ loadout, gear }} />
         <button type="button" className="btn btn--lg" onClick={build.resetTalents} disabled={spent === 0}>
           Reset talents
         </button>

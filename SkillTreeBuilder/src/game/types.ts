@@ -104,6 +104,8 @@ export type AbilityKey =
   | 'surplus'
   /** Seconds: above 0, the ability is passive and goes off on its own this often, for free (Endless Harvest). */
   | 'autocast'
+  /** Above 0, an ability that's `notWhileCasting` can be used mid-cast after all (Teleport's Spellstride). */
+  | 'whileCasting'
 
 /** Numbers that belong to one effect of an ability. Talents aim these at the effect's tags. */
 export type EffectKey =
@@ -138,6 +140,8 @@ export type EffectKey =
   | 'splash'
   /** % more splash when the cast hits only one enemy. */
   | 'soloSplash'
+  /** Seconds after a teleport to use it again and go back where you were, for free (Recall). */
+  | 'returnWindow'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -151,6 +155,7 @@ export const ABILITY_KEYS: ReadonlySet<ValueKey> = new Set<ValueKey>([
   'echo',
   'surplus',
   'autocast',
+  'whileCasting',
 ])
 
 export type EffectType =
@@ -254,6 +259,8 @@ export interface EffectSpec {
   restore?: number
   distance?: number
   mode?: 'dash' | 'teleport'
+  /** Seconds after a teleport to use it again and go back where you were, for free. */
+  returnWindow?: number
   /** Bloom's extra cost per ally healed. */
   extraCost?: number
   /** For buff effects. Its `stats.speed` is the effect's `speed` value. */
@@ -467,6 +474,8 @@ export interface AbilitySpec {
   range?: number
   /** Global cooldown it starts, in seconds. 0 = off the global cooldown (mobility). Default 1. */
   gcd?: number
+  /** Off the global cooldown, but not while you cast (Teleport). A `whileCasting` talent lifts it. */
+  notWhileCasting?: boolean
   /** A passive: its effects fire on this event instead of being cast. */
   passive?: { on: EventKind; match: Match }
   /** For an artifact whose resource is minions: what each one does (one minion per point of resource). */
@@ -510,6 +519,7 @@ export interface ResolvedEffect {
   damageReduction: number
   restore: number
   distance: number
+  returnWindow: number
   speed: number
   extraCost: number
   stacks: number
@@ -562,6 +572,8 @@ export interface ResolvedAbility {
   echo: number
   /** Above 0, it's passive: it goes off on its own every this many seconds, for free. */
   autocast: number
+  /** Can't be used while you cast. */
+  notWhileCasting: boolean
   passive?: { on: EventKind; match: Match }
   minion?: ResolvedEffect
   effects: ResolvedEffect[]

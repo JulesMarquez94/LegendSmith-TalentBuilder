@@ -1,6 +1,9 @@
 import type { CharStat, CharStats } from './types.ts'
 
-/** A level 60 hero with nothing equipped. Health matches the overview's character screen (2,400 + trinkets). */
+/**
+ * A level 60 hero with nothing equipped. Health matches the overview's character screen (2,400 +
+ * trinkets). Health and Power grow with level: see `levelShare` and `levelPower`.
+ */
 export const BASE_STATS: CharStats = {
   health: 2400,
   healthPct: 0,
@@ -46,7 +49,12 @@ export interface StatInfo {
 }
 
 export const STAT_INFO: Record<CharStat, StatInfo> = {
-  health: { label: 'Health', color: '#ffffff', unit: 'flat', help: 'Flat. Mostly from trinket item level.' },
+  health: {
+    label: 'Health',
+    color: '#ffffff',
+    unit: 'flat',
+    help: 'Flat. From your level (800 at level 1, 2,400 at 60) and trinket item level.',
+  },
   healthPct: {
     label: 'Max health',
     color: '#8fe3a0',
@@ -57,7 +65,7 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     label: 'Power',
     color: '#ffffff',
     unit: '%',
-    help: 'Raises every heal, shield and damage number. From trinket item level.',
+    help: 'Raises every heal, shield and damage number. From your level (+200% at 60) and trinket item level.',
   },
   haste: {
     label: 'Haste',

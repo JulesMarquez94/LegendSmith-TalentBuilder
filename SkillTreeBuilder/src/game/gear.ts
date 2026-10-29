@@ -112,8 +112,11 @@ export const uniqueName = (t: Trinket) => `${leanWord(t)}${pairName(t)}`
 
 export const trinketName = (t: Trinket) => `${leanWord(t)}${t.slot} of ${pairName(t)}`
 
-/** Power % from item level, as on the overview's item cards. */
-export const trinketPower = (t: Trinket) => Math.round(t.itemLevel * 0.105 * 10) / 10
+/**
+ * Power % from item level: the overview's item cards' 0.105 per item level, times three, since a level
+ * 60 hero's own +200% Power makes each point of it count a third as much.
+ */
+export const trinketPower = (t: Trinket) => Math.round(t.itemLevel * 0.315 * 10) / 10
 
 export const trinketHealth = (t: Trinket) => Math.round(t.itemLevel * 9.5)
 

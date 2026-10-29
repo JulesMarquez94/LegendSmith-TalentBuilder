@@ -1,24 +1,9 @@
 import { pct, sec, yd } from '../game/format.ts'
 import type { TreeDef } from '../talents/types.ts'
-import {
-  apply,
-  buff,
-  cooldown,
-  grant,
-  heal,
-  hot,
-  more,
-  plus,
-  proc,
-  restoreShare,
-  selfBuff,
-  shield,
-  stat,
-  talent,
-  zone,
-} from './authoring.ts'
+import { apply, buff, more, plus, proc, selfBuff, talent } from './authoring.ts'
 
-// Mobility for every role (B / Shift). Off the global cooldown, so they can be used mid-cast.
+// Mobility for every role (Shift). Off the global cooldown: Dash and Sprint work mid-cast, Teleport
+// only with Spellstride. Small trees, like the ultimate's: 9 ranks, 6 points to spend.
 // Their healing talents use the shared families (direct heal, HoT, zone, shield), so a healer's
 // other trees boost them too.
 
@@ -49,12 +34,13 @@ export const dash: TreeDef = {
       charges(a.charges),
   },
   talents: [
+    // Row 1
     talent({
       id: 'long-stride',
       name: 'Long Stride',
       row: 0,
       col: 0,
-      per: [2, 4, 6],
+      per: [3, 6],
       text: 'Dash goes {} yd farther.',
       does: (v) => [plus('distance', 'dash', v)],
     }),
@@ -62,84 +48,41 @@ export const dash: TreeDef = {
       id: 'quick-recovery',
       name: 'Quick Recovery',
       row: 0,
-      col: 1,
-      per: [1, 2, 3],
+      col: 2,
+      per: [1.5, 3],
       text: 'Dash recharges {} sec faster.',
       does: (v) => [plus('cooldown', 'dash', -v)],
     }),
+
+    // Row 2
     talent({
-      id: 'light-footed',
-      name: 'Light Footed',
+      id: 'fleetfoot',
+      name: 'Fleetfoot',
       row: 1,
       col: 0,
-      per: [2, 4],
-      text: 'You have +{}% dodge: that chance to avoid any hit completely.',
-      does: (v) => [stat('dodge', v)],
+      per: [20, 40],
+      text: 'Dash also makes you {}% faster for 3 sec.',
+      does: (v) => [proc('cast', 'dash', [buff({ id: 'fleetfoot', name: 'Fleetfoot', duration: 3, stats: { speed: v } })])],
     }),
     talent({
       id: 'triple-dash',
       name: 'Triple Dash',
       row: 1,
-      col: 1,
+      col: 2,
       requires: 'quick-recovery',
       text: 'Dash holds 1 more charge.',
       does: () => [plus('charges', 'dash', 1)],
     }),
-    talent({
-      id: 'mending-steps',
-      name: 'Mending Steps',
-      row: 1,
-      col: 2,
-      per: [400, 800],
-      text: 'Dashing past allies heals each of them for {}.',
-      does: (v) => [proc('cast', 'dash', [apply(heal(v, 'path', { name: 'Mending Steps' }))])],
-    }),
-    talent({
-      id: 'momentum',
-      name: 'Momentum',
-      row: 2,
-      col: 0,
-      per: [50, 100],
-      text: 'After Dash, your next heal within 5 sec casts {}% faster.',
-      does: (v) => [
-        proc('cast', 'dash', [
-          buff({
-            id: 'momentum',
-            name: 'Momentum',
-            duration: 5,
-            mods: [more('castTime', 'healing', -v)],
-            consumeOn: 'healing',
-          }),
-        ]),
-      ],
-    }),
-    talent({
-      id: 'trail-of-light',
-      name: 'Trail of Light',
-      row: 2,
-      col: 2,
-      requires: 'mending-steps',
-      text: 'Dash leaves a 5 yd healing zone where it started, healing 150 every sec for 4 sec.',
-      does: () => [proc('cast', 'dash', [apply(zone(150, 4, 1, 5, 'origin', { name: 'Trail of Light' }))])],
-    }),
+
+    // Row 3
     talent({
       id: 'evasion',
       name: 'Evasion',
-      row: 3,
-      col: 0,
-      requires: 'momentum',
+      row: 2,
+      col: 1,
       per: [25, 50],
       text: 'After Dash, you have +{}% dodge for 2 sec.',
       does: (v) => [proc('cast', 'dash', [buff({ id: 'evasion', name: 'Evasion', duration: 2, stats: { dodge: v } })])],
-    }),
-    talent({
-      id: 'fleetfoot',
-      name: 'Fleetfoot',
-      row: 3,
-      col: 3,
-      per: [20, 40],
-      text: 'Dash also makes you {}% faster for 3 sec.',
-      does: (v) => [proc('cast', 'dash', [buff({ id: 'fleetfoot', name: 'Fleetfoot', duration: 3, stats: { speed: v } })])],
     }),
   ],
 }
@@ -155,107 +98,72 @@ export const teleport: TreeDef = {
     castTime: 'Instant',
     range: '15 yd',
     cooldown: '15 sec cooldown',
-    description: 'Teleport a longer way in the direction you are moving.',
+    description: 'Teleport a longer way in the direction you are moving. Not while casting.',
   },
   spec: {
     gcd: 0,
     cooldown: 15,
+    notWhileCasting: true,
     effects: [{ type: 'move', mode: 'teleport', distance: 15 }],
-    text: (a) =>
-      `Teleport ${yd(a.effects[0].distance)} yd in the direction you are moving (or toward your crosshair).` +
-      charges(a.charges),
+    text: (a) => {
+      const e = a.effects[0]
+      return (
+        `Teleport ${yd(e.distance)} yd in the direction you are moving (or toward your crosshair).` +
+        charges(a.charges) +
+        (e.returnWindow > 0 ? ` Teleport again within ${sec(e.returnWindow)} sec to go back where you were, for free.` : '') +
+        (a.notWhileCasting ? ' Not while casting.' : ' Works while casting: the cast goes on.')
+      )
+    },
   },
   talents: [
-    talent({
-      id: 'far-reach',
-      name: 'Far Reach',
-      row: 0,
-      col: 0,
-      per: [3, 6, 9],
-      text: 'Teleport goes {} yd farther.',
-      does: (v) => [plus('distance', 'teleport', v)],
-    }),
+    // Row 1
     talent({
       id: 'phase-shift',
       name: 'Phase Shift',
       row: 0,
-      col: 2,
+      col: 0,
       per: [1.5, 3, 4.5],
       text: "Teleport's cooldown is {} sec shorter.",
       does: (v) => [plus('cooldown', 'teleport', -v)],
     }),
     talent({
-      id: 'arcane-recovery',
-      name: 'Arcane Recovery',
-      row: 1,
-      col: 0,
-      per: [3, 6],
-      text: 'Teleport gives you back {}% of your maximum @resource.',
-      does: (v) => [proc('cast', 'teleport', [restoreShare(v)])],
+      id: 'far-reach',
+      name: 'Far Reach',
+      row: 0,
+      col: 2,
+      per: [3, 6, 9],
+      text: 'Teleport goes {} yd farther.',
+      does: (v) => [plus('distance', 'teleport', v)],
     }),
+
+    // Row 2
     talent({
       id: 'double-blink',
       name: 'Double Blink',
       row: 1,
-      col: 2,
+      col: 0,
       requires: 'phase-shift',
-      text: 'Teleport holds 2 charges.',
-      does: () => [plus('charges', 'teleport', 1)],
+      text: 'Teleport holds 2 charges, but each takes 50% longer to come back.',
+      does: () => [plus('charges', 'teleport', 1), more('cooldown', 'teleport', 50)],
     }),
     talent({
-      id: 'guardian-gate',
-      name: 'Guardian Gate',
+      id: 'spellstride',
+      name: 'Spellstride',
       row: 1,
       col: 3,
-      per: [1200, 2400],
-      text: 'Teleport shields you for {} for 6 sec.',
-      does: (v) => [proc('cast', 'teleport', [apply(shield(v, 6, 'self', { name: 'Guardian Gate' }))])],
+      text: 'You can Teleport while casting, and the cast goes on.',
+      does: () => [plus('whileCasting', 'teleport', 1)],
     }),
+
+    // Row 3
     talent({
-      id: 'sanctum-gate',
-      name: 'Sanctum Gate',
+      id: 'recall',
+      name: 'Recall',
       row: 2,
-      col: 1,
-      requires: 'far-reach',
-      text: 'Teleport leaves an 8 yd healing zone where you were, healing 200 every sec for 6 sec.',
-      does: () => [proc('cast', 'teleport', [apply(zone(200, 6, 1, 8, 'origin', { name: 'Sanctum Gate' }))])],
-    }),
-    talent({
-      id: 'blink-heal',
-      name: 'Blink Heal',
-      row: 2,
-      col: 3,
-      per: [50, 100],
-      text: 'After Teleport, your next direct heal within 6 sec costs {}% less.',
-      does: (v) => [
-        proc('cast', 'teleport', [
-          buff({
-            id: 'blink-heal',
-            name: 'Blink Heal',
-            duration: 6,
-            mods: [more('cost', 'direct-heal', -v)],
-            consumeOn: 'direct-heal',
-          }),
-        ]),
-      ],
-    }),
-    talent({
-      id: 'rift-walker',
-      name: 'Rift Walker',
-      row: 3,
-      col: 1,
-      requires: 'sanctum-gate',
-      text: 'Teleport also leaves the same healing zone where you arrive.',
-      does: () => [proc('cast', 'teleport', [apply(zone(200, 6, 1, 8, 'self', { name: 'Rift Walker' }))])],
-    }),
-    talent({
-      id: 'displacement',
-      name: 'Displacement',
-      row: 3,
       col: 2,
-      per: [3, 6, 9],
-      text: "Teleport takes {} sec off your ultimate's cooldown.",
-      does: (v) => [proc('cast', 'teleport', [cooldown('cooldown', v)])],
+      requires: 'far-reach',
+      text: 'After you Teleport, Teleport again within 4 sec to go back where you were, for free.',
+      does: () => [plus('returnWindow', 'teleport', 4)],
     }),
   ],
 }
@@ -283,6 +191,7 @@ export const sprint: TreeDef = {
     },
   },
   talents: [
+    // Row 1
     talent({
       id: 'fleet',
       name: 'Fleet',
@@ -297,7 +206,7 @@ export const sprint: TreeDef = {
       name: 'Stamina',
       row: 0,
       col: 1,
-      per: [1, 2, 3],
+      per: [1.5, 3],
       text: 'Sprint lasts {} sec longer.',
       does: (v) => [plus('duration', 'sprint', v)],
     }),
@@ -310,33 +219,13 @@ export const sprint: TreeDef = {
       text: "Sprint's cooldown is {} sec shorter.",
       does: (v) => [plus('cooldown', 'sprint', -v)],
     }),
-    talent({
-      id: 'second-breath',
-      name: 'Second Breath',
-      row: 1,
-      col: 0,
-      per: [0.4, 0.8],
-      text: 'While sprinting, you regenerate {}% of your maximum @resource more per sec.',
-      does: (v) => [
-        proc('cast', 'sprint', [
-          apply(selfBuff({ id: 'second-breath', name: 'Second Breath', duration: 4, stats: { resourceRegenPct: v } })),
-        ]),
-      ],
-    }),
-    talent({
-      id: 'rejuvenating-run',
-      name: 'Rejuvenating Run',
-      row: 1,
-      col: 2,
-      text: 'Sprint also heals you for 500 every sec while it lasts.',
-      does: () => [grant('sprint', hot(500, 4, 1, 'self', { name: 'Rejuvenating Run' }))],
-    }),
+
+    // Row 2
     talent({
       id: 'unstoppable',
       name: 'Unstoppable',
-      row: 2,
+      row: 1,
       col: 0,
-      requires: 'second-breath',
       per: [10, 20],
       text: 'While sprinting, you take {}% less damage.',
       does: (v) => [
@@ -345,40 +234,16 @@ export const sprint: TreeDef = {
         ]),
       ],
     }),
-    talent({
-      id: 'pace-setter',
-      name: 'Pace Setter',
-      row: 2,
-      col: 2,
-      per: [15, 30],
-      text: 'While sprinting, your heals cast {}% faster.',
-      does: (v) => [
-        proc('cast', 'sprint', [
-          apply(
-            selfBuff({ id: 'pace-setter', name: 'Pace Setter', duration: 4, mods: [more('castTime', 'healing', -v)] }),
-          ),
-        ]),
-      ],
-    }),
+
+    // Row 3
     talent({
       id: 'marathon',
       name: 'Marathon',
-      row: 3,
+      row: 2,
       col: 1,
       requires: 'stamina',
       text: 'Sprint holds 2 charges.',
       does: () => [plus('charges', 'sprint', 1)],
-    }),
-    talent({
-      id: 'relay',
-      name: 'Relay',
-      row: 3,
-      col: 3,
-      per: [1, 2, 3],
-      text: 'Sprint adds {} sec to your heal-over-time effects on allies within 10 yd.',
-      does: (v) => [
-        proc('cast', 'sprint', [{ do: 'extend', match: 'hot', seconds: v, scope: 'near', radius: 10 }]),
-      ],
     }),
   ],
 }

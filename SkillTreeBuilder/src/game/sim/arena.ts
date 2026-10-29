@@ -1,5 +1,6 @@
 import { int } from '../format.ts'
 import { comboStrength, matches, spendStrength, tickAmount, type Kit, type ResolvedProc } from '../resolve.ts'
+import { LEVEL_GROWTH } from '../../talents/levels.ts'
 import { RUN_SPEED } from '../stats.ts'
 import type {
   Action,
@@ -35,6 +36,8 @@ const SHIELD_CAP = 0.5
 /** Presses are remembered this long, so a key hit just before a cast ends still goes off (like WoW's spell queue). */
 const QUEUE_WINDOW = 0.35
 const DASH_TIME = 0.15
+/** The buff that shows a teleport's return window. */
+const RECALL = 'recall'
 /** Adds swing at the tank this often. */
 const ADD_SWING = 2
 
@@ -414,6 +417,13 @@ export class Arena {
   facing: Vec = { x: 0, y: -1 }
   aim: Vec | null = null
   dashing: { from: Vec; to: Vec; start: number } | null = null
+  /** Where a teleport with a return window takes you back to, and until when (Recall). */
+  recall: { treeId: string; pos: Vec; until: number } | null = null
+  /**
+   * Fights are written for level 60. At a lower level the boss, its adds, the bots and every hit you
+   * take shrink with your Health and power (`levelShare`), so a fight is as hard at any level.
+   */
+  private readonly share: number
   stackUntil = 0
   ended: 'victory' | 'wipe' | null = null
   notice: { text: string; t: number } | null = null
@@ -447,6 +457,7 @@ export class Arena {
 
   constructor(kit: Kit, scenario: Scenario, options: Partial<ArenaOptions> = {}) {
     this.kit = kit
+    this.share = kit.levelShare
     this.scenario = scenario
     this.options = { damageScale: 1, noDeaths: scenario.noDeaths, seed: 1, ...options }
     this.rng = mulberry32(this.options.seed)
@@ -470,7 +481,7 @@ export class Arena {
       const seat = [...party].reverse().find((t) => t.role === 'damage')
       if (seat) Object.assign(seat, { name: 'Bot healer', role: 'healer', dps: 1000 })
     }
-    for (const t of party) this.makeAlly(t.name, t.role, t.maxHp, t.home, t.dps, false)
+    for (const t of party) this.makeAlly(t.name, t.role, t.maxHp * this.share, t.home, t.dps * this.share, false)
     this.applyBotHealth()
     for (const a of this.allies) a.hp = a.maxHp * scenario.startHealth
     this.enemies.push(this.makeEnemy(scenario.boss.name, { ...ARENA.boss }, scenario.boss.maxHp, ARENA.bossRadius, true))
@@ -519,8 +530,8 @@ export class Arena {
       name,
       pos: { ...pos },
       radius,
-      maxHp,
-      hp: maxHp,
+      maxHp: maxHp * this.share,
+      hp: maxHp * this.share,
       alive: true,
       isBoss,
       dots: [],
@@ -711,6 +722,12 @@ export class Arena {
     if (!this.player.alive) return 'You are dead'
     const offGcd = base.gcd === 0
     if (!offGcd && (this.cast || this.time < this.gcdUntil)) return 'busy'
+    if (this.cast && base.notWhileCasting) return `You can't use ${base.name} while casting`
+    // Used again inside its return window, a teleport takes you back where you came from, for free.
+    if (this.recall?.treeId === base.treeId && this.time < this.recall.until) {
+      this.goBack(this.recall.pos)
+      return 'ok'
+    }
     const cd = this.cooldowns.get(base.treeId)
     if (cd && cd.charges < 1) return `${base.name} isn't ready yet`
     let a = this.current(slot)!
@@ -1249,7 +1266,25 @@ export class Arena {
       p.pos = to
       this.ring(from, 1.5, '#b79cff')
       this.ring(to, 1.5, '#b79cff')
+      if (e.returnWindow > 0 && ctx.ability) {
+        this.recall = { treeId: ctx.ability.treeId, pos: from, until: this.time + e.returnWindow }
+        // Shown with your buffs, so you can see how long you have to go back.
+        this.addBuff({ id: RECALL, name: 'Recall', duration: e.returnWindow }, false)
+      }
     } else this.dashing = { from, to, start: this.time }
+    this.beam(from, to, '#c6d0ff')
+  }
+
+  /** Recall: back to where the last teleport started. */
+  private goBack(to: Vec) {
+    const p = this.player
+    const from = { ...p.pos }
+    p.pos = to
+    this.dashing = null
+    this.recall = null
+    this.buffs = this.buffs.filter((b) => b.id !== RECALL)
+    this.ring(from, 1.5, '#b79cff')
+    this.ring(to, 1.5, '#b79cff')
     this.beam(from, to, '#c6d0ff')
   }
 
@@ -2128,7 +2163,7 @@ export class Arena {
         const target = this.byHealth(alive)[0]
         if (!healer || !target) break
         const received = target.isPlayer ? this.stats().healingTaken : (this.groupStats().healingTaken ?? 0)
-        const amount = ev.amount * (1 + received / 100)
+        const amount = ev.amount * this.share * (1 + received / 100)
         target.hp = Math.min(target.maxHp, target.hp + amount)
         this.text(target.pos, `+${int(amount)}`, '#9aa79d', false)
         break
@@ -2165,7 +2200,8 @@ export class Arena {
   /** Bots hit adds before the boss; adds swing at the tank. */
   private updateEnemies(dt: number) {
     const group = this.groupStats()
-    const botBoost = 1 + ((group.haste ?? 0) + (group.power ?? 0)) / 100 + (group.crit ?? 0) / 200
+    // Power is written three times over (a level 60 hero's own +200% shrinks each point), so a third for bots.
+    const botBoost = 1 + ((group.haste ?? 0) + (group.power ?? 0) / LEVEL_GROWTH) / 100 + (group.crit ?? 0) / 200
     const dps = this.allies.reduce((sum, a) => (a.alive && !a.isPlayer ? sum + a.dps : sum), 0) * botBoost
     const adds = this.enemies.filter((e) => e.alive && !e.isBoss && Number.isFinite(e.hp))
     const target = adds[0] ?? (this.boss.alive ? this.boss : null)
@@ -2190,8 +2226,9 @@ export class Arena {
    * `quiet` is for steady drains: no numbers, and no dodging them. `swing` is the enemy whose melee
    * swing this is: you can parry those.
    */
-  private damage(a: Ally, amount: number, source: string, quiet = false, swing?: Enemy) {
-    if (!a.alive || amount <= 0) return
+  private damage(a: Ally, written: number, source: string, quiet = false, swing?: Enemy) {
+    if (!a.alive || written <= 0) return
+    const amount = written * this.share
     const group = this.groupStats()
     const parry = swing && a.isPlayer ? this.stats().parry : 0
     if (this.decks.draw('parry', parry)) {

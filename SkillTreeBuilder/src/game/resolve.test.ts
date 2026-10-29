@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { TREES } from '../trees/index.ts'
 import { chainTotal, periodicTotal, reach } from './resolve.ts'
-import { abilityIn, healerKit } from './testkit.ts'
+import { lifewardenStaff } from '../trees/healer/staff.ts'
+import { Arena } from './sim/arena.ts'
+import { SCENARIOS } from './sim/scenarios.ts'
+import { abilityIn, healerKit, kitFor } from './testkit.ts'
 
 const SLOTS = ['mend', 'renew', 'healing-rain', 'lifetide', 'dash']
 
@@ -40,7 +43,8 @@ describe('gear', () => {
   it('raises heals with Power and speeds casts and ticks with Haste', () => {
     const kit = healerKit(SLOTS, {}, { Ring: { slot: 'Ring', rarity: 'epic', itemLevel: 120, stats: ['haste', 'crit'] } })
     const mend = abilityIn(kit, 'mend')
-    expect(kit.character.stats.power).toBe(12.6)
+    // Level 60's own +200%, and the ring's 37.8%: worth 12.6% on top of level 60's numbers.
+    expect(kit.character.stats.power).toBe(237.8)
     expect(mend.effects[0].amount).toBeCloseTo(1800 * 1.126)
     expect(mend.castTime).toBeCloseTo(1.5 / 1.04)
     expect(mend.effects[0].critChance).toBe(9)
@@ -125,5 +129,26 @@ describe('talents reach across trees by family', () => {
     const kit = healerKit(SLOTS, { 'lifewarden-staff': { 'deep-reserves': 2, meditation: 2 } })
     expect(kit.character.stats.maxResource).toBe(1300)
     expect(kit.character.lines.resourceRegen).toMatchObject({ base: 8, talents: 3, total: 11 })
+  })
+})
+
+describe('levels', () => {
+  const at = (level: number) => kitFor(lifewardenStaff, SLOTS, {}, {}, level)
+
+  it('grow Health and Power from a third at level 1 to all of it at 60', () => {
+    expect([1, 30, 60].map((l) => at(l).character.stats.health)).toEqual([800, 1586, 2400])
+    expect([1, 30, 60].map((l) => at(l).character.stats.power)).toEqual([0, 98.3, 200])
+    expect(abilityIn(at(1), 'mend').effects[0].amount).toBeCloseTo(600)
+    expect(abilityIn(at(60), 'mend').effects[0].amount).toBeCloseTo(1800)
+  })
+
+  it('scale the arena with you: the boss, the bots and every hit you take', () => {
+    const scenario = SCENARIOS.find((s) => s.id === 'dungeon')!
+    const low = new Arena(at(1), scenario, { seed: 1 })
+    const high = new Arena(at(60), scenario, { seed: 1 })
+    expect(low.boss.maxHp).toBeCloseTo(high.boss.maxHp / 3)
+    const bot = (a: Arena) => a.allies.find((x) => !x.isPlayer)!.maxHp
+    expect(bot(low)).toBeCloseTo(bot(high) / 3)
+    expect(low.player.maxHp).toBe(800)
   })
 })

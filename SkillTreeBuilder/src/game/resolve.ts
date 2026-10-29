@@ -2,6 +2,7 @@ import type { Ranks } from '../talents/rules.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
 import { gearTotals, type Gear } from './gear.ts'
 import { int, pct } from './format.ts'
+import { LEVEL_GROWTH, levelPower, levelShare, MAX_LEVEL } from '../talents/levels.ts'
 import { BASE_STATS, MIN_GCD } from './stats.ts'
 import {
   ABILITY_KEYS,
@@ -103,6 +104,8 @@ export interface BuildInput {
   gear: Gear
   /** Every tree, for abilities a talent fires while they aren't slotted. */
   catalog: readonly TreeDef[]
+  /** 1 to 60, 60 if left out: it sets your Health and part of your Power. */
+  level?: number
 }
 
 export interface Kit {
@@ -111,6 +114,9 @@ export interface Kit {
   role: ArtifactDef['role']
   /** Resource a fight starts with. */
   resourceStart: number
+  level: number
+  /** The level's share of level 60's strength: the arena scales its fights by it. */
+  levelShare: number
   character: CharacterSheet
   /** What your group buff gives everyone in your group, you included. */
   groupStats: Partial<CharStats>
@@ -164,8 +170,12 @@ export function computeCharacter(
   const gear = gearTotals(input.gear)
   const stats = { ...BASE_STATS }
   const lines = {} as Record<CharStat, StatLine>
+  const level = input.level ?? MAX_LEVEL
+  // Health and Power grow with level; the rest is the same at every level.
+  const forLevel = (stat: CharStat) =>
+    stat === 'health' ? Math.round(BASE_STATS.health * levelShare(level)) : stat === 'power' ? levelPower(level) : BASE_STATS[stat]
   for (const stat of Object.keys(BASE_STATS) as CharStat[]) {
-    const base = BASE_STATS[stat] + (input.artifact.stats?.[stat] ?? 0)
+    const base = forLevel(stat) + (input.artifact.stats?.[stat] ?? 0)
     const fromGear = gear[stat] ?? 0
     const talents = mechanics.reduce((sum, m) => (m.kind === 'stat' && m.stat === stat ? sum + m.add : sum), 0)
     const group = groupStats[stat] ?? 0
@@ -236,7 +246,8 @@ function resolveEffectWith(
   const tags = effectTags(tree, effect)
   const get = (key: ValueKey) => sum(mods, key, tags, stats)
 
-  const power = POWERED.has(family) ? 1 + stats.power / 100 : 1
+  // Numbers are written for level 60, whose level alone gives +200% Power: a third of it is the base.
+  const power = POWERED.has(family) ? (1 + stats.power / 100) / LEVEL_GROWTH : 1
   const durationMods = effect.fixedDuration ? { add: 0, pct: 0 } : get('duration')
   const potency = POTENT.has(family) && !effect.fixedDuration ? stats.potency : 0
   const duration = Math.max(0, (effect.duration ?? 0) + durationMods.add) * (1 + (durationMods.pct + potency) / 100)
@@ -271,6 +282,7 @@ function resolveEffectWith(
     damageReduction: Math.min(90, (effect.damageReduction ?? 0) + get('damageReduction').add),
     restore: Math.max(0, scaled((effect.restore ?? 0) * unit, get('restore'))),
     distance: Math.max(0, scaled(effect.distance ?? 0, get('distance'))),
+    returnWindow: Math.max(0, (effect.returnWindow ?? 0) + get('returnWindow').add),
     speed: Math.max(0, scaled(speedBase, get('speed'))),
     extraCost: Math.max(0, scaled((effect.extraCost ?? 0) * unit, get('extraCost'))),
     stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
@@ -346,6 +358,7 @@ function resolveAbilityWith(
     // Echo repeats casts; a second dash or teleport would read as a bug, so movement never echoes.
     echo: spec.passive || moves ? 0 : Math.max(0, stats.echo + get('echo').add),
     autocast: Math.max(0, scaled(0, get('autocast'))),
+    notWhileCasting: !!spec.notWhileCasting && get('whileCasting').add <= 0,
     passive: spec.passive,
     minion: spec.minion ? resolveEffectWith(tree, spec.minion, -1, stats, mods, 'minion') : undefined,
     effects: effects.map(({ effect, granted }, i) =>
@@ -416,6 +429,8 @@ export function buildKit(input: BuildInput): Kit {
     resource: input.artifact.resource,
     role: input.artifact.role,
     resourceStart: input.artifact.resourceStart ?? character.stats.maxResource,
+    level: input.level ?? MAX_LEVEL,
+    levelShare: levelShare(input.level ?? MAX_LEVEL),
     character,
     groupStats,
     minion: slots[0]?.minion ?? null,

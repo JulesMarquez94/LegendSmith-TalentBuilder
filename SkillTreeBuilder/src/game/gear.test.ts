@@ -22,8 +22,8 @@ describe('trinkets', () => {
     expect(uniqueName({ ...ring, stats: ['crit', 'haste'] })).toBe('Peerlessness')
   })
 
-  it('get Power and Health from item level, as on the overview card', () => {
-    expect(trinketPower(ring)).toBe(12.4)
+  it("get Power (three times the overview card's, for level 60's own +200%) and Health from item level", () => {
+    expect(trinketPower(ring)).toBe(37.2)
     expect(trinketHealth(ring)).toBe(1121)
   })
 
@@ -35,7 +35,7 @@ describe('trinkets', () => {
 
   it('add up, with rarity setting the two stats', () => {
     const totals = gearTotals({ Ring: ring, Necklace: { slot: 'Necklace', rarity: 'common', itemLevel: 50, stats: ['haste', 'potency'] } })
-    expect(totals).toMatchObject({ haste: 5, crit: 4, potency: 1, power: 17.7 })
+    expect(totals).toMatchObject({ haste: 5, crit: 4, potency: 1, power: 53 })
   })
 })
 

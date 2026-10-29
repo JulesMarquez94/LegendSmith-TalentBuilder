@@ -22,14 +22,14 @@ describe('tree data', () => {
     expect(validateCatalog(TREES, ARTIFACTS, STARTING_LOADOUT)).toEqual([])
   })
 
-  it('gives every tree 18 ranks (an ultimate or group buff 9), more than it can take, so the cap forces choices', () => {
+  it('gives every tree 18 ranks (an ultimate, mobility or group buff 9), more than it can take, so the cap forces choices', () => {
     for (const tree of TREES) {
       expect(treeRanks(tree), tree.id).toBe(isSmallTree(tree) ? SMALL_RANKS : TREE_RANKS)
       expect(treeRanks(tree), tree.id).toBeGreaterThan(capFor(tree, POINT_RULES))
     }
   })
 
-  it('keeps every talent of a small tree within reach of its 5 points', () => {
+  it('keeps every talent of a small tree within reach of its points', () => {
     for (const tree of TREES.filter(isSmallTree)) {
       for (const t of tree.talents) {
         expect(t.row * tree.pointsPerRow, `${tree.id}/${t.id}`).toBeLessThan(capFor(tree, POINT_RULES))
