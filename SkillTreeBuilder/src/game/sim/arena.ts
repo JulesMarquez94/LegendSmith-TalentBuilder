@@ -42,6 +42,10 @@ const DOOM = 'impending-doom'
 const METEOR_RADIUS = 5
 /** How far a bursting DoT's splash reaches (Rot Bomb). */
 const BURST_RADIUS = 8
+/** How far a falling summon's explosion reaches (Corpse Explosion). */
+const EXPLODE_RADIUS = 6
+/** Most attacks Mounting Fury counts. */
+const FURY_STACKS = 10
 /** Adds swing at the tank this often. */
 const ADD_SWING = 2
 
@@ -215,6 +219,8 @@ export interface Imp {
 /** A minion an ability raised (a ghoul): it fights on its own until its time runs out. */
 export interface Summon {
   id: number
+  /** Attacks made so far, up to 10: each one adds its Mounting Fury. */
+  attacks: number
   /** Minion attack-speed buffs (`tickRate`) and your ultimate's haste when it was raised, already in its pace. */
   tick0: number
   ultHaste0: number
@@ -1425,6 +1431,9 @@ export class Arena {
         for (const imp of this.imps) imp.endsAt += action.seconds
         for (const s of this.summons) s.endsAt += action.seconds
         break
+      case 'extendSummons':
+        for (const s of this.summons) if (matches(action.match, s.effect.tags)) s.endsAt += action.seconds
+        break
       case 'curseStack': {
         const c = (ev.enemy ?? ev.ctx.eventEnemy)?.curses.find((x) => matches(action.match, x.effect.tags))
         if (c) c.stacks = Math.min(c.effect.stacks, c.stacks + action.stacks)
@@ -1955,6 +1964,7 @@ export class Arena {
     if (same.length >= e.max) this.dismiss(same[0])
     const s: Summon = {
       id: this.nextId++,
+      attacks: 0,
       tick0: this.buffTick(e.tags),
       ultHaste0: this.ultimateHaste(),
       key: e.key,
@@ -1975,6 +1985,7 @@ export class Arena {
     const target = this.mainTarget(ENEMY_RANGE)
     this.ring(this.summonPos(s), 1.2, s.effect.color)
     this.emit({ kind: 'expire', tags: s.effect.tags, ctx: this.summonContext(s, target), enemy: target ?? undefined })
+    if (target && this.player.alive && (s.effect.explode > 0 || s.effect.explodeLeft > 0)) this.explode(s, target)
     if (s.effect.empower <= 0) this.minionFell()
     else if (!this.lords().length) this.buffs = this.buffs.filter((b) => b.id !== DOOM)
   }
@@ -2002,11 +2013,14 @@ export class Arena {
         const target = this.mainTarget(ENEMY_RANGE)
         if (!target) continue
         this.beam(this.summonPos(s), target.pos, s.effect.color)
-        this.hitEnemy(target, s.effect.amount, s.effect, this.summonContext(s, target), { label: s.name, quiet: true })
+        // Mounting Fury: more for every attack it has made so far, up to 10.
+        const amount = s.effect.amount * (1 + (s.effect.fury * s.attacks) / 100)
+        s.attacks = Math.min(FURY_STACKS, s.attacks + 1)
+        this.hitEnemy(target, amount, s.effect, this.summonContext(s, target), { label: s.name, quiet: true })
         // A volley (the Overlord's) hits every other enemy that close to its target too.
         if (s.effect.radius > 0) {
           const near = this.enemies.filter((x) => x !== target && x.alive && dist(x.pos, target.pos) <= s.effect.radius + x.radius)
-          for (const x of near) this.hitEnemy(x, s.effect.amount, s.effect, this.summonContext(s, x), { label: s.name, quiet: true })
+          for (const x of near) this.hitEnemy(x, amount, s.effect, this.summonContext(s, x), { label: s.name, quiet: true })
         }
         if (s.effect.sustain > 0) {
           for (const imp of this.imps) imp.endsAt += s.effect.sustain
@@ -2014,6 +2028,19 @@ export class Arena {
         }
       }
     }
+  }
+
+  /**
+   * A falling summon's explosion (Corpse Explosion): its damage on every enemy within 6 yd of its
+   * target, plus, for each second it had left, damage shared out among them (Volatile Remains).
+   */
+  private explode(s: Summon, target: Enemy) {
+    const hit = this.enemies.filter((x) => x.alive && dist(x.pos, target.pos) <= EXPLODE_RADIUS + x.radius)
+    if (!hit.length) return
+    const left = Math.max(0, s.endsAt - this.time)
+    const each = s.effect.explode + (s.effect.explodeLeft * left) / hit.length
+    this.ring(target.pos, EXPLODE_RADIUS, s.effect.color)
+    for (const x of hit) this.hitEnemy(x, each, s.effect, this.summonContext(s, x), { label: 'Corpse Explosion', secondary: true })
   }
 
   /**

@@ -3,7 +3,7 @@ import type { TreeDef } from '../talents/types.ts'
 import { apply, buff, more, plus, proc, selfBuff, talent } from './authoring.ts'
 
 // Mobility for every role (Shift). Off the global cooldown: Dash and Sprint work mid-cast, Teleport
-// only with Spellstride. Small trees, like the ultimate's: 9 ranks, 6 points to spend.
+// only with Spellstride. Small trees, like the ultimate's: 9 ranks, 5 points to spend.
 // Their healing talents use the shared families (direct heal, HoT, zone, shield), so a healer's
 // other trees boost them too.
 

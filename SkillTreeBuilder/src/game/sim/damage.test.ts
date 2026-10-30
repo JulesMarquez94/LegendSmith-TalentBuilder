@@ -758,11 +758,11 @@ describe('Doom Bolt absorbing', () => {
     arena.resource = 30
     cast(arena, 2)
     expect(arena.summons).toHaveLength(0)
-    // 2% of the bolt for each second the ghoul had left (about 20 sec minus the bolt's cast).
+    // 2% of the bolt for each second the ghoul had left (about 24 sec minus the bolt's cast).
     const bolt = damageOf(arena, 'Doom Bolt')!.damage
     const feast = damageOf(arena, 'Soul Feast')!.damage
-    expect(feast / bolt).toBeGreaterThan(0.3)
-    expect(feast / bolt).toBeLessThan(0.4)
+    expect(feast / bolt).toBeGreaterThan(0.38)
+    expect(feast / bolt).toBeLessThan(0.48)
   })
 
   it('eats your zones with Collapse', () => {
@@ -959,36 +959,105 @@ describe('Festering Wound', () => {
 describe('Raise Ghoul', () => {
   it('raises ghouls that fight on their own, up to 3, and fall when their time runs out', () => {
     const kit = noCrits(kitFor(artifact('ashwood-longbow'), ['raise-ghoul', null, null, null, null, null]))
+    expect(kit.slots[1]).toMatchObject({ cost: 30, castTime: 2 })
+    expect(kit.slots[1]!.effects[0]).toMatchObject({ type: 'summon', amount: 150, interval: 2, duration: 24, max: 3 })
     const arena = new Arena(kit, DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 30 }
+    // Raise Ghoul costs 3, so 30 focus each on the bow.
     arena.resource = 100
-    for (let i = 0; i < 4; i++) cast(arena, 1)
-    // The 4th replaced the oldest. Raise Ghoul costs 2, so 20 focus each on the bow.
+    for (let i = 0; i < 3; i++) cast(arena, 1)
+    expect(arena.resource).toBe(10)
+    arena.resource = 30
+    cast(arena, 1)
+    // The 4th replaced the oldest.
     expect(arena.summons).toHaveLength(3)
-    expect(arena.resource).toBe(20)
     run(arena, 6)
     expect(damageOf(arena, 'Ghoul')?.damage).toBeGreaterThan(0)
-    expect(damageOf(arena, 'Ghoul')!.damage % 90).toBe(0)
-    run(arena, 20)
+    expect(damageOf(arena, 'Ghoul')!.damage % 150).toBe(0)
+    run(arena, 24)
     expect(arena.summons).toHaveLength(0)
   })
 
-  it('works its talents: more ghouls, Grave Rot, and Corpse Explosion when one falls', () => {
+  it('lasts longer, raises more and casts faster with its talents', () => {
+    const kit = kitFor(book, ['raise-ghoul', null, null, null, null, null], {
+      'raise-ghoul': { 'grave-patience': 2, horde: 2, 'quick-rites': 2 },
+    })
+    expect(kit.slots[1]!.castTime).toBeCloseTo(1.5)
+    expect(kit.slots[1]!.effects[0]).toMatchObject({ type: 'summon', max: 5, duration: 32 })
+  })
+
+  it('attacks sooner with Frenzied Claws, and harder each attack with Mounting Fury, up to 10', () => {
     const kit = noCrits(
       kitFor(book, ['raise-ghoul', null, null, null, null, null], {
-        'raise-ghoul': { 'grave-pact': 1, horde: 1, 'rotting-claws': 1, 'corpse-explosion': 1 },
+        'raise-ghoul': { 'unholy-might': 3, 'frenzied-claws': 2, 'mounting-fury': 2 },
       }),
     )
     const ghoul = kit.slots[1]!.effects[0]
-    expect(ghoul).toMatchObject({ type: 'summon', max: 4, duration: 24.5 })
+    expect(ghoul.interval).toBeCloseTo(1.5)
+    expect(ghoul.amount).toBeCloseTo(150 * 1.18)
+    expect(ghoul.fury).toBe(4)
     const arena = new Arena(kit, DUMMIES, { seed: 1 })
     arena.player.pos = { x: 30, y: 30 }
-    arena.resource = 10
+    arena.resource = 3
     cast(arena, 1)
-    run(arena, 3)
-    expect(damageOf(arena, 'Grave Rot')?.hits).toBeGreaterThan(0)
-    run(arena, 22)
-    expect(damageOf(arena, 'Corpse Explosion')?.hits).toBeGreaterThan(0)
+    run(arena, 20)
+    const row = damageOf(arena, 'Ghoul')!
+    expect(row.hits).toBeGreaterThan(11)
+    let expected = 0
+    for (let k = 0; k < row.hits; k++) expected += ghoul.amount * (1 + (4 * Math.min(k, 10)) / 100)
+    expect(row.damage).toBeCloseTo(expected, 0)
+  })
+
+  it('keeps your ghouls up longer when you crit, with Undying Hunger', () => {
+    const kit = kitFor(book, ['raise-ghoul', null, null, null, null, null], {
+      'raise-ghoul': { 'quick-rites': 2, 'undying-hunger': 2 },
+    })
+    // Every ghoul attack crits.
+    const slot = kit.slots[1]!
+    const crits: Kit = {
+      ...kit,
+      slots: kit.slots.map((a) => (a === slot ? { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 100 })) } : a)),
+    }
+    const arena = new Arena(crits, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 3
+    cast(arena, 1)
+    const raised = arena.time
+    // Attacks at 0.5, 2.5 and 4.5 sec: three crits, half a second each.
+    run(arena, 5)
+    expect(arena.summons[0].endsAt - raised).toBeCloseTo(24 + 1.5, 1)
+  })
+
+  it('explodes when a ghoul falls, harder for the time it had left with Volatile Remains', () => {
+    const kit = noCrits(
+      kitFor(book, ['raise-ghoul', null, null, null, null, null], {
+        'raise-ghoul': { 'grave-patience': 2, horde: 2, 'corpse-explosion': 2, 'volatile-remains': 1 },
+      }),
+    )
+    const ghoul = kit.slots[1]!.effects[0]
+    expect(ghoul).toMatchObject({ max: 5, explode: 300, explodeLeft: 60 })
+    const arena = new Arena(kit, DUMMIES, { seed: 1 })
+    arena.player.pos = { x: 30, y: 30 }
+    arena.resource = 15
+    for (let i = 0; i < 5; i++) cast(arena, 1)
+    expect(damageOf(arena, 'Corpse Explosion')).toBeUndefined()
+    // A 6th replaces the oldest, which explodes with the seconds it had left shared out.
+    const oldest = arena.summons[0]
+    arena.resource = 3
+    arena.press(1)
+    arena.step(DT)
+    while (arena.summons.includes(oldest)) arena.step(DT)
+    const left = oldest.endsAt - arena.time
+    const blast = damageOf(arena, 'Corpse Explosion')!
+    expect(blast.hits).toBeGreaterThan(0)
+    expect(blast.damage).toBeCloseTo(300 * blast.hits + 60 * left, 0)
+    // The rest run out with no time left: just the 300 each.
+    const before = blast.damage
+    const hitsBefore = blast.hits
+    run(arena, 40)
+    expect(arena.summons).toHaveLength(0)
+    const after = damageOf(arena, 'Corpse Explosion')!
+    expect(after.damage - before).toBeCloseTo(300 * (after.hits - hitsBefore), 0)
   })
 })
 

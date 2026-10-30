@@ -128,6 +128,7 @@ describe('design passes', () => {
         'miasma',
         'overlord',
         'plague',
+        'raise-ghoul',
         'teleport',
         'tome-of-summoning',
       ],

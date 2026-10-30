@@ -162,6 +162,12 @@ export type EffectKey =
   | 'burst'
   /** A bursting DoT: % of each burst that every other enemy within 8 yd of the target takes too. */
   | 'burstSplash'
+  /** A summon: damage it deals to every enemy within 6 yd of its target when it falls (Corpse Explosion). */
+  | 'explode'
+  /** A summon: damage per second it had left when it falls, shared out among the enemies its explosion hits. */
+  | 'explodeLeft'
+  /** A summon: % more damage for every attack it has made, up to 10 (Mounting Fury). */
+  | 'fury'
 
 export type ValueKey = AbilityKey | EffectKey
 
@@ -457,6 +463,8 @@ export type Action =
   | { do: 'extendMinions'; seconds: number }
   /** Adds stacks to your matching curse on the event's enemy, never past what it started with. */
   | { do: 'curseStack'; match: Match; stacks: number }
+  /** Adds seconds to your summons that match (Undying Hunger: your ghouls). */
+  | { do: 'extendSummons'; match: Match; seconds: number }
   /** Does one of these, picked at random (Dark Bargain: haste, crit, echo or minion power). */
   | { do: 'oneOf'; actions: Action[] }
   /** Fires another ability's effects, slotted or not. */
@@ -580,6 +588,9 @@ export interface ResolvedEffect {
   patron: number
   burst: number
   burstSplash: number
+  explode: number
+  explodeLeft: number
+  fury: number
   auto?: boolean
   conditionals: Conditional[]
   /** Added by a talent (Lingering Mend's HoT, say), not part of the base ability. */
