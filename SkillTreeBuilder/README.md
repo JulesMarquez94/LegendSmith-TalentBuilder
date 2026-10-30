@@ -87,8 +87,8 @@ below with its role.
 - **52 talent points** at level 60 (one a level from level 9) to spend anywhere, but **no more than 10 in
   any one tree** (`POINT_RULES` in `src/trees/index.ts`).
 - **Ultimates** (the cooldown slot), **mobility** and **group buffs** have small trees: about 5
-  talents and **exactly 9 ranks** (`SMALL_RANKS`), in the top three rows. Ultimates and group buffs
-  take **5 points at most** (`perSmall`), mobility **6** (`perMobility`).
+  talents and **exactly 9 ranks** (`SMALL_RANKS`), in the top three rows. They take **5 points at
+  most** (`perSmall`).
 - Every other tree's talents hold **exactly 18 ranks** in all (`TREE_RANKS`), so with 10 to spend you always
   leave 8 of them. The data test fails on a tree with more or fewer. Talents that reach
   other abilities (a whole family) or feed them (synergy) are favoured; tweaks to one ability's own
@@ -448,7 +448,7 @@ buff's tree is small: 5 points, 5 talents, 9 ranks.
 
 ## Mobility
 
-Mobility trees are small, like the ultimate's: 9 ranks, 6 points to spend. **Teleport** goes 15 yd the
+Mobility trees are small, like the ultimate's: 9 ranks, 5 points to spend. **Teleport** goes 15 yd the
 way you're moving every 15 sec, but not while you cast. Its tree:
 
 | Row | Talent | Ranks | What it does |

@@ -142,7 +142,7 @@ export default function App() {
           <span className="points__total">
             {loadout.level <= SLOT_LEVELS
               ? `/ ${rules.total} · the first comes at level ${SLOT_LEVELS + 1}`
-              : `/ ${rules.total} · max ${rules.perTree} per tree, ${rules.perMobility} per mobility, ${rules.perSmall} per ultimate or group buff`}
+              : `/ ${rules.total} · max ${rules.perTree} per tree, ${rules.perSmall} per mobility, ultimate or group buff`}
           </span>
         </div>
         <ShareButton build={{ loadout, gear }} />

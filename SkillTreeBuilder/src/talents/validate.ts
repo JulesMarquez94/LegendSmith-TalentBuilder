@@ -10,7 +10,7 @@ import type { ArtifactDef, TreeDef } from './types.ts'
  */
 export const TREE_RANKS = 18
 
-/** A small tree (an ultimate's, mobility's or a group buff's): about 5 talents and 9 ranks, for its 5 or 6 points. */
+/** A small tree (an ultimate's, mobility's or a group buff's): about 5 talents and 9 ranks, for its 5 points. */
 export const SMALL_RANKS = 9
 
 /** The ranks a tree must hold: 9 for an ultimate or a group buff, 18 for the rest. */
