@@ -254,6 +254,79 @@ describe("Chain Heal's tree", () => {
   })
 })
 
+describe("Renew's tree", () => {
+  const noCrits = (kit: Kit): Kit => ({
+    ...kit,
+    slots: kit.slots.map((a) => a && { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 0 })) }),
+  })
+  /** Everyone at full health but the tank, at `tank` of theirs. */
+  const tankAt = (arena: Arena, tank: number) => {
+    for (const a of arena.allies) a.hp = a.maxHp * (a.name === 'Tank' ? tank : 1)
+  }
+
+  it('ends on a part tick when haste leaves part of an interval: 21.6 ticks heal 21.6 ticks', () => {
+    const base = noCrits(healerKit(['renew', null, null, null, null]))
+    const hasty = base.resolve('renew', [], { ...base.character.stats, haste: 20 })!
+    const kit: Kit = { ...base, slots: base.slots.map((a, i) => (i === 1 ? { ...hasty, effects: hasty.effects.map((e) => ({ ...e, critChance: 0 })) } : a)) }
+    const arena = new Arena(kit, QUIET, { seed: 7 })
+    tankAt(arena, 0.5)
+    cast(arena, 1)
+    run(arena, 19)
+    expect(hits(arena, 'Renew')).toBe(22)
+    expect(ally(arena, 'Tank').hp).toBeCloseTo(15000 + 150 * 21.6)
+  })
+
+  it('heals 4 sec worth when it lands and again when it runs out with Renewing Burst', () => {
+    const arena = new Arena(noCrits(healerKit(['renew', null, null, null, null], { renew: { 'renewing-burst': 2 } })), QUIET, { seed: 7 })
+    tankAt(arena, 0.2)
+    cast(arena, 1)
+    expect(ally(arena, 'Tank').hp).toBeCloseTo(6000 + 600)
+    run(arena, 18.5)
+    expect(ally(arena, 'Tank').hp).toBeCloseTo(6000 + 600 + 2700 + 600)
+  })
+
+  it('lasts a second longer for each tick on an ally at full health with Evergreen, up to 12 sec longer', () => {
+    const arena = arenaWith(['renew', null, null, null, null], { renew: { evergreen: 1 } })
+    for (const a of arena.allies) a.hp = a.maxHp
+    cast(arena, 1)
+    const placed = arena.time
+    const hot = arena.player.hots[0]
+    run(arena, 15)
+    expect(hot.endsAt - placed).toBeCloseTo(18 + 12, 1)
+  })
+
+  it('puts 2 Renews on one ally with Twin Renewal', () => {
+    for (const twin of [false, true]) {
+      const arena = arenaWith(['renew', null, null, null, null], twin ? { renew: { 'twin-renewal': 1 } } : {})
+      tankAt(arena, 0.2)
+      cast(arena, 1)
+      run(arena, 1.1)
+      cast(arena, 1)
+      expect(ally(arena, 'Tank').hots).toHaveLength(twin ? 2 : 1)
+    }
+  })
+
+  it('spreads from its ticks with Wandering Seed, but a Renew that spread never spreads again', () => {
+    const base = healerKit(['renew', null, null, null, null], { renew: { 'lasting-renewal': 2, 'wandering-seed': 2 } })
+    // Every tick spreads, so the test doesn't wait on a 6% chance.
+    const kit: Kit = {
+      ...base,
+      procs: base.procs.map((p) => (p.source.talentId === 'wandering-seed' ? { ...p, proc: { ...p.proc, chance: 100 } } : p)),
+    }
+    const arena = new Arena(kit, QUIET, { seed: 7 })
+    tankAt(arena, 0.2)
+    cast(arena, 1)
+    run(arena, 3.1)
+    expect(arena.allies.every((a) => a.hots.length === 1)).toBe(true)
+    expect(arena.allies.filter((a) => a.hots[0].generation === 0)).toHaveLength(1)
+  })
+
+  it('heals more for each of your HoTs on its target with Thriving', () => {
+    const kit = healerKit(['renew', null, null, null, null], { renew: { thriving: 3 } })
+    expect(abilityIn(kit, 'renew').effects[0].conditionals).toEqual([{ pct: 9, when: { each: 'hot' }, source: 'Thriving' }])
+  })
+})
+
 describe("Healing Rain's tree", () => {
   const noCrits = (kit: Kit): Kit => ({
     ...kit,
@@ -353,8 +426,8 @@ describe('heals', () => {
   it('tick a HoT once per interval for its whole duration', () => {
     const arena = arenaWith(['renew', null, null, null, null])
     cast(arena, 1)
-    run(arena, 13)
-    expect(hits(arena, 'Renew')).toBe(6)
+    run(arena, 18.5)
+    expect(hits(arena, 'Renew')).toBe(18)
   })
 
   it('jump a chain between allies close to each other', () => {
@@ -532,12 +605,11 @@ describe('talent procs', () => {
     const arena = new Arena(kit, QUIET, { seed: 1 })
     cast(arena, 1)
     expect(arena.allies.filter((a) => a.hots.length > 0)).toHaveLength(2)
-    expect(arena.resource).toBeCloseTo(920, 0)
+    expect(arena.resource).toBeCloseTo(880, 0)
   })
 })
 
 describe('the new mechanics', () => {
-
   it('stacks Latent Charge on each bolt and spends it on the next direct heal', () => {
     const arena = arenaWith(['mend', 'conduit', null, null, null], { conduit: { 'strong-current': 1, 'latent-charge': 2 } })
     for (let i = 0; i < 3; i++) {

@@ -160,6 +160,10 @@ export type EffectKey =
   | 'patron'
   /** A rolling DoT: above 0, it doesn't tick; each stack deals all its damage at once when it runs out. */
   | 'burst'
+  /** A HoT: how many of it one ally can have at once (Twin Renewal: 2). */
+  | 'copies'
+  /** A HoT: seconds' worth of its healing, landed when it goes on and again when it runs out (Renewing Burst). */
+  | 'bookend'
   /** A healing zone: healing when placed, shared out among the injured allies inside it (Downburst). */
   | 'opening'
   /** A healing zone: % more healing on an ally for each tick it has healed them, up to 10 (Swelling Rain). */
@@ -366,6 +370,8 @@ export interface Condition {
   affected?: boolean
   /** Target is you. */
   targetSelf?: boolean
+  /** Target was at full health, before the heal (Evergreen). */
+  full?: boolean
   /** The bonus grows with the target's missing health: all of it at 0 health, none at full (Triage). */
   missing?: boolean
   /** The heal overhealed. */
@@ -439,7 +445,7 @@ export type Action =
   /**
    * Adds (or with a negative, takes) seconds to your HoTs, DoTs and zones that match: on the event's
    * target, everyone, allies near you, or ('source') the HoT, DoT or zone whose tick triggered it,
-   * never past `capPct`% longer than it started.
+   * never past `capPct`% (or `capSec` sec) longer than it started.
    */
   | {
       do: 'extend'
@@ -448,6 +454,7 @@ export type Action =
       scope: 'event' | 'all' | 'near' | 'source'
       radius?: number
       capPct?: number
+      capSec?: number
     }
   /** Takes seconds off matching abilities' cooldowns. Infinity resets them. */
   | { do: 'cooldown'; match: Match; seconds: number }
@@ -458,7 +465,7 @@ export type Action =
   | { do: 'burst'; seconds: number }
   /** Casts the triggering ability's effects again, for free. */
   | { do: 'recast' }
-  /** When a HoT ends: it jumps to the most injured ally in range without it (once). */
+  /** A HoT (the one that ended, or whose tick healed): it jumps to the most injured ally in range without it (once). */
   | { do: 'jump'; range: number }
   /**
    * Ends your effects matching this (DoTs on the event's enemy, HoTs on your allies, your zones and
@@ -613,6 +620,8 @@ export interface ResolvedEffect {
   burst: number
   burstSplash: number
   maxShare: number
+  copies: number
+  bookend: number
   opening: number
   swell: number
   hotJumps: number

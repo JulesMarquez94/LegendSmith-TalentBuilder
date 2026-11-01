@@ -25,8 +25,9 @@ describe('base numbers', () => {
     expect(mend.text).toContain('2,400')
 
     const renew = abilityIn(kit, 'renew').effects[0]
-    expect(renew).toMatchObject({ amount: 300, interval: 2, duration: 12, ticks: 6 })
-    expect(periodicTotal(renew)).toBe(1800)
+    expect(renew).toMatchObject({ amount: 150, interval: 1, duration: 18, ticks: 18 })
+    expect(periodicTotal(renew)).toBe(2700)
+    expect(abilityIn(kit, 'renew').text).toContain('150 every 1 sec for 18 sec, for a total of 2,700')
 
     // 900 on the first tick, 15% less on each of the next nine.
     expect(periodicTotal(abilityIn(kit, 'lifetide').effects[0])).toBeCloseTo(4818.8, 1)
@@ -57,17 +58,20 @@ describe('gear', () => {
       const stats = { ...hasty.character.stats, haste, potency }
       return hasty.resolve('renew', [], stats)!.effects[0]
     }
-    expect(renewFor(20, 0)).toMatchObject({ duration: 12, ticks: 7 })
-    expect(renewFor(0, 20).duration).toBeCloseTo(14.4)
-    expect(renewFor(0, 20).ticks).toBe(7)
+    // 20% haste: a tick every 0.83 sec, 21.6 of them in 18 sec. The last 0.6 heals 60% of a tick.
+    expect(renewFor(20, 0)).toMatchObject({ duration: 18, ticks: 21 })
+    expect(periodicTotal(renewFor(20, 0))).toBeCloseTo(150 * 21.6)
+    expect(renewFor(0, 20).duration).toBeCloseTo(21.6)
+    expect(renewFor(0, 20).ticks).toBe(21)
+    expect(periodicTotal(renewFor(0, 20))).toBeCloseTo(150 * 21.6)
   })
 })
 
 describe('talents reach across trees by family', () => {
   it('boosts every HoT from a point in Renew', () => {
     const kit = healerKit(SLOTS, { renew: { verdant: 3 } })
-    expect(abilityIn(kit, 'renew').effects[0].amount).toBeCloseTo(354)
-    expect(abilityIn(kit, 'lifetide').effects[0].amount).toBeCloseTo(1062)
+    expect(abilityIn(kit, 'renew').effects[0].amount).toBeCloseTo(186)
+    expect(abilityIn(kit, 'lifetide').effects[0].amount).toBeCloseTo(1116)
     expect(abilityIn(kit, 'mend').effects[0].amount).toBe(2400)
     expect(reach(talentOf('renew', 'verdant').effects!(3), kit)).toEqual(['Renew', 'Lifetide'])
   })

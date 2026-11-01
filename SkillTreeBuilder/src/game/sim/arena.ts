@@ -1161,7 +1161,9 @@ export class Arena {
 
   private applyHot(target: Ally, e: ResolvedEffect, ctx: CastContext, name: string, generation = 0) {
     if (!target.alive || e.duration <= 0 || e.interval <= 0) return
-    let hot = target.hots.find((h) => h.key === e.key)
+    // Room for another copy (Twin Renewal) adds one; otherwise the one closest to running out refreshes.
+    const same = target.hots.filter((h) => h.key === e.key).sort((a, b) => a.endsAt - b.endsAt)
+    let hot = same.length >= e.copies ? same[0] : undefined
     if (hot) {
       Object.assign(hot, { effect: e, amount: e.amount, interval: e.interval, duration: e.duration, tick: 0 })
       hot.endsAt = this.time + e.duration
@@ -1185,6 +1187,7 @@ export class Arena {
       target.hots.push(hot)
     }
     for (let i = 0; i < e.instantTicks; i++) this.heal(target, hot.amount, e, this.hotContext(hot), { label: name })
+    if (e.bookend > 0) this.heal(target, hot.amount * (e.bookend / hot.interval), e, this.hotContext(hot), { label: name })
   }
 
   /**
@@ -1425,7 +1428,7 @@ export class Arena {
           const source = ev.ctx.sourceZone ?? ev.ctx.sourceHot ?? ev.ctx.sourceDot
           if (!source || !matches(action.match, source.effect.tags)) break
           if (ev.ctx.sourceDot) this.extendDot(ev.ctx.sourceDot, action.seconds, action.capPct)
-          else source.endsAt = this.capped(source, action.seconds, action.capPct)
+          else source.endsAt = this.capped(source, action.seconds, action.capPct, action.capSec)
           break
         }
         const allies =
@@ -1553,7 +1556,7 @@ export class Arena {
         if (ev.ctx.ability) this.runEffects(ev.ctx.ability, { ...ctx, ability: ev.ctx.ability, primary: [], range: ev.ctx.range })
         break
       case 'jump': {
-        const h = ev.hot
+        const h = ev.hot ?? ev.ctx.sourceHot
         if (!h || h.generation > 0) break
         const next = this.byHealth(
           this.allies.filter(
@@ -1590,8 +1593,11 @@ export class Arena {
   }
 
   /** A new end time `seconds` later (or sooner), never past `capPct`% longer than it started. */
-  private capped(x: Hot | Dot | Zone, seconds: number, capPct?: number) {
-    const cap = capPct === undefined ? Infinity : x.baseEnd + (x.duration * capPct) / 100
+  private capped(x: Hot | Dot | Zone, seconds: number, capPct?: number, capSec?: number) {
+    const cap = Math.min(
+      capPct === undefined ? Infinity : x.baseEnd + (x.duration * capPct) / 100,
+      capSec === undefined ? Infinity : x.baseEnd + capSec,
+    )
     return seconds < 0 ? x.endsAt + seconds : Math.max(x.endsAt, Math.min(cap, x.endsAt + seconds))
   }
 
@@ -1674,6 +1680,7 @@ export class Arena {
     if (when.inZone && !this.inZone(target)) return 0
     if (when.affected && !this.affected(target)) return 0
     if (when.targetSelf && !target.isPlayer) return 0
+    if (when.full && target.hp < target.maxHp) return 0
     if (when.alone) return 0
     let n = when.missing ? 1 - target.hp / target.maxHp : 1
     if (when.each) n = target.hots.filter((h) => matches(when.each!, h.effect.tags)).length
@@ -1693,7 +1700,7 @@ export class Arena {
     if (when.targetHas !== undefined && !has(when.targetHas)) return 0
     if (when.inZone && !this.enemyInZone(enemy)) return 0
     if (when.affected && !(enemy.dots.length > 0 || this.enemyInZone(enemy))) return 0
-    if (when.targetSelf || when.overheal) return 0
+    if (when.targetSelf || when.overheal || when.full) return 0
     let n = when.missing ? 1 - enemy.hp / enemy.maxHp : 1
     if (when.each) n = this.countEffects(enemy, when.each)
     if (when.stacksOf) {
@@ -1712,7 +1719,9 @@ export class Arena {
   private eventMeets(when: Condition, ev: GameEvent): boolean {
     if (when.overheal && !((ev.overheal ?? 0) > 0)) return false
     if (when.paidAtLeast !== undefined && ev.ctx.steps < when.paidAtLeast) return false
-    const { overheal: _overheal, paidAtLeast: _paid, targetBelow, ...rest } = when
+    // At full health before the heal landed.
+    if (when.full && (ev.before ?? 0) < 1 - 1e-9) return false
+    const { overheal: _overheal, paidAtLeast: _paid, full: _full, targetBelow, ...rest } = when
     const needsTarget = targetBelow !== undefined || Object.values(rest).some((v) => v !== undefined && v !== false)
     if (!needsTarget) return true
     if (!ev.target && !ev.enemy) return false
@@ -1788,7 +1797,7 @@ export class Arena {
       case 'lowest':
         return this.byHealth(pool).slice(0, count)
       case 'lowest-missing': {
-        const missing = pool.filter((a) => !a.hots.some((h) => h.key === e.key))
+        const missing = pool.filter((a) => a.hots.filter((h) => h.key === e.key).length < e.copies)
         return [...this.byHealth(missing), ...this.byHealth(pool.filter((a) => !missing.includes(a)))].slice(0, count)
       }
       case 'next-lowest': {
@@ -2124,7 +2133,13 @@ export class Arena {
         }
         if (this.time >= h.endsAt || !ally.alive) {
           ally.hots = ally.hots.filter((x) => x !== h)
-          if (ally.alive) this.emit({ kind: 'expire', tags: h.effect.tags, ctx: this.hotContext(h), target: ally, hot: h })
+          if (!ally.alive) continue
+          const part = this.partTick(h)
+          if (part > 0) this.heal(ally, this.tickOf(h) * part, h.effect, this.hotContext(h), { label: h.name })
+          if (h.effect.bookend > 0) {
+            this.heal(ally, this.tickOf(h) * (h.effect.bookend / h.interval), h.effect, this.hotContext(h), { label: h.name })
+          }
+          this.emit({ kind: 'expire', tags: h.effect.tags, ctx: this.hotContext(h), target: ally, hot: h })
         }
       }
     }
@@ -2144,9 +2159,14 @@ export class Arena {
           d.tick += 1
           d.nextTick += d.interval
         }
-        if (d.stacks.length) d.stacks = d.stacks.filter((t) => t > this.time)
+        const rolling = d.stacks.length > 0
+        if (rolling) d.stacks = d.stacks.filter((t) => t > this.time)
         if (this.time >= d.endsAt || !enemy.alive) {
           enemy.dots = enemy.dots.filter((x) => x !== d)
+          if (!enemy.alive) continue
+          // Rolling stacks each keep their own timer, so only a plain DoT ends on a part tick.
+          const part = rolling ? 0 : this.partTick(d)
+          if (part > 0) this.hitEnemy(enemy, this.tickOf(d) * d.count * part, d.effect, this.dotContext(d), { label: d.name, quiet: true })
           if (enemy.alive) this.emit({ kind: 'expire', tags: d.effect.tags, ctx: this.dotContext(d), enemy, dot: d })
         }
       }
@@ -2183,30 +2203,47 @@ export class Arena {
       if (z.anchor?.alive) z.pos = { ...z.anchor.pos }
       if (z.anchorEnemy?.alive) z.pos = { ...z.anchorEnemy.pos }
       while (z.nextTick <= z.endsAt + 1e-6 && z.nextTick <= this.time) {
-        const amount = this.tickOf(z)
-        if (z.hostile) {
-          for (const enemy of this.enemiesIn(z)) {
-            if (amount > 0) this.hitEnemy(enemy, amount, z.effect, this.zoneContext(z), { label: z.name, quiet: true })
-            if (z.effect.inflicts) this.applyDot(enemy, z.effect.inflicts, this.zoneContext(z), z.effect.inflicts.name ?? z.name)
-          }
-        } else {
-          for (const a of this.allies) {
-            if (!a.alive || dist(a.pos, z.pos) > z.radius) continue
-            // Swelling Rain: more for each tick this zone has already healed them.
-            const swells = z.swells.get(a) ?? 0
-            this.heal(a, amount * (1 + (z.effect.swell * swells) / 100), z.effect, this.zoneContext(z), { label: z.name })
-            if (z.effect.swell > 0) z.swells.set(a, Math.min(SWELL_STACKS, swells + 1))
-          }
-        }
+        this.zoneTick(z, 1)
         z.tick += 1
         z.nextTick += z.interval
         this.emit({ kind: 'tick', tags: z.effect.tags, ctx: this.zoneContext(z), zone: z })
       }
       if (this.time >= z.endsAt) {
+        const part = this.partTick(z)
+        if (part > 0) this.zoneTick(z, part)
         this.zones = this.zones.filter((x) => x !== z)
         this.emit({ kind: 'expire', tags: z.effect.tags, ctx: this.zoneContext(z), zone: z })
       }
     }
+  }
+
+  /** One tick of a zone, or `share` of one (its part tick at the end). */
+  private zoneTick(z: Zone, share: number) {
+    const amount = this.tickOf(z) * share
+    if (z.hostile) {
+      for (const enemy of this.enemiesIn(z)) {
+        if (amount > 0) this.hitEnemy(enemy, amount, z.effect, this.zoneContext(z), { label: z.name, quiet: true })
+        // A whole tick puts its DoT on; a part tick only deals its share.
+        if (z.effect.inflicts && share >= 1) this.applyDot(enemy, z.effect.inflicts, this.zoneContext(z), z.effect.inflicts.name ?? z.name)
+      }
+      return
+    }
+    for (const a of this.allies) {
+      if (!a.alive || dist(a.pos, z.pos) > z.radius) continue
+      // Swelling Rain: more for each tick this zone has already healed them.
+      const swells = z.swells.get(a) ?? 0
+      this.heal(a, amount * (1 + (z.effect.swell * swells) / 100), z.effect, this.zoneContext(z), { label: z.name })
+      if (z.effect.swell > 0 && share >= 1) z.swells.set(a, Math.min(SWELL_STACKS, swells + 1))
+    }
+  }
+
+  /**
+   * What's left of a HoT, DoT or zone past its last tick, as a share of a tick: one that ends half an
+   * interval after its last tick ends on half a tick. 0 when it ends right on a tick.
+   */
+  private partTick(x: Hot | Dot | Zone) {
+    const part = (x.endsAt - (x.nextTick - x.interval)) / x.interval
+    return part > 1e-3 && part < 1 - 1e-3 ? part : 0
   }
 
   private updateTimers() {

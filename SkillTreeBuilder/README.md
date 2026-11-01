@@ -59,7 +59,8 @@ already in another slot swaps the two and keeps both builds.
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
 Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
-Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff, Mend, Chain Heal and Healing Rain.
+Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff, Mend, Chain Heal, Healing Rain and
+Renew.
 
 ## The artifacts
 
@@ -179,6 +180,25 @@ the lowest-health ally for 220 each second. Rains can overlap, and an ally under
 New in the sim for it: a zone's `opening` heal and `swell` stacks (counted per ally, per rain), a
 `siphon` action, and a conditional whose % is whatever your other talents give a family
 (`pctOfTags`: Rain-Soaked copies your zone healing bonus).
+
+**Renew** is instant, 120 mana: it heals the lowest-health ally without it for 150 every 1 sec for
+18 sec, for a total of 2,700.
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Verdant | 3 | Your HoTs heal 8/16/24% more |
+| 1 | Lasting Renewal | 2 | Renew lasts 3/6 sec longer |
+| 1 | Frugal Renewal | 2 | Renew costs 10/20% less |
+| 2 | Evergreen | 1 | When Renew heals an ally at full health, it lasts 1 sec longer, up to 12 sec longer in all |
+| 2 | Wandering Seed (needs Lasting Renewal) | 2 | Each Renew heal has a 3/6% chance to spread to the most injured ally within 20 yd without it; a Renew that spread doesn't spread again |
+| 2 | Quickening | 2 | Renew ticks 10/20% faster |
+| 3 | Renewing Burst | 2 | Renew heals 2/4 sec worth when it lands, and again when it runs out |
+| 3 | Thriving | 3 | Renew heals 3/6/9% more for each of your HoTs on its target, itself included |
+| 4 | Twin Renewal (needs Wandering Seed) | 1 | You can have 2 Renews on each ally |
+
+New in the sim for it: a HoT's `copies` (how many one ally can carry) and `bookend` (seconds' worth on
+landing and on running out), a `full` condition (the target was at full health), `capSec` on
+extensions (a cap in seconds), and the `jump` action now also works from a HoT's tick.
 
 Abilities never hard-code mana: they cost the artifact's **resource**, and shared talent text says
 `@resource`, which shows as the held artifact's resource. Another healing weapon with its own resource
@@ -585,6 +605,10 @@ the bigger stat's bigger, and the icons also mark the item cards, the forge and 
 - **Damage** (group buffs: Sharpened Will) is % more damage, a multiplier of its own on top of Power.
 - **Health** grows with level too: 800 at level 1, 2,400 at level 60, plus trinkets.
 - **Haste** speeds casts, the global cooldown and ticks. It never shortens a duration, so HoTs and zones fit in more ticks.
+  A HoT, DoT or zone whose duration isn't a whole number of ticks ends on a **part tick**: 18 sec at a
+  tick every 0.83 sec is 21.6 ticks, and the last 0.6 heals 60% of a tick. (Rolling stacks, which each
+  keep their own timer, don't.) Ability text gives over-time effects as "150 every 1 sec for 18 sec,
+  for a total of 2,700" (`overTime`), and tooltips count part ticks too.
 - **Critical** and **Crit damage** set crit chance and size (crits land for 150% plus Crit damage).
 - **Potency** lengthens HoTs, zones, shields and buffs: duration × (1 + Potency).
 - **Echo** is a chance to cast an ability again for free. Movement never echoes.

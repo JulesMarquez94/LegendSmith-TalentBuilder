@@ -1,5 +1,5 @@
-import { int, pct, sec, yd } from '../../game/format.ts'
-import { periodicTotal } from '../../game/resolve.ts'
+import { int, pct, yd } from '../../game/format.ts'
+import { overTime } from '../../game/resolve.ts'
 import type { TreeDef } from '../../talents/types.ts'
 import { apply, buff, cooldown, grant, heal, hot, more, plus, proc, restoreShare, shield, talent, zone } from '../authoring.ts'
 
@@ -283,8 +283,8 @@ export const healingRain: TreeDef = {
     text: (a) => {
       const e = a.effects[0]
       return (
-        `Rains light around the lowest-health ally within ${yd(a.range)} yd for ${sec(e.duration)} sec. Every ally ` +
-        `within ${yd(e.radius)} yd of it is healed for ${int(e.amount)} every ${sec(e.interval)} sec. Rains can overlap.` +
+        `Rains light around the lowest-health ally within ${yd(a.range)} yd. Every ally within ${yd(e.radius)} yd of it ` +
+        `is healed for ${overTime(e)}. Rains can overlap.` +
         (e.follow ? ' The rain follows that ally.' : '')
       )
     },
@@ -396,23 +396,22 @@ export const healingRain: TreeDef = {
 export const renew: TreeDef = {
   ...healer,
   id: 'renew',
+  reviewed: true,
   color: '#a6e65a',
   ability: {
     name: 'Renew',
     castTime: 'Instant',
     range: '40 range',
-    description: 'Heal the lowest-health ally without Renew over time.',
+    description: 'Heal the lowest-health ally without Renew over 18 sec.',
   },
   spec: {
-    cost: 80,
+    cost: 120,
     range: 40,
-    effects: [hot(300, 12, 2, 'lowest-missing')],
+    effects: [hot(150, 18, 1, 'lowest-missing')],
     text: (a) => {
       const e = a.effects[0]
-      return (
-        `Heals the lowest-health ally within ${yd(a.range)} yd who doesn't have Renew for ${int(e.amount)} ` +
-        `every ${sec(e.interval)} sec for ${sec(e.duration)} sec, ${int(periodicTotal(e))} in all.`
-      )
+      const who = e.copies > 1 ? `who has fewer than ${e.copies} of your Renews` : "who doesn't have Renew"
+      return `Heals the lowest-health ally within ${yd(a.range)} yd ${who} for ${overTime(e)}.`
     },
   },
   talents: [
@@ -421,82 +420,85 @@ export const renew: TreeDef = {
       name: 'Verdant',
       row: 0,
       col: 0,
-      per: [6, 12, 18],
+      per: [8, 16, 24],
       text: 'Your heal-over-time effects heal {}% more.',
       does: (v) => [more('amount', 'hot', v)],
     }),
     talent({
-      id: 'lasting-roots',
-      name: 'Lasting Roots',
+      id: 'lasting-renewal',
+      name: 'Lasting Renewal',
       row: 0,
       col: 1,
-      per: [1.5, 3],
-      text: 'Your heal-over-time effects last {} sec longer.',
-      does: (v) => [plus('duration', 'hot', v)],
-    }),
-    talent({
-      id: 'quickening',
-      name: 'Quickening',
-      row: 0,
-      col: 2,
-      per: [10, 20],
-      text: 'Your heal-over-time effects tick {}% faster.',
-      does: (v) => [more('tickRate', 'hot', v)],
-    }),
-    talent({
-      id: 'budding',
-      name: 'Budding',
-      row: 1,
-      col: 1,
-      requires: 'lasting-roots',
-      text: 'Your heal-over-time effects heal once the moment they land.',
-      does: () => [plus('instantTicks', 'hot', 1)],
+      per: [3, 6],
+      text: 'Renew lasts {} sec longer.',
+      does: (v) => [plus('duration', 'renew', v)],
     }),
     talent({
       id: 'frugal-renewal',
       name: 'Frugal Renewal',
-      row: 1,
+      row: 0,
       col: 3,
-      per: [15, 30],
-      text: 'Your heal-over-time spells cost {}% less.',
-      does: (v) => [more('cost', 'hot', -v)],
+      per: [10, 20],
+      text: 'Renew costs {}% less.',
+      does: (v) => [more('cost', 'renew', -v)],
     }),
     talent({
-      id: 'twin-renewal',
-      name: 'Twin Renewal',
-      row: 2,
+      id: 'evergreen',
+      name: 'Evergreen',
+      row: 1,
       col: 0,
-      per: [15, 30, 45],
-      text: 'Renew has a {}% chance to land on a second injured ally too.',
-      does: (v) => [proc('cast', 'renew', [{ do: 'recast' }], { chance: v })],
-    }),
-    talent({
-      id: 'overgrowth',
-      name: 'Overgrowth',
-      row: 2,
-      col: 2,
-      per: [15, 30],
-      text: 'Your heal-over-time effects heal {}% more on allies below 50% health.',
-      does: (v) => [more('amount', 'hot', v, { targetBelow: 50 })],
+      text: 'When Renew heals an ally at full health, it lasts 1 sec longer, up to 12 sec longer in all.',
+      does: () => [
+        proc('heal', 'renew', [{ do: 'extend', match: 'renew', seconds: 1, scope: 'source', capSec: 12 }], { when: { full: true } }),
+      ],
     }),
     talent({
       id: 'wandering-seed',
       name: 'Wandering Seed',
-      row: 3,
-      col: 0,
-      requires: 'twin-renewal',
-      text: "When Renew ends, it jumps to the most injured ally within 20 yd who doesn't have it (once).",
-      does: () => [proc('expire', 'renew', [{ do: 'jump', range: 20 }])],
+      row: 1,
+      col: 1,
+      requires: 'lasting-renewal',
+      per: [3, 6],
+      text:
+        "Each time Renew heals, a {}% chance it spreads to the most injured ally within 20 yd who doesn't have it. " +
+        "A Renew that spread doesn't spread again.",
+      does: (v) => [proc('heal', 'renew', [{ do: 'jump', range: 20 }], { chance: v })],
     }),
     talent({
-      id: 'harmony',
-      name: 'Harmony',
-      row: 3,
+      id: 'quickening',
+      name: 'Quickening',
+      row: 1,
+      col: 3,
+      per: [10, 20],
+      text: 'Renew ticks {}% faster.',
+      does: (v) => [more('tickRate', 'renew', v)],
+    }),
+    talent({
+      id: 'renewing-burst',
+      name: 'Renewing Burst',
+      row: 2,
+      col: 0,
+      per: [2, 4],
+      text: 'Renew heals for {} sec worth of its healing when it lands, and again when it runs out.',
+      does: (v) => [plus('bookend', 'renew', v)],
+    }),
+    talent({
+      id: 'thriving',
+      name: 'Thriving',
+      row: 2,
       col: 2,
-      requires: 'overgrowth',
-      per: [7.5, 15],
-      text: 'Your direct heals heal {}% more on allies with one of your heal-over-time effects.',
-      does: (v) => [more('amount', 'direct-heal', v, { targetHas: 'hot' })],
+      per: [3, 6, 9],
+      text: 'Renew heals {}% more for each of your heal-over-time effects on its target, itself included.',
+      does: (v) => [more('amount', 'renew', v, { each: 'hot' })],
+    }),
+    talent({
+      id: 'twin-renewal',
+      name: 'Twin Renewal',
+      row: 3,
+      col: 1,
+      requires: 'wandering-seed',
+      text: 'You can have 2 Renews on each ally.',
+      does: () => [plus('copies', 'renew', 1)],
     }),
   ],
 }

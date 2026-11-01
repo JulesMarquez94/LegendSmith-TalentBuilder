@@ -1,4 +1,5 @@
-import { counted, int, sec, yd } from '../game/format.ts'
+import { counted, int, yd } from '../game/format.ts'
+import { overTime } from '../game/resolve.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
 import {
   apply,
@@ -362,8 +363,8 @@ export const rupture: TreeDef = {
     text: (a) => {
       const e = a.effects[0]
       return (
-        `Finisher. Makes the enemy nearest your crosshair within ${yd(a.range)} yd bleed for ${int(e.amount)} damage ` +
-        `every ${sec(e.interval)} sec for ${sec(e.duration)} sec. Costs ${counted(a.cost, a.resource)}.`
+        `Finisher. Makes the enemy nearest your crosshair within ${yd(a.range)} yd bleed for ${overTime(e, ' damage')}. ` +
+        `Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },
