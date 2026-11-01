@@ -156,7 +156,7 @@ describe('the Tome of Dawn', () => {
     const arena = new Arena(kitFor(dawn, ['mend', null, null, null, null, null]), DUMMIES, { seed: 1 })
     expect(arena.resource).toBe(600)
     cast(arena, 1)
-    expect(arena.meter.resourceSpent.get('Mend')).toBe(100)
+    expect(arena.meter.resourceSpent.get('Mend')).toBe(130)
   })
 })
 

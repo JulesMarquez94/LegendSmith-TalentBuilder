@@ -84,8 +84,8 @@ export type CharStat =
    * of what it dealt (Volley).
    */
   | 'splash'
-  /** % of overhealing stored, then given back as resource by the next main attack. */
-  | 'overhealToResource'
+  /** % of the resource you spend stored, then given back by the next main attack (30% of the maximum at most). */
+  | 'spentToResource'
   /** % stronger resource regeneration while below 30% of the maximum. */
   | 'lowResourceRegen'
   /** Extra regeneration, as a % of your maximum resource per second, while you stand in one of your zones. */
@@ -160,6 +160,10 @@ export type EffectKey =
   | 'patron'
   /** A rolling DoT: above 0, it doesn't tick; each stack deals all its damage at once when it runs out. */
   | 'burst'
+  /** A chain heal: past its jumps, it keeps jumping to every ally with your HoT (Tidal Web). */
+  | 'hotJumps'
+  /** A chain heal: % chance that a crit starts one more chain from that ally, once per cast (Chain Reaction). */
+  | 'rechain'
   /** A bursting DoT: % of each burst that every other enemy within 8 yd of the target takes too. */
   | 'burstSplash'
   /** A summon: damage it deals to every enemy within 6 yd of its target when it falls (Corpse Explosion). */
@@ -319,6 +323,8 @@ export interface EffectSpec {
   taunt?: number
   /** % of each hit splashed onto every other enemy within 8 yd of the one it hit (Harvest's talents). */
   splash?: number
+  /** A shield: at most this % of the target's maximum health (50% when not set). */
+  maxShare?: number
   /** A curse: % chance a stack bursts without being taken. */
   keepChance?: number
   /** A summon: % more damage for your other minions while it's up. */
@@ -356,6 +362,8 @@ export interface Condition {
   affected?: boolean
   /** Target is you. */
   targetSelf?: boolean
+  /** The bonus grows with the target's missing health: all of it at 0 health, none at full (Triage). */
+  missing?: boolean
   /** The heal overhealed. */
   overheal?: boolean
   /** The bonus counts once for each of your effects matching this on the target (Convalescence). */
@@ -406,6 +414,8 @@ export type EventKind =
   | 'second'
   | 'sacrifice'
   | 'moving'
+  /** You or an ally drops below 15% health (and is still alive). Tagged `low-health`. */
+  | 'lowHealth'
 
 export type Action =
   /**
@@ -588,6 +598,9 @@ export interface ResolvedEffect {
   patron: number
   burst: number
   burstSplash: number
+  maxShare: number
+  hotJumps: number
+  rechain: number
   explode: number
   explodeLeft: number
   fury: number

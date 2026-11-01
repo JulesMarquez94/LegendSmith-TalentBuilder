@@ -37,6 +37,7 @@ export function describeCondition(when: Condition): string {
   if (when.inZone) parts.push('in your zone')
   if (when.affected) parts.push('with your HoT or in your zone')
   if (when.targetSelf) parts.push('on you')
+  if (when.missing) parts.push('the lower its health, all of it near death')
   if (when.each !== undefined) parts.push('for each of your effects on it')
   if (when.stacksOf !== undefined) parts.push('for each stack on it')
   if (when.single) parts.push('when it hits only one enemy')
@@ -80,6 +81,12 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
           better: 'up',
           detail: `${yd(e.radius)} yd, −${pct(e.falloff)}% each · ${int(chainTotal(e))} if all land`,
         })
+      }
+      if (e.hotJumps > 0) {
+        out.push({ key: key('hotJumps'), label: 'Then', value: 1, format: () => 'every ally', better: 'up', detail: 'with your HoT' })
+      }
+      if (e.rechain > 0) {
+        out.push({ key: key('rechain'), label: 'Crits', value: e.rechain, format: percent, better: 'up', detail: 'chance to start a second chain' })
       }
       if (e.targets > 1) out.push({ key: key('targets'), label: 'Allies', value: e.targets, format: String, better: 'up' })
       break

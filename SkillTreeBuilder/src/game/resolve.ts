@@ -195,20 +195,24 @@ export function computeCharacter(
 interface Sums {
   add: number
   pct: number
+  /** A −100% mod matched: none at all, whatever else adds to it (a free or instant cast). */
+  none?: boolean
 }
 
 function sum(mods: readonly ModMechanic[], key: ValueKey, tags: ReadonlySet<Tag>, stats: CharStats): Sums {
   let add = 0
   let pct = 0
+  let none = false
   for (const m of mods) {
     if (m.key !== key || m.when || !matches(m.match, tags)) continue
     add += m.add ?? 0
     pct += (m.pct ?? 0) + (m.pctOf ? stats[m.pctOf] : 0)
+    if ((m.pct ?? 0) <= -100) none = true
   }
-  return { add, pct }
+  return { add, pct, none }
 }
 
-const scaled = (base: number, s: Sums) => (base + s.add) * (1 + s.pct / 100)
+const scaled = (base: number, s: Sums) => (s.none ? 0 : (base + s.add) * (1 + s.pct / 100))
 
 /** A buff's stats with `strength` talents added to each. */
 function strengthen(stats: Partial<CharStats> | undefined, s: Sums): Partial<CharStats> | undefined {
@@ -290,6 +294,9 @@ function resolveEffectWith(
     extraCost: Math.max(0, scaled((effect.extraCost ?? 0) * unit, get('extraCost'))),
     stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
     maxStacks: effect.maxStacks ? Math.max(1, Math.round(effect.maxStacks + get('maxStacks').add)) : 0,
+    maxShare: effect.maxShare ?? 0,
+    hotJumps: get('hotJumps').add > 0 ? 1 : 0,
+    rechain: Math.min(100, Math.max(0, get('rechain').add)),
     max: Math.max(1, Math.round((effect.max ?? 1) + get('max').add)),
     mode: effect.mode,
     // A buff's stats grow with `strength` talents (Frenzy's haste, Volley's splash); speed has its own key.
@@ -368,7 +375,8 @@ function resolveAbilityWith(
     cost: Math.max(0, scaled((spec.cost ?? 0) * unit, get('cost'))),
     cycle: spec.cycle,
     castTime: Math.max(0, scaled(spec.castTime ?? 0, get('castTime'))) / haste,
-    cooldown: spec.cooldown ? Math.max(0, scaled(spec.cooldown, get('cooldown'))) : 0,
+    // A talent can give an ability without one a cooldown (Lightspeed's charges on Radiant Bolt).
+    cooldown: Math.max(0, scaled(spec.cooldown ?? 0, get('cooldown'))),
     charges: Math.max(1, Math.round((spec.charges ?? 1) + get('charges').add)),
     range: Math.max(0, scaled(spec.range ?? 0, get('range'))),
     gcd: baseGcd === 0 ? 0 : Math.max(MIN_GCD, scaled(baseGcd, get('gcd')) / haste),

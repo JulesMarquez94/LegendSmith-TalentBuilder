@@ -28,17 +28,20 @@ describe('mana', () => {
   it('drains as you cast and comes back slowly', () => {
     const arena = arenaWith(['mend', null, null, null, null])
     cast(arena, 1)
-    expect(arena.resource).toBeCloseTo(900, 0)
+    expect(arena.resource).toBeCloseTo(870, 0)
     run(arena, 2)
-    expect(arena.resource).toBeCloseTo(916, 0)
+    expect(arena.resource).toBeCloseTo(886, 0)
   })
 
-  it('is restored by Radiant Bolt', () => {
+  it('is restored by Radiant Bolt, a 1.5 sec cast', () => {
     const arena = arenaWith([null, null, null, null, null])
     arena.resource = 500
     cast(arena, 0)
-    expect(arena.resource).toBeCloseTo(516.4, 1)
-    expect(arena.meter.resourceGained.get('Radiant Bolt')).toBe(16)
+    expect(arena.cast?.ability.name).toBe('Radiant Bolt')
+    run(arena, 1.6)
+    expect(arena.meter.resourceGained.get('Radiant Bolt')).toBe(20)
+    // 20 from the bolt, 8 a second from regeneration.
+    expect(arena.resource).toBeCloseTo(500 + 20 + 8 * 1.65, 1)
   })
 
   it("stops a cast you can't afford", () => {
@@ -50,14 +53,215 @@ describe('mana', () => {
   })
 })
 
+describe("Radiant Bolt's tree", () => {
+  const bolt = (kit: Kit) => kit.slots[0]!
+
+  it('raises mana per bolt, regeneration, maximum mana, crit and haste', () => {
+    const kit = healerKit([null, null, null, null, null], {
+      'lifewarden-staff': { attunement: 2, meditation: 2, 'deep-reserves': 3, 'clear-sight': 2, 'quickened-light': 2 },
+    })
+    expect(bolt(kit).effects[1].restore).toBe(28)
+    expect(kit.character.stats).toMatchObject({ resourceRegen: 12, maxResource: 1300 })
+    expect(kit.character.lines.crit.talents).toBe(6)
+    expect(kit.character.lines.haste.talents).toBe(6)
+    expect(bolt(kit).castTime).toBeCloseTo(1.5 / 1.06)
+  })
+
+  it('makes it instant with Lightspeed: 3 charges, each back after 3 sec, and more mana with Afterglow', () => {
+    const kit = healerKit([null, null, null, null, null], {
+      'lifewarden-staff': { 'quickened-light': 2, 'clear-sight': 2, lightspeed: 1, afterglow: 2 },
+    })
+    expect(bolt(kit)).toMatchObject({ castTime: 0, charges: 3, cooldown: 3 })
+    expect(bolt(kit).effects[1].restore).toBe(40)
+    const arena = new Arena(kit, QUIET, { seed: 7 })
+    for (let i = 0; i < 3; i++) {
+      cast(arena, 0)
+      expect(arena.cast).toBeNull()
+      run(arena, 1)
+    }
+    expect(arena.meter.casts.get('Radiant Bolt')).toBe(3)
+    // The first charge came back 3 sec after the first bolt.
+    expect(arena.cooldowns.get('lifewarden-staff')?.charges).toBe(1)
+    cast(arena, 0)
+    run(arena, 1)
+    cast(arena, 0)
+    expect(arena.notice?.text).toBe("Radiant Bolt isn't ready yet")
+  })
+
+  it('stores some of the mana you spend with Reservoir, for the next bolt, up to 30% of your maximum', () => {
+    const arena = arenaWith(['mend', null, null, null, null], { 'lifewarden-staff': { meditation: 2, reservoir: 2 } })
+    cast(arena, 1)
+    // Mend costs 130: 13 of it stored.
+    expect(arena.reservoir).toBeCloseTo(13)
+    run(arena, 2.1)
+    cast(arena, 0)
+    run(arena, 1.6)
+    expect(arena.meter.resourceGained.get('Reservoir')).toBeCloseTo(13)
+    expect(arena.reservoir).toBe(0)
+    for (let i = 0; i < 40; i++) {
+      arena.resource = 1000
+      cast(arena, 1)
+      run(arena, 2.1)
+    }
+    expect(arena.reservoir).toBeCloseTo(300)
+  })
+
+  it('restores more mana on a crit with Radiance', () => {
+    const base = healerKit([null, null, null, null, null], { 'lifewarden-staff': { 'clear-sight': 2, radiance: 2 } })
+    const crits: Kit = {
+      ...base,
+      slots: base.slots.map((a, i) => (a && i === 0 ? { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 100 })) } : a)),
+    }
+    const arena = new Arena(crits, QUIET, { seed: 7 })
+    arena.resource = 500
+    cast(arena, 0)
+    run(arena, 1.6)
+    expect(arena.meter.resourceGained.get('Radiance')).toBe(20)
+  })
+})
+
+describe("Mend's tree", () => {
+  /** No crits from slotted abilities, so heal numbers are exact. */
+  const noCrits = (kit: Kit): Kit => ({
+    ...kit,
+    slots: kit.slots.map((a) => a && { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 0 })) }),
+  })
+  /** Everyone at full health but the ones given here, as a share of their maximum. */
+  const healthAt = (arena: Arena, shares: Record<string, number>) => {
+    for (const a of arena.allies) a.hp = a.maxHp * (shares[a.isPlayer ? 'You' : a.name] ?? 1)
+  }
+  const healed = (arena: Arena, name: string) => arena.meter.rows.get(name)?.healing ?? 0
+
+  it('heals more the lower its target is with Triage, and the next most injured ally with Echoing Mend', () => {
+    const kit = noCrits(healerKit(['mend', null, null, null, null], { mend: { 'greater-mend': 3, triage: 2, 'echoing-mend': 2 } }))
+    const arena = new Arena(kit, QUIET, { seed: 7 })
+    healthAt(arena, { Tank: 0.2, Blade: 0.6 })
+    cast(arena, 1)
+    run(arena, 2.1)
+    // Triage: up to 50% more, here 80% of it (the tank was missing 80% of their health). Like every
+    // conditional bonus, it multiplies what the talents' added % give.
+    expect(healed(arena, 'Mend')).toBeCloseTo(2400 * 1.24 * (1 + 0.5 * 0.8))
+    // Echoing Mend: 40% as much on the Blade, missing 40%: Greater Mend and Triage count there too.
+    expect(healed(arena, 'Echoing Mend')).toBeCloseTo(2400 * 0.4 * 1.24 * (1 + 0.5 * 0.4))
+  })
+
+  it("turns overhealing into a shield with Mending Ward, up to 20% of the target's maximum health", () => {
+    const kit = noCrits(healerKit(['mend', null, null, null, null], { mend: { 'mending-ward': 2 } }))
+    const arena = new Arena(kit, QUIET, { seed: 7 })
+    healthAt(arena, { You: 2000 / 2400 })
+    cast(arena, 1)
+    run(arena, 2.1)
+    expect(arena.player.shields.find((x) => x.name === 'Mending Ward')?.amount).toBeCloseTo(2400 * 0.2)
+  })
+
+  it('makes the next Mend instant and free with Surge of Light, even when Empowered Mend raises its cost', () => {
+    const arena = arenaWith(['mend', 'renew', null, null, null], { mend: { 'swift-hands': 2, 'surge-of-light': 2, 'empowered-mend': 2 } })
+    expect(arena.current(1)!.cost).toBeCloseTo(182)
+    // Renews and their ticks are heals: each has a 10% chance.
+    for (let t = 0; t < 60 && !arena.buffs.some((b) => b.id === 'surge-of-light'); t += DT) {
+      arena.resource = 1000
+      arena.press(2)
+      arena.step(DT)
+    }
+    expect(arena.current(1)).toMatchObject({ castTime: 0, cost: 0 })
+    // Past the last Renew's global cooldown.
+    run(arena, 1.1)
+    const before = arena.resource
+    cast(arena, 1)
+    expect(arena.cast).toBeNull()
+    expect(arena.resource).toBeGreaterThanOrEqual(before)
+    expect(arena.buffs.some((b) => b.id === 'surge-of-light')).toBe(false)
+  })
+
+  it('casts Mend on whoever drops below 15% with Lifeline: free, instant, off the global cooldown, once every 45 sec', () => {
+    // 300 to everyone every second: you go 1200, 900, 600, 300 (12.5%).
+    const pulse: Scenario = { ...QUIET, events: [{ kind: 'pulse', name: 'Test pulse', every: 1, amount: 300, first: 0.5 }] }
+    const arena = arenaWith(['mend', null, null, null, null], { mend: { 'swift-hands': 2, 'surge-of-light': 2, lifeline: 1 } }, pulse)
+    run(arena, 3.6)
+    expect(hits(arena, 'Mend')).toBe(1)
+    expect(arena.player.hp).toBeGreaterThan(2000)
+    expect(arena.cast).toBeNull()
+    expect(arena.resource).toBe(1000)
+    expect(arena.use(1)).toBe('ok')
+    arena.cast = null
+    // Healed to full, you drop below 15% again 7 sec later: still on its cooldown.
+    run(arena, 8)
+    expect(hits(arena, 'Mend')).toBe(1)
+  })
+})
+
+describe("Chain Heal's tree", () => {
+  const chainOf = (kit: Kit) => kit.slots[1]!
+
+  it('casts in 2 sec and heals 3 allies, 25% less each jump; its talents change all of that', () => {
+    const base = healerKit(['chain-heal', null, null, null, null])
+    expect(chainOf(base)).toMatchObject({ castTime: 2, cooldown: 6, charges: 1 })
+    expect(chainOf(base).effects[0]).toMatchObject({ amount: 1900, bounces: 2, falloff: 25 })
+    const kit = healerKit(['chain-heal', null, null, null, null], {
+      'chain-heal': { 'swift-current': 2, 'extra-link': 1, 'strong-links': 3, 'quick-tide': 2, 'twin-currents': 1 },
+    })
+    // Quick Tide's 2 sec off, Twin Currents' 2 sec back on.
+    expect(chainOf(kit)).toMatchObject({ castTime: 1.5, cooldown: 6, charges: 2 })
+    expect(chainOf(kit).effects[0]).toMatchObject({ bounces: 3, falloff: 10 })
+  })
+
+  it('jumps on to every ally with your HoT with Tidal Web', () => {
+    // Tidal Web alone (the builder asks for Extra Link first), so the 4th ally is reached only by it.
+    const without = arenaWith(['chain-heal', 'renew', null, null, null])
+    const web = arenaWith(['chain-heal', 'renew', null, null, null], { 'chain-heal': { 'tidal-web': 1 } })
+    for (const arena of [without, web]) {
+      // The archer stands close to everyone and gets Renew, then goes back to full health, so the
+      // chain reaches them last.
+      const archer = ally(arena, 'Archer')
+      archer.pos = { x: 27, y: 18 }
+      archer.home = { x: 27, y: 18 }
+      for (const a of arena.allies) a.hp = a.maxHp * (a.name === 'Archer' ? 0.5 : 1)
+      cast(arena, 2)
+      run(arena, 1.1)
+      for (const a of arena.allies) a.hp = a.maxHp * (a.name === 'Archer' ? 1 : 0.5)
+      cast(arena, 1)
+      run(arena, 2.1)
+    }
+    expect(hits(without, 'Chain Heal')).toBe(3)
+    expect(hits(web, 'Chain Heal')).toBe(4)
+  })
+
+  it('starts one second chain at most from a crit with Chain Reaction', () => {
+    const base = healerKit(['chain-heal', null, null, null, null], { 'chain-heal': { 'chain-reaction': 2 } })
+    expect(chainOf(base).effects[0].rechain).toBe(50)
+    // Every heal crits and every crit would start a chain: still only one more.
+    const sure: Kit = {
+      ...base,
+      slots: base.slots.map((a, i) => (a && i === 1 ? { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 100, rechain: 100 })) } : a)),
+    }
+    const arena = new Arena(sure, QUIET, { seed: 7 })
+    cast(arena, 1)
+    run(arena, 2.1)
+    expect(hits(arena, 'Chain Heal')).toBe(6)
+  })
+
+  it('gives back mana for each crit with Flowing Current', () => {
+    const base = healerKit(['chain-heal', null, null, null, null], { 'chain-heal': { 'flowing-current': 3 } })
+    const crits: Kit = {
+      ...base,
+      slots: base.slots.map((a, i) => (a && i === 1 ? { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 100 })) } : a)),
+    }
+    const arena = new Arena(crits, QUIET, { seed: 7 })
+    cast(arena, 1)
+    run(arena, 2.1)
+    // Three heals, three crits: 3% of 1,000 mana each.
+    expect(arena.meter.resourceGained.get('Flowing Current')).toBeCloseTo(90)
+  })
+})
+
 describe('heals', () => {
   it('land on the lowest-health ally when the cast finishes', () => {
     const arena = arenaWith(['mend', null, null, null, null])
     ally(arena, 'Tank').hp = 3000
     cast(arena, 1)
     expect(arena.cast?.ability.name).toBe('Mend')
-    run(arena, 1.5)
-    expect(ally(arena, 'Tank').hp).toBeGreaterThanOrEqual(4800)
+    run(arena, 2.1)
+    expect(ally(arena, 'Tank').hp).toBeGreaterThanOrEqual(5400)
   })
 
   it('tick a HoT once per interval for its whole duration', () => {
@@ -70,7 +274,7 @@ describe('heals', () => {
   it('jump a chain between allies close to each other', () => {
     const arena = arenaWith(['chain-heal', null, null, null, null])
     cast(arena, 1)
-    run(arena, 1.5)
+    run(arena, 2.1)
     // You (lowest by id), then the tank 11.5 yd away, then Blade; the archer is 14 yd from Blade.
     expect(hits(arena, 'Chain Heal')).toBe(3)
     expect(ally(arena, 'Archer').hp).toBe(8000)
@@ -102,6 +306,7 @@ describe('heals', () => {
     const arena = arenaWith(['conduit', null, null, null, null])
     expect(arena.use(1)).toBe('Conduit is passive')
     cast(arena, 0)
+    run(arena, 1.6)
     expect(hits(arena, 'Conduit')).toBe(1)
   })
 
@@ -138,7 +343,7 @@ describe('cooldowns and charges', () => {
     const arena = arenaWith(['mend', null, null, null, null])
     for (let i = 0; i < 3; i++) {
       cast(arena, 1)
-      run(arena, 1.6)
+      run(arena, 2.1)
     }
     expect(arena.meter.casts.get('Mend')).toBe(3)
   })
@@ -147,7 +352,7 @@ describe('cooldowns and charges', () => {
     const arena = arenaWith(['renew', null, null, null, null])
     const holdingAttack = { move: { x: 0, y: 0 }, aim: null, held: new Set([0]) }
     arena.step(DT, holdingAttack)
-    run(arena, 1)
+    run(arena, 1.5)
     arena.press(1)
     arena.step(DT, holdingAttack)
     arena.step(DT, holdingAttack)
@@ -269,11 +474,11 @@ describe('the new mechanics', () => {
     const arena = arenaWith(['mend', 'conduit', null, null, null], { conduit: { 'strong-current': 1, 'latent-charge': 2 } })
     for (let i = 0; i < 3; i++) {
       cast(arena, 0)
-      run(arena, 1)
+      run(arena, 1.6)
     }
     expect(arena.buffs.find((b) => b.id === 'latent-charge')?.stacks).toBe(3)
     // 10% per stack, on top of Strong Current's 6%.
-    expect(arena.current(1)!.effects[0].amount).toBeCloseTo(1800 * (1 + 0.06 + 0.3))
+    expect(arena.current(1)!.effects[0].amount).toBeCloseTo(2400 * (1 + 0.06 + 0.3))
     cast(arena, 1)
     expect(arena.buffs.some((b) => b.id === 'latent-charge')).toBe(false)
   })

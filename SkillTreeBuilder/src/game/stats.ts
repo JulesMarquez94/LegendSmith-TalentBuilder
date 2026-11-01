@@ -28,7 +28,7 @@ export const BASE_STATS: CharStats = {
   spareChance: 0,
   comboBonus: 0,
   splash: 0,
-  overhealToResource: 0,
+  spentToResource: 0,
   lowResourceRegen: 0,
   zoneResourceRegen: 0,
 }
@@ -180,11 +180,11 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     unit: '%',
     help: 'Each step past the first that an ability pays for adds this much on top of its usual 100%.',
   },
-  overhealToResource: {
+  spentToResource: {
     label: 'Reservoir',
     color: '#5aa9ff',
     unit: '%',
-    help: 'Share of overhealing stored and given back as @resource by your next main attack (80 at most).',
+    help: 'Share of the @resource you spend that is stored and given back by your next main attack (30% of your maximum at most).',
   },
   lowResourceRegen: {
     label: 'Low-@resource regen',
@@ -221,7 +221,7 @@ export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[
       'resourceWhenHit',
       'resourceOnParry',
       'spareChance',
-      'overhealToResource',
+      'spentToResource',
       'lowResourceRegen',
       'zoneResourceRegen',
     ],
@@ -234,7 +234,7 @@ export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>([
   'resourceWhenHit',
   'resourceOnParry',
   'spareChance',
-  'overhealToResource',
+  'spentToResource',
   'lowResourceRegen',
   'zoneResourceRegen',
   'resourceRegenPct',

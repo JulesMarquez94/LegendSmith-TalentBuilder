@@ -59,7 +59,7 @@ already in another slot swaps the two and keeps both builds.
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
 Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
-Carrion Curse, Overlord, Plague and Raise Ghoul.
+Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff, Mend and Chain Heal.
 
 ## The artifacts
 
@@ -107,7 +107,58 @@ below with its role.
 ## The healer kit
 
 The **Lifewarden Staff** uses mana: 1,000 to start, 8 back per second, and its main attack, Radiant
-Bolt, restores 16 per hit. Heals cost 80–200, so you weave attacks between heals.
+Bolt, is a 1.5 sec cast that hits for 450 and restores 20 mana. Heals cost 80–200, so you weave attacks
+between heals. Its tree is all about mana:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Attunement | 2 | Radiant Bolt restores 4/8 more mana |
+| 1 | Meditation | 2 | 2/4 more mana per sec |
+| 1 | Deep Reserves | 3 | 100/200/300 more maximum mana |
+| 2 | Clear Sight | 2 | +3/6% critical chance |
+| 2 | Reservoir (needs Meditation) | 2 | 5/10% of the mana you spend is stored; your next Radiant Bolt hit gives it all back, up to 30% of your maximum |
+| 2 | Quickened Light | 2 | +3/6% haste |
+| 3 | Radiance (needs Clear Sight) | 2 | Radiant Bolt crits restore 10/20 more mana |
+| 3 | Lightspeed (needs Quickened Light) | 1 | Radiant Bolt becomes instant, with 3 charges, each back after 3 sec |
+| 4 | Afterglow (needs Lightspeed) | 2 | Your instant Radiant Bolt restores 10/20 more mana |
+
+A talent can now give a cooldown to an ability that has none (Lightspeed's charges), and the
+Reservoir stat (`spentToResource`) stores a share of what you spend rather than of your overhealing.
+
+**Mend** is the big single heal: a 2 sec cast for 130 mana that heals the lowest-health ally for 2,400.
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Greater Mend | 3 | Your direct heals heal 8/16/24% more |
+| 1 | Swift Hands | 2 | Mend casts 0.25/0.5 sec faster |
+| 1 | Triage | 2 | Mend heals up to 25/50% more the lower its target's health (all of it near death) |
+| 2 | Echoing Mend (needs Greater Mend) | 2 | Mend also heals the next most injured ally for 20/40% as much |
+| 2 | Surge of Light (needs Swift Hands) | 2 | Whenever you heal, 5/10% chance your next Mend is instant and free; at most once every 15 sec |
+| 2 | Nurturing Mend | 2 | Mend heals 10/20% more on an ally with your HoT or in your healing zone |
+| 3 | Mending Ward | 2 | 50/100% of Mend's overhealing becomes a 12 sec shield, up to 20% of the target's maximum health |
+| 3 | Empowered Mend | 2 | Mend costs and heals 20/40% more |
+| 4 | Lifeline (needs Surge of Light) | 1 | When you or an ally drops below 15% health, you cast Mend on them at once: free, instant, off the global cooldown; once every 45 sec |
+
+New in the sim for it: a conditional bonus that grows with the target's **missing health** (`missing`),
+a shield's own cap (`maxShare`, 20% of maximum health here), and a `lowHealth` event when you or an ally
+drops below 15%. A **−100%** mod now always means none at all, whatever else adds to it, so a free or
+instant cast stays free even when another talent raises the cost.
+
+**Chain Heal** is a 2 sec cast for 160 mana on a 6 sec cooldown: it heals the lowest-health ally for
+1,900, then jumps to the next most injured ally within 12 yd, twice, 25% less each jump (3 allies).
+Like every heal and hit, each jump rolls its own crit.
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Potent Current | 3 | Your direct heals heal 8/16/24% more |
+| 1 | Swift Current | 2 | Chain Heal casts 0.25/0.5 sec faster |
+| 1 | Extra Link | 1 | Chain Heal jumps to 1 more ally |
+| 2 | Strong Links | 3 | Chain Heal loses 5/10/15% less per jump |
+| 2 | Quick Tide | 2 | Chain Heal's cooldown is 1/2 sec shorter |
+| 2 | Flowing Current | 3 | Each Chain Heal heal that crits gives back 1/2/3% of your maximum mana |
+| 3 | Twin Currents (needs Quick Tide) | 1 | 2 charges, but the cooldown is 2 sec longer |
+| 3 | Tidal Web (needs Extra Link) | 1 | After its jumps, it keeps jumping to every ally with your HoT |
+| 4 | Chain Reaction (needs Flowing Current) | 2 | A crit has a 25/50% chance to start a second chain out of that ally once the first is done; one more chain per cast at most |
 
 Abilities never hard-code mana: they cost the artifact's **resource**, and shared talent text says
 `@resource`, which shows as the held artifact's resource. Another healing weapon with its own resource

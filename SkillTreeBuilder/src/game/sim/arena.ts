@@ -29,9 +29,13 @@ const ENEMY_RANGE = 40
 /** How close to a dash's path an ally must be for path heals. */
 const PATH_WIDTH = 3
 /** Reservoir never stores more resource than this. */
-const RESERVOIR_CAP = 80
+/** Most of your maximum resource the Reservoir holds, as a share. */
+const RESERVOIR_CAP = 0.3
 /** A shield never grows past this share of its target's health. */
 const SHIELD_CAP = 0.5
+/** Below this % health, you or an ally sets off `lowHealth` events (Lifeline). */
+const LOW_HEALTH = 15
+const LOW_HEALTH_TAGS: ReadonlySet<Tag> = new Set<Tag>(['low-health'])
 /** Presses are remembered this long, so a key hit just before a cast ends still goes off (like WoW's spell queue). */
 const QUEUE_WINDOW = 0.35
 const DASH_TIME = 0.15
@@ -868,7 +872,9 @@ export class Arena {
     effects: readonly ResolvedEffect[] = a.effects,
   ) {
     for (const e of effects) {
-      this.applyEffect(forceTarget ? { ...e, target: forceTarget } : e, ctx, { label: e.name ?? a.name }, input)
+      // A heal on the next most injured ally (Echoing Mend) still finds its own target.
+      const forced = forceTarget && e.target !== 'next-lowest'
+      this.applyEffect(forced ? { ...e, target: forceTarget } : e, ctx, { label: e.name ?? a.name }, input)
     }
   }
 
@@ -890,20 +896,10 @@ export class Arena {
       case 'chain': {
         const starts = this.pick(e.target, ctx, e, e.targets)
         for (const start of starts) {
-          const hit = new Set<Ally>([start])
           this.beam(this.player.pos, start.pos, e.color)
-          this.heal(start, e.amount, e, ctx, opts)
-          let from = start
-          for (let jump = 1; jump <= e.bounces; jump++) {
-            const next = this.byHealth(
-              this.allies.filter((x) => x.alive && !hit.has(x) && dist(from.pos, x.pos) <= e.radius),
-            )[0]
-            if (!next) break
-            hit.add(next)
-            this.beam(from.pos, next.pos, e.color)
-            this.heal(next, e.amount * (1 - e.falloff / 100) ** jump, e, ctx, opts)
-            from = next
-          }
+          // Chain Reaction: a crit may start one more chain out of that ally, once this one is done.
+          const again = this.chain(start, e, ctx, opts, true)
+          if (again) this.chain(again, e, ctx, opts, false, true)
         }
         if (starts.length) ctx.primary = starts
         break
@@ -1010,8 +1006,9 @@ export class Arena {
     for (const x of near) this.hitEnemy(x, amount, { ...e, tags }, ctx, { label, fixed: true, quiet: true, secondary: true })
   }
 
-  private heal(target: Ally, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions) {
-    if (!target.alive) return
+  /** Heals an ally. True when it crit. */
+  private heal(target: Ally, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions): boolean {
+    if (!target.alive) return false
     let amount = base
     let crit = false
     if (!opts.fixed) {
@@ -1034,13 +1031,46 @@ export class Arena {
     row.hits += 1
     if (crit) row.crits += 1
     this.meter.rows.set(opts.label, row)
-    const stored = this.stats().overhealToResource
-    if (overheal > 0 && stored > 0) this.reservoir = Math.min(RESERVOIR_CAP, this.reservoir + (overheal * stored) / 100)
     if (!opts.quiet) this.text(target.pos, `+${int(amount)}${crit ? '!' : ''}`, e.color, crit || e.family === 'direct-heal')
 
     const ev: GameEvent = { kind: 'heal', tags: e.tags, ctx, target, amount: effective, overheal, crit, before }
     this.emit(ev)
     if (crit) this.emit({ ...ev, kind: 'crit' })
+    return crit
+  }
+
+  /**
+   * One chain: heals `origin` (unless `fromOrigin`: then it only jumps out of it), then the next most
+   * injured ally within reach of the last, each for less, as many times as its jumps allow; with
+   * Tidal Web, on to every ally with your HoT after that. Returns the ally a crit picked to start
+   * another chain from (Chain Reaction), when `canRechain`.
+   */
+  private chain(origin: Ally, e: ResolvedEffect, ctx: CastContext, opts: HitOptions, canRechain: boolean, fromOrigin = false) {
+    const hit = new Set<Ally>([origin])
+    let again: Ally | null = null
+    // Heals so far: the next one heals (1 - falloff)^step.
+    let step = 0
+    let from = origin
+    let next: Ally | undefined = fromOrigin ? undefined : origin
+    for (;;) {
+      if (!next) {
+        const extra = step > e.bounces
+        if (extra && !e.hotJumps) break
+        const prev = from
+        next = this.byHealth(
+          this.allies.filter((x) => x.alive && !hit.has(x) && dist(prev.pos, x.pos) <= e.radius && (!extra || x.hots.length > 0)),
+        )[0]
+        if (!next) break
+        hit.add(next)
+        this.beam(from.pos, next.pos, e.color)
+      }
+      const crit = this.heal(next, e.amount * (1 - e.falloff / 100) ** step, e, ctx, opts)
+      if (crit && canRechain && !again && this.decks.draw(`rechain:${e.key}`, e.rechain)) again = next
+      from = next
+      next = undefined
+      step++
+    }
+    return again
   }
 
   /** Every hit you land on an enemy: direct damage, DoT ticks, minion attacks, damaging zones. */
@@ -1247,7 +1277,7 @@ export class Arena {
 
   private addShield(target: Ally, e: ResolvedEffect, name: string) {
     if (!target.alive || e.amount <= 0) return
-    const cap = target.maxHp * SHIELD_CAP
+    const cap = target.maxHp * (e.maxShare > 0 ? e.maxShare / 100 : SHIELD_CAP)
     const existing = target.shields.find((s) => s.key === e.key)
     if (existing) {
       existing.amount = Math.min(cap, existing.amount + e.amount)
@@ -1620,7 +1650,7 @@ export class Arena {
     if (when.affected && !this.affected(target)) return 0
     if (when.targetSelf && !target.isPlayer) return 0
     if (when.alone) return 0
-    let n = 1
+    let n = when.missing ? 1 - target.hp / target.maxHp : 1
     if (when.each) n = target.hots.filter((h) => matches(when.each!, h.effect.tags)).length
     if (when.stacksOf) n = target.hots.filter((h) => matches(when.stacksOf!, h.effect.tags)).length
     return c.pct * n
@@ -1639,7 +1669,7 @@ export class Arena {
     if (when.inZone && !this.enemyInZone(enemy)) return 0
     if (when.affected && !(enemy.dots.length > 0 || this.enemyInZone(enemy))) return 0
     if (when.targetSelf || when.overheal) return 0
-    let n = 1
+    let n = when.missing ? 1 - enemy.hp / enemy.maxHp : 1
     if (when.each) n = this.countEffects(enemy, when.each)
     if (when.stacksOf) {
       n = enemy.dots.filter((d) => matches(when.stacksOf!, d.effect.tags)).reduce((sum, d) => sum + this.liveStacks(d), 0)
@@ -1840,6 +1870,9 @@ export class Arena {
     const spent = this.kit.minion ? this.sacrifice(n) : n
     this.resource = Math.max(0, this.resource - spent)
     this.meter.resourceSpent.set(source, (this.meter.resourceSpent.get(source) ?? 0) + spent)
+    // Reservoir: a share of what you spend is stored for your next main attack to give back.
+    const stored = this.stats().spentToResource
+    if (stored > 0) this.reservoir = Math.min(RESERVOIR_CAP * this.maxResource, this.reservoir + (spent * stored) / 100)
   }
 
   // ---------- Minions ----------
@@ -2412,10 +2445,17 @@ export class Arena {
       }
     }
     a.shields = a.shields.filter((s) => s.amount > 0)
+    const before = a.hp / a.maxHp
     a.hp -= left
     this.meter.damageTaken += left
     if (!quiet && left >= 1) this.text(a.pos, `-${int(left)}`, '#ff7a6b', false)
-    if (a.hp > 0) return
+    if (a.hp > 0) {
+      // Dropping below 15% health (Lifeline).
+      if (before * 100 >= LOW_HEALTH && (a.hp / a.maxHp) * 100 < LOW_HEALTH) {
+        this.emit({ kind: 'lowHealth', tags: LOW_HEALTH_TAGS, ctx: this.newContext(null, -1, 0), target: a, before })
+      }
+      return
+    }
     if (this.options.noDeaths) {
       a.hp = 1
       return
