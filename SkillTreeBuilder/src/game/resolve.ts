@@ -368,7 +368,8 @@ function resolveAbilityWith(
     cost: Math.max(0, scaled((spec.cost ?? 0) * unit, get('cost'))),
     cycle: spec.cycle,
     castTime: Math.max(0, scaled(spec.castTime ?? 0, get('castTime'))) / haste,
-    cooldown: spec.cooldown ? Math.max(0, scaled(spec.cooldown, get('cooldown'))) : 0,
+    // A talent can give an ability without one a cooldown (Lightspeed's charges on Radiant Bolt).
+    cooldown: Math.max(0, scaled(spec.cooldown ?? 0, get('cooldown'))),
     charges: Math.max(1, Math.round((spec.charges ?? 1) + get('charges').add)),
     range: Math.max(0, scaled(spec.range ?? 0, get('range'))),
     gcd: baseGcd === 0 ? 0 : Math.max(MIN_GCD, scaled(baseGcd, get('gcd')) / haste),

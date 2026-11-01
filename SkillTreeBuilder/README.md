@@ -59,7 +59,7 @@ already in another slot swaps the two and keeps both builds.
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
 Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
-Carrion Curse, Overlord, Plague and Raise Ghoul.
+Carrion Curse, Overlord, Plague, Raise Ghoul and the Lifewarden Staff.
 
 ## The artifacts
 
@@ -107,7 +107,23 @@ below with its role.
 ## The healer kit
 
 The **Lifewarden Staff** uses mana: 1,000 to start, 8 back per second, and its main attack, Radiant
-Bolt, restores 16 per hit. Heals cost 80–200, so you weave attacks between heals.
+Bolt, is a 1.5 sec cast that hits for 450 and restores 20 mana. Heals cost 80–200, so you weave attacks
+between heals. Its tree is all about mana:
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Attunement | 2 | Radiant Bolt restores 4/8 more mana |
+| 1 | Meditation | 2 | 2/4 more mana per sec |
+| 1 | Deep Reserves | 3 | 100/200/300 more maximum mana |
+| 2 | Clear Sight | 2 | +3/6% critical chance |
+| 2 | Reservoir (needs Meditation) | 2 | 5/10% of the mana you spend is stored; your next Radiant Bolt hit gives it all back, up to 30% of your maximum |
+| 2 | Quickened Light | 2 | +3/6% haste |
+| 3 | Radiance (needs Clear Sight) | 2 | Radiant Bolt crits restore 10/20 more mana |
+| 3 | Lightspeed (needs Quickened Light) | 1 | Radiant Bolt becomes instant, with 3 charges, each back after 3 sec |
+| 4 | Afterglow (needs Lightspeed) | 2 | Your instant Radiant Bolt restores 10/20 more mana |
+
+A talent can now give a cooldown to an ability that has none (Lightspeed's charges), and the
+Reservoir stat (`spentToResource`) stores a share of what you spend rather than of your overhealing.
 
 Abilities never hard-code mana: they cost the artifact's **resource**, and shared talent text says
 `@resource`, which shows as the held artifact's resource. Another healing weapon with its own resource

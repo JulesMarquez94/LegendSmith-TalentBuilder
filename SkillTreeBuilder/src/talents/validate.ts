@@ -183,7 +183,7 @@ const WEAPON_STATS: readonly CharStat[] = [
   'resourceWhenHit',
   'resourceOnParry',
   'spareChance',
-  'overhealToResource',
+  'spentToResource',
   'minionPower',
   'comboBonus',
 ]

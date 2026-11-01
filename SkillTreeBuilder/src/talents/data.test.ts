@@ -125,6 +125,7 @@ describe('design passes', () => {
         'carrion-curse',
         'festering-rot',
         'harvest',
+        'lifewarden-staff',
         'miasma',
         'overlord',
         'plague',

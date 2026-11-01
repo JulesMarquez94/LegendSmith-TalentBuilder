@@ -84,8 +84,8 @@ export type CharStat =
    * of what it dealt (Volley).
    */
   | 'splash'
-  /** % of overhealing stored, then given back as resource by the next main attack. */
-  | 'overhealToResource'
+  /** % of the resource you spend stored, then given back by the next main attack (30% of the maximum at most). */
+  | 'spentToResource'
   /** % stronger resource regeneration while below 30% of the maximum. */
   | 'lowResourceRegen'
   /** Extra regeneration, as a % of your maximum resource per second, while you stand in one of your zones. */

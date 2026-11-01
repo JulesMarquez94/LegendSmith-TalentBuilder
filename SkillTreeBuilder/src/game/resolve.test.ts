@@ -128,8 +128,8 @@ describe('talents reach across trees by family', () => {
 
   it('collects stat talents into the character sheet', () => {
     const kit = healerKit(SLOTS, { 'lifewarden-staff': { 'deep-reserves': 2, meditation: 2 } })
-    expect(kit.character.stats.maxResource).toBe(1300)
-    expect(kit.character.lines.resourceRegen).toMatchObject({ base: 8, talents: 3, total: 11 })
+    expect(kit.character.stats.maxResource).toBe(1200)
+    expect(kit.character.lines.resourceRegen).toMatchObject({ base: 8, talents: 4, total: 12 })
   })
 })
 

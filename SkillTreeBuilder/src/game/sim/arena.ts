@@ -29,7 +29,8 @@ const ENEMY_RANGE = 40
 /** How close to a dash's path an ally must be for path heals. */
 const PATH_WIDTH = 3
 /** Reservoir never stores more resource than this. */
-const RESERVOIR_CAP = 80
+/** Most of your maximum resource the Reservoir holds, as a share. */
+const RESERVOIR_CAP = 0.3
 /** A shield never grows past this share of its target's health. */
 const SHIELD_CAP = 0.5
 /** Presses are remembered this long, so a key hit just before a cast ends still goes off (like WoW's spell queue). */
@@ -1034,8 +1035,6 @@ export class Arena {
     row.hits += 1
     if (crit) row.crits += 1
     this.meter.rows.set(opts.label, row)
-    const stored = this.stats().overhealToResource
-    if (overheal > 0 && stored > 0) this.reservoir = Math.min(RESERVOIR_CAP, this.reservoir + (overheal * stored) / 100)
     if (!opts.quiet) this.text(target.pos, `+${int(amount)}${crit ? '!' : ''}`, e.color, crit || e.family === 'direct-heal')
 
     const ev: GameEvent = { kind: 'heal', tags: e.tags, ctx, target, amount: effective, overheal, crit, before }
@@ -1840,6 +1839,9 @@ export class Arena {
     const spent = this.kit.minion ? this.sacrifice(n) : n
     this.resource = Math.max(0, this.resource - spent)
     this.meter.resourceSpent.set(source, (this.meter.resourceSpent.get(source) ?? 0) + spent)
+    // Reservoir: a share of what you spend is stored for your next main attack to give back.
+    const stored = this.stats().spentToResource
+    if (stored > 0) this.reservoir = Math.min(RESERVOIR_CAP * this.maxResource, this.reservoir + (spent * stored) / 100)
   }
 
   // ---------- Minions ----------
