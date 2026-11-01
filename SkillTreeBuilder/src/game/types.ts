@@ -160,6 +160,10 @@ export type EffectKey =
   | 'patron'
   /** A rolling DoT: above 0, it doesn't tick; each stack deals all its damage at once when it runs out. */
   | 'burst'
+  /** A chain heal: past its jumps, it keeps jumping to every ally with your HoT (Tidal Web). */
+  | 'hotJumps'
+  /** A chain heal: % chance that a crit starts one more chain from that ally, once per cast (Chain Reaction). */
+  | 'rechain'
   /** A bursting DoT: % of each burst that every other enemy within 8 yd of the target takes too. */
   | 'burstSplash'
   /** A summon: damage it deals to every enemy within 6 yd of its target when it falls (Corpse Explosion). */
@@ -410,7 +414,7 @@ export type EventKind =
   | 'second'
   | 'sacrifice'
   | 'moving'
-  /** You or an ally drops below 15% health (and is still alive). */
+  /** You or an ally drops below 15% health (and is still alive). Tagged `low-health`. */
   | 'lowHealth'
 
 export type Action =
@@ -595,6 +599,8 @@ export interface ResolvedEffect {
   burst: number
   burstSplash: number
   maxShare: number
+  hotJumps: number
+  rechain: number
   explode: number
   explodeLeft: number
   fury: number

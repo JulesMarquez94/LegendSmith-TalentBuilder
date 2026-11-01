@@ -35,7 +35,7 @@ const RESERVOIR_CAP = 0.3
 const SHIELD_CAP = 0.5
 /** Below this % health, you or an ally sets off `lowHealth` events (Lifeline). */
 const LOW_HEALTH = 15
-const NO_TAGS: ReadonlySet<Tag> = new Set<Tag>()
+const LOW_HEALTH_TAGS: ReadonlySet<Tag> = new Set<Tag>(['low-health'])
 /** Presses are remembered this long, so a key hit just before a cast ends still goes off (like WoW's spell queue). */
 const QUEUE_WINDOW = 0.35
 const DASH_TIME = 0.15
@@ -896,20 +896,10 @@ export class Arena {
       case 'chain': {
         const starts = this.pick(e.target, ctx, e, e.targets)
         for (const start of starts) {
-          const hit = new Set<Ally>([start])
           this.beam(this.player.pos, start.pos, e.color)
-          this.heal(start, e.amount, e, ctx, opts)
-          let from = start
-          for (let jump = 1; jump <= e.bounces; jump++) {
-            const next = this.byHealth(
-              this.allies.filter((x) => x.alive && !hit.has(x) && dist(from.pos, x.pos) <= e.radius),
-            )[0]
-            if (!next) break
-            hit.add(next)
-            this.beam(from.pos, next.pos, e.color)
-            this.heal(next, e.amount * (1 - e.falloff / 100) ** jump, e, ctx, opts)
-            from = next
-          }
+          // Chain Reaction: a crit may start one more chain out of that ally, once this one is done.
+          const again = this.chain(start, e, ctx, opts, true)
+          if (again) this.chain(again, e, ctx, opts, false, true)
         }
         if (starts.length) ctx.primary = starts
         break
@@ -1016,8 +1006,9 @@ export class Arena {
     for (const x of near) this.hitEnemy(x, amount, { ...e, tags }, ctx, { label, fixed: true, quiet: true, secondary: true })
   }
 
-  private heal(target: Ally, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions) {
-    if (!target.alive) return
+  /** Heals an ally. True when it crit. */
+  private heal(target: Ally, base: number, e: ResolvedEffect, ctx: CastContext, opts: HitOptions): boolean {
+    if (!target.alive) return false
     let amount = base
     let crit = false
     if (!opts.fixed) {
@@ -1045,6 +1036,41 @@ export class Arena {
     const ev: GameEvent = { kind: 'heal', tags: e.tags, ctx, target, amount: effective, overheal, crit, before }
     this.emit(ev)
     if (crit) this.emit({ ...ev, kind: 'crit' })
+    return crit
+  }
+
+  /**
+   * One chain: heals `origin` (unless `fromOrigin`: then it only jumps out of it), then the next most
+   * injured ally within reach of the last, each for less, as many times as its jumps allow; with
+   * Tidal Web, on to every ally with your HoT after that. Returns the ally a crit picked to start
+   * another chain from (Chain Reaction), when `canRechain`.
+   */
+  private chain(origin: Ally, e: ResolvedEffect, ctx: CastContext, opts: HitOptions, canRechain: boolean, fromOrigin = false) {
+    const hit = new Set<Ally>([origin])
+    let again: Ally | null = null
+    // Heals so far: the next one heals (1 - falloff)^step.
+    let step = 0
+    let from = origin
+    let next: Ally | undefined = fromOrigin ? undefined : origin
+    for (;;) {
+      if (!next) {
+        const extra = step > e.bounces
+        if (extra && !e.hotJumps) break
+        const prev = from
+        next = this.byHealth(
+          this.allies.filter((x) => x.alive && !hit.has(x) && dist(prev.pos, x.pos) <= e.radius && (!extra || x.hots.length > 0)),
+        )[0]
+        if (!next) break
+        hit.add(next)
+        this.beam(from.pos, next.pos, e.color)
+      }
+      const crit = this.heal(next, e.amount * (1 - e.falloff / 100) ** step, e, ctx, opts)
+      if (crit && canRechain && !again && this.decks.draw(`rechain:${e.key}`, e.rechain)) again = next
+      from = next
+      next = undefined
+      step++
+    }
+    return again
   }
 
   /** Every hit you land on an enemy: direct damage, DoT ticks, minion attacks, damaging zones. */
@@ -2426,7 +2452,7 @@ export class Arena {
     if (a.hp > 0) {
       // Dropping below 15% health (Lifeline).
       if (before * 100 >= LOW_HEALTH && (a.hp / a.maxHp) * 100 < LOW_HEALTH) {
-        this.emit({ kind: 'lowHealth', tags: NO_TAGS, ctx: this.newContext(null, -1, 0), target: a, before })
+        this.emit({ kind: 'lowHealth', tags: LOW_HEALTH_TAGS, ctx: this.newContext(null, -1, 0), target: a, before })
       }
       return
     }

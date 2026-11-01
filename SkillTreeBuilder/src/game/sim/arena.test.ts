@@ -190,6 +190,70 @@ describe("Mend's tree", () => {
   })
 })
 
+describe("Chain Heal's tree", () => {
+  const chainOf = (kit: Kit) => kit.slots[1]!
+
+  it('casts in 2 sec and heals 3 allies, 25% less each jump; its talents change all of that', () => {
+    const base = healerKit(['chain-heal', null, null, null, null])
+    expect(chainOf(base)).toMatchObject({ castTime: 2, cooldown: 6, charges: 1 })
+    expect(chainOf(base).effects[0]).toMatchObject({ amount: 1900, bounces: 2, falloff: 25 })
+    const kit = healerKit(['chain-heal', null, null, null, null], {
+      'chain-heal': { 'swift-current': 2, 'extra-link': 1, 'strong-links': 3, 'quick-tide': 2, 'twin-currents': 1 },
+    })
+    // Quick Tide's 2 sec off, Twin Currents' 2 sec back on.
+    expect(chainOf(kit)).toMatchObject({ castTime: 1.5, cooldown: 6, charges: 2 })
+    expect(chainOf(kit).effects[0]).toMatchObject({ bounces: 3, falloff: 10 })
+  })
+
+  it('jumps on to every ally with your HoT with Tidal Web', () => {
+    // Tidal Web alone (the builder asks for Extra Link first), so the 4th ally is reached only by it.
+    const without = arenaWith(['chain-heal', 'renew', null, null, null])
+    const web = arenaWith(['chain-heal', 'renew', null, null, null], { 'chain-heal': { 'tidal-web': 1 } })
+    for (const arena of [without, web]) {
+      // The archer stands close to everyone and gets Renew, then goes back to full health, so the
+      // chain reaches them last.
+      const archer = ally(arena, 'Archer')
+      archer.pos = { x: 27, y: 18 }
+      archer.home = { x: 27, y: 18 }
+      for (const a of arena.allies) a.hp = a.maxHp * (a.name === 'Archer' ? 0.5 : 1)
+      cast(arena, 2)
+      run(arena, 1.1)
+      for (const a of arena.allies) a.hp = a.maxHp * (a.name === 'Archer' ? 1 : 0.5)
+      cast(arena, 1)
+      run(arena, 2.1)
+    }
+    expect(hits(without, 'Chain Heal')).toBe(3)
+    expect(hits(web, 'Chain Heal')).toBe(4)
+  })
+
+  it('starts one second chain at most from a crit with Chain Reaction', () => {
+    const base = healerKit(['chain-heal', null, null, null, null], { 'chain-heal': { 'chain-reaction': 2 } })
+    expect(chainOf(base).effects[0].rechain).toBe(50)
+    // Every heal crits and every crit would start a chain: still only one more.
+    const sure: Kit = {
+      ...base,
+      slots: base.slots.map((a, i) => (a && i === 1 ? { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 100, rechain: 100 })) } : a)),
+    }
+    const arena = new Arena(sure, QUIET, { seed: 7 })
+    cast(arena, 1)
+    run(arena, 2.1)
+    expect(hits(arena, 'Chain Heal')).toBe(6)
+  })
+
+  it('gives back mana for each crit with Flowing Current', () => {
+    const base = healerKit(['chain-heal', null, null, null, null], { 'chain-heal': { 'flowing-current': 3 } })
+    const crits: Kit = {
+      ...base,
+      slots: base.slots.map((a, i) => (a && i === 1 ? { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 100 })) } : a)),
+    }
+    const arena = new Arena(crits, QUIET, { seed: 7 })
+    cast(arena, 1)
+    run(arena, 2.1)
+    // Three heals, three crits: 3% of 1,000 mana each.
+    expect(arena.meter.resourceGained.get('Flowing Current')).toBeCloseTo(90)
+  })
+})
+
 describe('heals', () => {
   it('land on the lowest-health ally when the cast finishes', () => {
     const arena = arenaWith(['mend', null, null, null, null])
@@ -210,7 +274,7 @@ describe('heals', () => {
   it('jump a chain between allies close to each other', () => {
     const arena = arenaWith(['chain-heal', null, null, null, null])
     cast(arena, 1)
-    run(arena, 1.5)
+    run(arena, 2.1)
     // You (lowest by id), then the tank 11.5 yd away, then Blade; the archer is 14 yd from Blade.
     expect(hits(arena, 'Chain Heal')).toBe(3)
     expect(ally(arena, 'Archer').hp).toBe(8000)

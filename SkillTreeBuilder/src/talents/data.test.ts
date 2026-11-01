@@ -123,6 +123,7 @@ describe('design passes', () => {
         'ashwood-longbow',
         'blood-frenzy',
         'carrion-curse',
+        'chain-heal',
         'festering-rot',
         'harvest',
         'lifewarden-staff',

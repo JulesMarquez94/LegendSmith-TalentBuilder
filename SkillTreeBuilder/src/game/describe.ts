@@ -82,6 +82,12 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
           detail: `${yd(e.radius)} yd, −${pct(e.falloff)}% each · ${int(chainTotal(e))} if all land`,
         })
       }
+      if (e.hotJumps > 0) {
+        out.push({ key: key('hotJumps'), label: 'Then', value: 1, format: () => 'every ally', better: 'up', detail: 'with your HoT' })
+      }
+      if (e.rechain > 0) {
+        out.push({ key: key('rechain'), label: 'Crits', value: e.rechain, format: percent, better: 'up', detail: 'chance to start a second chain' })
+      }
       if (e.targets > 1) out.push({ key: key('targets'), label: 'Allies', value: e.targets, format: String, better: 'up' })
       break
     case 'bloom':

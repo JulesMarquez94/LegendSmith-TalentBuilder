@@ -295,6 +295,8 @@ function resolveEffectWith(
     stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
     maxStacks: effect.maxStacks ? Math.max(1, Math.round(effect.maxStacks + get('maxStacks').add)) : 0,
     maxShare: effect.maxShare ?? 0,
+    hotJumps: get('hotJumps').add > 0 ? 1 : 0,
+    rechain: Math.min(100, Math.max(0, get('rechain').add)),
     max: Math.max(1, Math.round((effect.max ?? 1) + get('max').add)),
     mode: effect.mode,
     // A buff's stats grow with `strength` talents (Frenzy's haste, Volley's splash); speed has its own key.

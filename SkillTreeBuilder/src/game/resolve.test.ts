@@ -35,7 +35,7 @@ describe('base numbers', () => {
 
   it("add up a chain's jumps", () => {
     const chain = abilityIn(healerKit(['chain-heal']), 'chain-heal').effects[0]
-    expect(chainTotal(chain)).toBeCloseTo(1400 * (1 + 0.85 + 0.85 ** 2 + 0.85 ** 3))
+    expect(chainTotal(chain)).toBeCloseTo(1900 * (1 + 0.75 + 0.75 ** 2))
   })
 })
 
@@ -80,7 +80,7 @@ describe('talents reach across trees by family', () => {
   it("lifts a whole family from each tree's \"heals more\" talent", () => {
     const kit = healerKit(['mend', 'chain-heal', 'bloom', 'miracle', null], { mend: { 'greater-mend': 3 } })
     expect(abilityIn(kit, 'mend').effects[0].amount).toBeCloseTo(2400 * 1.24)
-    expect(abilityIn(kit, 'chain-heal').effects[0].amount).toBeCloseTo(1400 * 1.24)
+    expect(abilityIn(kit, 'chain-heal').effects[0].amount).toBeCloseTo(1900 * 1.24)
     expect(abilityIn(kit, 'bloom').effects[0].amount).toBeCloseTo(900 * 1.24)
     expect(abilityIn(kit, 'miracle').effects[0].amount).toBeCloseTo(6000 * 1.24)
   })

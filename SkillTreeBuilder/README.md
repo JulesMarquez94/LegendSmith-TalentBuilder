@@ -59,7 +59,7 @@ already in another slot swaps the two and keeps both builds.
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
 Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
-Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff and Mend.
+Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff, Mend and Chain Heal.
 
 ## The artifacts
 
@@ -143,6 +143,22 @@ New in the sim for it: a conditional bonus that grows with the target's **missin
 a shield's own cap (`maxShare`, 20% of maximum health here), and a `lowHealth` event when you or an ally
 drops below 15%. A **−100%** mod now always means none at all, whatever else adds to it, so a free or
 instant cast stays free even when another talent raises the cost.
+
+**Chain Heal** is a 2 sec cast for 160 mana on a 6 sec cooldown: it heals the lowest-health ally for
+1,900, then jumps to the next most injured ally within 12 yd, twice, 25% less each jump (3 allies).
+Like every heal and hit, each jump rolls its own crit.
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Potent Current | 3 | Your direct heals heal 8/16/24% more |
+| 1 | Swift Current | 2 | Chain Heal casts 0.25/0.5 sec faster |
+| 1 | Extra Link | 1 | Chain Heal jumps to 1 more ally |
+| 2 | Strong Links | 3 | Chain Heal loses 5/10/15% less per jump |
+| 2 | Quick Tide | 2 | Chain Heal's cooldown is 1/2 sec shorter |
+| 2 | Flowing Current | 3 | Each Chain Heal heal that crits gives back 1/2/3% of your maximum mana |
+| 3 | Twin Currents (needs Quick Tide) | 1 | 2 charges, but the cooldown is 2 sec longer |
+| 3 | Tidal Web (needs Extra Link) | 1 | After its jumps, it keeps jumping to every ally with your HoT |
+| 4 | Chain Reaction (needs Flowing Current) | 2 | A crit has a 25/50% chance to start a second chain out of that ally once the first is done; one more chain per cast at most |
 
 Abilities never hard-code mana: they cost the artifact's **resource**, and shared talent text says
 `@resource`, which shows as the held artifact's resource. Another healing weapon with its own resource
