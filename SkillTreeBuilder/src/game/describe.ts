@@ -134,6 +134,12 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
         if (e.damageReduction) {
           out.push({ key: key('dr'), label: 'Damage taken inside', value: e.damageReduction, format: (n) => `−${pct(n)}%`, better: 'up' })
         }
+        if (e.opening > 0) {
+          out.push({ key: key('opening'), label: 'When placed', value: e.opening, format: amount, better: 'up', detail: 'shared by the injured inside' })
+        }
+        if (e.swell > 0) {
+          out.push({ key: key('swell'), label: 'Each tick', value: e.swell, format: (n) => `+${pct(n)}%`, better: 'up', detail: 'on that ally, up to 10 times' })
+        }
       }
       out.push({
         key: key('total'),

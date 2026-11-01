@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Kit } from '../resolve.ts'
-import { healerKit } from '../testkit.ts'
+import { abilityIn, healerKit } from '../testkit.ts'
 import { Arena } from './arena.ts'
 import { SCENARIOS, type Scenario } from './scenarios.ts'
 
@@ -254,6 +254,92 @@ describe("Chain Heal's tree", () => {
   })
 })
 
+describe("Healing Rain's tree", () => {
+  const noCrits = (kit: Kit): Kit => ({
+    ...kit,
+    slots: kit.slots.map((a) => a && { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 0 })) }),
+  })
+  const near = (a: { pos: { x: number; y: number } }, z: { pos: { x: number; y: number }; radius: number }) =>
+    Math.hypot(a.pos.x - z.pos.x, a.pos.y - z.pos.y) <= z.radius
+
+  it('lets rains overlap: an ally under two is healed by both', () => {
+    const arena = arenaWith(['healing-rain', null, null, null, null], { 'healing-rain': { 'lasting-storm': 2 } })
+    cast(arena, 1)
+    run(arena, 10.1)
+    // The first still has 4 sec to go; the second goes to the most injured ally, Blade, outside the first.
+    cast(arena, 1)
+    expect(arena.zones).toHaveLength(2)
+    expect(arena.zones.every((z) => near(ally(arena, 'Tank'), z))).toBe(true)
+    run(arena, 0.5)
+    const before = hits(arena, 'Healing Rain')
+    run(arena, 1)
+    // You, the tank and the archer under the first; Blade and the tank again under the second.
+    expect(hits(arena, 'Healing Rain') - before).toBe(5)
+  })
+
+  it('heals more each second an ally stays in it with Swelling Rain, up to 10 times', () => {
+    const arena = new Arena(noCrits(healerKit(['healing-rain', null, null, null, null], { 'healing-rain': { 'swelling-rain': 2 } })), QUIET, { seed: 7 })
+    cast(arena, 1)
+    run(arena, 10.5)
+    let expected = 0
+    for (let k = 0; k < 10; k++) expected += 220 * (1 + (5 * k) / 100)
+    expect(ally(arena, 'Tank').hp).toBeCloseTo(15000 + expected)
+  })
+
+  it('heals the injured inside when placed with Downburst, shared out', () => {
+    const arena = new Arena(noCrits(healerKit(['healing-rain', null, null, null, null], { 'healing-rain': { downburst: 2 } })), QUIET, { seed: 7 })
+    cast(arena, 1)
+    // You, the tank and the archer: 1,600 between them.
+    expect(arena.meter.rows.get('Downburst')).toMatchObject({ hits: 3 })
+    expect(arena.meter.rows.get('Downburst')?.healing).toBeCloseTo(1600)
+  })
+
+  it("turns its overhealing into a shield with Overflowing Rain, up to 20% of the ally's maximum health", () => {
+    const arena = new Arena(noCrits(healerKit(['healing-rain', null, null, null, null], { 'healing-rain': { 'overflowing-rain': 2 } })), QUIET, { seed: 7 })
+    for (const a of arena.allies) a.hp = a.isPlayer ? 2300 : a.maxHp
+    cast(arena, 1)
+    run(arena, 1.1)
+    // 220 on 100 missing: 120 overhealed.
+    expect(arena.player.shields.find((x) => x.name === 'Overflowing Rain')?.amount).toBeCloseTo(120)
+    run(arena, 5)
+    expect(arena.player.shields.find((x) => x.name === 'Overflowing Rain')?.amount).toBeCloseTo(480)
+  })
+
+  it('gives direct heals in your zones your zone healing bonus with Rain-Soaked', () => {
+    const kit = healerKit(['mend', 'healing-rain', null, null, null], { 'healing-rain': { downpour: 2, 'rain-soaked': 1 } })
+    expect(abilityIn(kit, 'mend').effects[0].conditionals).toEqual([{ pct: 16, when: { inZone: true }, source: 'Rain-Soaked' }])
+  })
+
+  it("takes time off its cooldown for each direct heal with Storm Caller", () => {
+    const arena = arenaWith(['mend', 'healing-rain', null, null, null], { 'healing-rain': { 'storm-caller': 2 } })
+    cast(arena, 2)
+    const ready = arena.cooldowns.get('healing-rain')!.rechargeAt!
+    run(arena, 1)
+    cast(arena, 1)
+    run(arena, 2.1)
+    expect(arena.cooldowns.get('healing-rain')!.rechargeAt).toBeCloseTo(ready - 0.5)
+  })
+
+  it('takes a second a tick from your HoTs inside to last longer with Siphoning Storm, up to twice as long', () => {
+    const arena = arenaWith(['renew', 'healing-rain', null, null, null], { 'healing-rain': { 'storm-caller': 2, 'siphoning-storm': 1 } })
+    for (const a of arena.allies) a.hp = a.maxHp * (a.name === 'Tank' ? 0.5 : 1)
+    cast(arena, 1)
+    const renew = ally(arena, 'Tank').hots[0]
+    const renewEnds = renew.endsAt
+    run(arena, 1)
+    cast(arena, 2)
+    const placed = arena.time
+    const rain = arena.zones[0]
+    run(arena, 3.1)
+    expect(rain.endsAt - placed).toBeCloseTo(13, 1)
+    expect(renew.endsAt).toBeCloseTo(renewEnds - 3, 1)
+    // With plenty of HoT to take, it stops at 20 sec.
+    renew.endsAt = arena.time + 100
+    run(arena, 15)
+    expect(rain.endsAt - placed).toBeCloseTo(20, 1)
+  })
+})
+
 describe('heals', () => {
   it('land on the lowest-health ally when the cast finishes', () => {
     const arena = arenaWith(['mend', null, null, null, null])
@@ -284,9 +370,9 @@ describe('heals', () => {
     const arena = arenaWith(['healing-rain', null, null, null, null])
     cast(arena, 1)
     run(arena, 10.5)
-    // Placed on you; the archer is 8.06 yd away, just outside its 8 yd.
-    expect(hits(arena, 'Healing Rain')).toBe(10)
-    expect(ally(arena, 'Archer').hp).toBe(8000)
+    // Placed on you: the tank (11.5 yd) and the archer (8.06 yd) are inside its 12 yd, Blade (12.8 yd) isn't.
+    expect(hits(arena, 'Healing Rain')).toBe(30)
+    expect(ally(arena, 'Blade').hp).toBe(8000)
   })
 
   it('make Bloom heal only allies your HoTs or zones touch, paying per ally', () => {
@@ -332,11 +418,12 @@ describe('cooldowns and charges', () => {
   })
 
   it('let a second charge go off right away', () => {
-    const arena = arenaWith(['healing-rain', null, null, null, null], { 'healing-rain': { 'twin-storms': 1 } })
+    const arena = arenaWith(['chain-heal', null, null, null, null], { 'chain-heal': { 'quick-tide': 2, 'twin-currents': 1 } })
     cast(arena, 1)
-    run(arena, 1)
+    run(arena, 2.1)
     cast(arena, 1)
-    expect(arena.zones).toHaveLength(2)
+    expect(arena.cast?.ability.name).toBe('Chain Heal')
+    expect(arena.cooldowns.get('chain-heal')?.charges).toBe(0)
   })
 
   it("never run out for abilities that have no cooldown", () => {
@@ -450,25 +537,6 @@ describe('talent procs', () => {
 })
 
 describe('the new mechanics', () => {
-  it('never puts two Healing Rains on the same ally', () => {
-    const arena = arenaWith(['healing-rain', null, null, null, null], { 'healing-rain': { 'twin-storms': 1 } })
-    cast(arena, 1)
-    run(arena, 1)
-    cast(arena, 1)
-    const [first, second] = arena.zones
-    expect(Math.hypot(first.pos.x - second.pos.x, first.pos.y - second.pos.y)).toBeGreaterThan(first.radius)
-  })
-
-  it('makes Healing Rain last longer on crits, up to the cap (Gathering Storm)', () => {
-    const base = healerKit(['healing-rain', null, null, null, null], { 'healing-rain': { 'gathering-storm': 3 } })
-    const always = (a: (typeof base.slots)[number]) => a && { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 100 })) }
-    const arena = new Arena({ ...base, slots: base.slots.map(always) }, QUIET, { seed: 1 })
-    cast(arena, 1)
-    const placed = arena.time
-    run(arena, 9)
-    // Each crit adds 0.5 sec; at rank 3 it stops at 30% longer than its 10 sec.
-    expect(arena.zones[0].endsAt - placed).toBeCloseTo(13, 1)
-  })
 
   it('stacks Latent Charge on each bolt and spends it on the next direct heal', () => {
     const arena = arenaWith(['mend', 'conduit', null, null, null], { conduit: { 'strong-current': 1, 'latent-charge': 2 } })

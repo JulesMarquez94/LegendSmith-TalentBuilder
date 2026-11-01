@@ -265,26 +265,26 @@ export const chainHeal: TreeDef = {
 export const healingRain: TreeDef = {
   ...healer,
   id: 'healing-rain',
+  reviewed: true,
   color: '#8cc8ff',
   ability: {
     name: 'Healing Rain',
     castTime: 'Instant',
     range: '40 range',
     cooldown: '10 sec cooldown',
-    description: 'Rain light around the lowest-health ally, healing everyone who stands in it.',
+    description: 'Rain light around the lowest-health ally for 10 sec, healing everyone within 12 yd every second.',
   },
   spec: {
     cost: 200,
     cooldown: 10,
     range: 40,
-    // Never two rains on one ally: a second one goes to the most injured ally not already under one.
-    effects: [zone(220, 10, 1, 8, 'lowest-missing')],
+    // Rains can overlap: an ally under two is healed by both.
+    effects: [zone(220, 10, 1, 12, 'lowest')],
     text: (a) => {
       const e = a.effects[0]
       return (
-        `Rains light around the lowest-health ally within ${yd(a.range)} yd who isn't already under it, for ` +
-        `${sec(e.duration)} sec. Every ally within ${yd(e.radius)} yd of it is healed for ${int(e.amount)} every ` +
-        `${sec(e.interval)} sec.` +
+        `Rains light around the lowest-health ally within ${yd(a.range)} yd for ${sec(e.duration)} sec. Every ally ` +
+        `within ${yd(e.radius)} yd of it is healed for ${int(e.amount)} every ${sec(e.interval)} sec. Rains can overlap.` +
         (e.follow ? ' The rain follows that ally.' : '')
       )
     },
@@ -295,7 +295,7 @@ export const healingRain: TreeDef = {
       name: 'Downpour',
       row: 0,
       col: 0,
-      per: [9, 18],
+      per: [8, 16, 24],
       text: 'Your zones heal {}% more.',
       does: (v) => [more('amount', 'zone', v)],
     }),
@@ -318,69 +318,75 @@ export const healingRain: TreeDef = {
       does: (v) => [plus('duration', 'zone', v)],
     }),
     talent({
-      id: 'torrent',
-      name: 'Torrent',
+      id: 'rain-soaked',
+      name: 'Rain-Soaked',
       row: 1,
       col: 0,
       requires: 'downpour',
-      per: [15, 30],
-      text: 'Your zones tick {}% faster.',
-      does: (v) => [more('tickRate', 'zone', v)],
-    }),
-    talent({
-      id: 'twin-storms',
-      name: 'Twin Storms',
-      row: 1,
-      col: 3,
-      text: 'Healing Rain holds 2 charges.',
-      does: () => [plus('charges', 'healing-rain', 1)],
+      text: 'Your direct heals on an ally standing in your healing zone get your zones\' healing bonus too.',
+      does: () => [{ kind: 'mod', key: 'amount', match: 'direct-heal', when: { inZone: true }, pctOfTags: ['zone'] }],
     }),
     talent({
       id: 'anchored-storm',
       name: 'Anchored Storm',
-      row: 2,
+      row: 1,
       col: 1,
       requires: 'wide-clouds',
       text: 'Healing Rain follows the ally it was placed on.',
       does: () => [plus('follow', 'healing-rain', 1)],
     }),
     talent({
-      id: 'nourishing-rain',
-      name: 'Nourishing Rain',
-      row: 2,
+      id: 'downburst',
+      name: 'Downburst',
+      row: 1,
       col: 2,
-      per: [10, 20, 30],
-      text: 'Your zones heal {}% more on allies with one of your heal-over-time effects.',
-      does: (v) => [more('amount', 'zone', v, { targetHas: 'hot' })],
+      per: [800, 1600],
+      text: 'When placed, Healing Rain heals for {} more, shared out among the injured allies inside it.',
+      does: (v) => [plus('opening', 'healing-rain', v)],
     }),
     talent({
-      id: 'gathering-storm',
-      name: 'Gathering Storm',
-      row: 2,
+      id: 'storm-caller',
+      name: 'Storm Caller',
+      row: 1,
       col: 3,
-      per: [15, 30],
-      text: 'Each critical heal from Healing Rain makes it last 0.5 sec longer, up to {}% longer than it started.',
+      per: [0.25, 0.5],
+      text: "Each of your direct heals takes {} sec off Healing Rain's cooldown.",
+      does: (v) => [proc('heal', 'direct-heal', [cooldown('healing-rain', v)])],
+    }),
+    talent({
+      id: 'overflowing-rain',
+      name: 'Overflowing Rain',
+      row: 2,
+      col: 0,
+      per: [50, 100],
+      text:
+        "{}% of Healing Rain's overhealing becomes a shield on that ally for 10 sec. It stacks, up to 20% of " +
+        'their maximum health.',
       does: (v) => [
-        proc('crit', 'healing-rain', [{ do: 'extend', match: 'healing-rain', seconds: 0.5, scope: 'source', capPct: v }]),
+        proc('heal', 'healing-rain', [apply(shield(0, 10, 'event', { name: 'Overflowing Rain', maxShare: 20 }), { pct: v, of: 'overheal' })], {
+          when: { overheal: true },
+        }),
       ],
     }),
     talent({
-      id: 'cloudburst',
-      name: 'Cloudburst',
-      row: 3,
-      col: 1,
-      requires: 'anchored-storm',
-      text: 'When Healing Rain ends, it bursts and heals everyone inside for 3 sec worth of healing.',
-      does: () => [proc('expire', 'healing-rain', [{ do: 'burst', seconds: 3 }])],
+      id: 'swelling-rain',
+      name: 'Swelling Rain',
+      row: 2,
+      col: 2,
+      per: [2.5, 5],
+      text: 'Each second an ally spends in Healing Rain, it heals them {}% more, up to 10 times.',
+      does: (v) => [plus('swell', 'healing-rain', v)],
     }),
     talent({
-      id: 'rainmaker',
-      name: 'Rainmaker',
+      id: 'siphoning-storm',
+      name: 'Siphoning Storm',
       row: 3,
       col: 3,
-      per: [0.15, 0.3],
-      text: 'Each Healing Rain tick gives you back {}% of your maximum @resource.',
-      does: (v) => [proc('tick', 'healing-rain', [restoreShare(v)])],
+      requires: 'storm-caller',
+      text:
+        'Every second, Healing Rain takes 1 sec from one of your heal-over-time effects on an ally inside it and ' +
+        'lasts that much longer, up to twice its duration.',
+      does: () => [proc('tick', 'healing-rain', [{ do: 'siphon', match: 'hot', seconds: 1, capPct: 100 }])],
     }),
   ],
 }

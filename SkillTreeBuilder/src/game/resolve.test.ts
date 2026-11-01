@@ -106,11 +106,12 @@ describe('talents reach across trees by family', () => {
 
   it('reaches zones, costs, charges and cooldowns', () => {
     const kit = healerKit(['chain-heal', 'healing-rain', null, 'sanctuary', null], {
-      'healing-rain': { downpour: 2, 'twin-storms': 1 },
-      'chain-heal': {},
+      'healing-rain': { downpour: 2, 'lasting-storm': 2 },
+      'chain-heal': { 'quick-tide': 2, 'twin-currents': 1 },
     })
-    expect(abilityIn(kit, 'sanctuary').effects[0].amount).toBeCloseTo(708)
-    expect(abilityIn(kit, 'healing-rain')).toMatchObject({ charges: 2, cooldown: 10 })
+    expect(abilityIn(kit, 'sanctuary').effects[0].amount).toBeCloseTo(696)
+    expect(abilityIn(kit, 'healing-rain').effects[0].duration).toBe(14)
+    expect(abilityIn(kit, 'chain-heal')).toMatchObject({ charges: 2, cooldown: 6 })
 
     const empowered = healerKit(['mend', 'chain-heal', null, 'miracle', null], { mend: { 'empowered-mend': 2 } })
     expect(abilityIn(empowered, 'mend').cost).toBeCloseTo(182)

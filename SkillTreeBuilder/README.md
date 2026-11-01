@@ -59,7 +59,7 @@ already in another slot swaps the two and keeps both builds.
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
 Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
-Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff, Mend and Chain Heal.
+Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff, Mend, Chain Heal and Healing Rain.
 
 ## The artifacts
 
@@ -160,6 +160,26 @@ Like every heal and hit, each jump rolls its own crit.
 | 3 | Tidal Web (needs Extra Link) | 1 | After its jumps, it keeps jumping to every ally with your HoT |
 | 4 | Chain Reaction (needs Flowing Current) | 2 | A crit has a 25/50% chance to start a second chain out of that ally once the first is done; one more chain per cast at most |
 
+**Healing Rain** is instant, 200 mana, 10 sec cooldown: for 10 sec it heals every ally within 12 yd of
+the lowest-health ally for 220 each second. Rains can overlap, and an ally under two is healed by both.
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Downpour | 3 | Your zones heal 8/16/24% more |
+| 1 | Wide Clouds | 2 | Your zones are 2/4 yd wider |
+| 1 | Lasting Storm | 2 | Your zones last 2/4 sec longer |
+| 2 | Rain-Soaked (needs Downpour) | 1 | Your direct heals on an ally in your healing zone get your zone healing bonus too |
+| 2 | Anchored Storm (needs Wide Clouds) | 1 | Healing Rain follows the ally it was placed on |
+| 2 | Downburst | 2 | When placed, it heals for 800/1,600 more, shared out among the injured allies inside |
+| 2 | Storm Caller | 2 | Each direct heal takes 0.25/0.5 sec off its cooldown |
+| 3 | Overflowing Rain | 2 | 50/100% of its overhealing becomes a 10 sec shield that stacks up to 20% of the ally's maximum health |
+| 3 | Swelling Rain | 2 | Each second an ally stays in it, it heals them 2.5/5% more, up to 10 times |
+| 4 | Siphoning Storm (needs Storm Caller) | 1 | Every second it takes 1 sec from one of your HoTs on an ally inside and lasts that much longer, up to twice its duration |
+
+New in the sim for it: a zone's `opening` heal and `swell` stacks (counted per ally, per rain), a
+`siphon` action, and a conditional whose % is whatever your other talents give a family
+(`pctOfTags`: Rain-Soaked copies your zone healing bonus).
+
 Abilities never hard-code mana: they cost the artifact's **resource**, and shared talent text says
 `@resource`, which shows as the held artifact's resource. Another healing weapon with its own resource
 can use the same heals and trees. Shared talents give resource back as a **share of your maximum**
@@ -168,7 +188,7 @@ same on any weapon. Only an artifact's own tree may talk in its own units (mana,
 
 | Slot | Choices |
 | --- | --- |
-| Heals (pick 3) | Mend (direct heal), Chain Heal (jumps, 6 sec cooldown), Healing Rain (zone, never two on one ally), Renew (HoT), Bloom (pays per ally to heal everyone your HoTs and zones touch), Conduit (passive: your main attack heals) |
+| Heals (pick 3) | Mend (direct heal), Chain Heal (jumps, 6 sec cooldown), Healing Rain (zone; rains can overlap), Renew (HoT), Bloom (pays per ally to heal everyone your HoTs and zones touch), Conduit (passive: your main attack heals) |
 | Ultimate | Miracle (instant heal on everyone), Sanctuary (big zone for 12 sec), Lifetide (strong HoT that decays) |
 | Mobility | Dash (2 charges), Teleport (not while casting, unless Spellstride), Sprint |
 

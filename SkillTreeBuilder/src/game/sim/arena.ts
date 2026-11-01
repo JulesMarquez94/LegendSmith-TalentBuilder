@@ -50,6 +50,8 @@ const BURST_RADIUS = 8
 const EXPLODE_RADIUS = 6
 /** Most attacks Mounting Fury counts. */
 const FURY_STACKS = 10
+/** Most ticks Swelling Rain counts on one ally. */
+const SWELL_STACKS = 10
 /** Adds swing at the tank this often. */
 const ADD_SWING = 2
 
@@ -151,6 +153,8 @@ export interface Zone {
   tick: number
   damageReduction: number
   depth: number
+  /** Ticks it has healed each ally, up to 10, for Swelling Rain. */
+  swells: Map<Ally, number>
 }
 
 export interface Hazard {
@@ -1272,7 +1276,14 @@ export class Arena {
       tick: 0,
       damageReduction: e.damageReduction,
       depth: ctx.depth,
+      swells: new Map(),
     })
+    // Downburst: healing as it lands, shared out among the injured allies inside.
+    const zone = this.zones[this.zones.length - 1]
+    if (!e.hostile && e.opening > 0) {
+      const injured = this.allies.filter((a) => a.alive && a.hp < a.maxHp && dist(a.pos, zone.pos) <= zone.radius)
+      for (const a of injured) this.heal(a, e.opening / injured.length, e, this.zoneContext(zone), { label: 'Downburst' })
+    }
   }
 
   private addShield(target: Ally, e: ResolvedEffect, name: string) {
@@ -1461,6 +1472,20 @@ export class Arena {
         for (const imp of this.imps) imp.endsAt += action.seconds
         for (const s of this.summons) s.endsAt += action.seconds
         break
+      case 'siphon': {
+        const z = ev.ctx.sourceZone
+        if (!z || z.endsAt >= z.baseEnd + (z.duration * action.capPct) / 100 - 1e-6) break
+        const hots = this.allies
+          .filter((a) => a.alive && dist(a.pos, z.pos) <= z.radius)
+          .flatMap((a) => a.hots.filter((h) => matches(action.match, h.effect.tags) && h.endsAt > this.time))
+        // From the one with the most time left.
+        const h = hots.sort((a, b) => b.endsAt - a.endsAt)[0]
+        if (!h) break
+        const taken = Math.min(action.seconds, h.endsAt - this.time)
+        h.endsAt -= taken
+        z.endsAt = this.capped(z, taken, action.capPct)
+        break
+      }
       case 'extendSummons':
         for (const s of this.summons) if (matches(action.match, s.effect.tags)) s.endsAt += action.seconds
         break
@@ -1561,7 +1586,7 @@ export class Arena {
         break
       }
     }
-    if (action.do !== 'restore' && action.do !== 'refund') this.addLog(`${name} triggers`, 'proc')
+    if (action.do !== 'restore' && action.do !== 'refund' && action.do !== 'siphon') this.addLog(`${name} triggers`, 'proc')
   }
 
   /** A new end time `seconds` later (or sooner), never past `capPct`% longer than it started. */
@@ -2166,7 +2191,11 @@ export class Arena {
           }
         } else {
           for (const a of this.allies) {
-            if (a.alive && dist(a.pos, z.pos) <= z.radius) this.heal(a, amount, z.effect, this.zoneContext(z), { label: z.name })
+            if (!a.alive || dist(a.pos, z.pos) > z.radius) continue
+            // Swelling Rain: more for each tick this zone has already healed them.
+            const swells = z.swells.get(a) ?? 0
+            this.heal(a, amount * (1 + (z.effect.swell * swells) / 100), z.effect, this.zoneContext(z), { label: z.name })
+            if (z.effect.swell > 0) z.swells.set(a, Math.min(SWELL_STACKS, swells + 1))
           }
         }
         z.tick += 1
