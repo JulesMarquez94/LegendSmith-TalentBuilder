@@ -12,22 +12,29 @@ const healer = { role: 'healer', kind: 'heal', columns: 4, pointsPerRow: 2 } as 
 
 // ---------- Mend: direct heal ----------
 
+/** Mend's heal before talents: Echoing Mend's second heal is a share of it. */
+const MEND = 2400
+
 export const mend: TreeDef = {
   ...healer,
   id: 'mend',
+  reviewed: true,
   color: '#8fe3a0',
   ability: {
     name: 'Mend',
-    castTime: '1.5 sec cast',
+    castTime: '2 sec cast',
     range: '40 range',
-    description: 'Heal the lowest-health ally in range.',
+    description: 'Heal the lowest-health ally in range for a large amount.',
   },
   spec: {
-    cost: 100,
-    castTime: 1.5,
+    cost: 130,
+    castTime: 2,
     range: 40,
-    effects: [heal(1800)],
-    text: (a) => `Heals the lowest-health ally within ${yd(a.range)} yd for ${int(a.effects[0].amount)}.`,
+    effects: [heal(MEND)],
+    text: (a) => {
+      const echo = a.effects[1] ? ` Then heals the next most injured ally for ${int(a.effects[1].amount)}.` : ''
+      return `Heals the lowest-health ally within ${yd(a.range)} yd for ${int(a.effects[0].amount)}.${echo}`
+    },
   },
   talents: [
     talent({
@@ -45,92 +52,94 @@ export const mend: TreeDef = {
       row: 0,
       col: 1,
       per: [0.25, 0.5],
-      text: 'Your direct heals cast {} sec faster.',
-      does: (v) => [plus('castTime', 'direct-heal', -v)],
-    }),
-    talent({
-      id: 'efficient-prayers',
-      name: 'Efficient Prayers',
-      row: 0,
-      col: 2,
-      per: [6, 12],
-      text: 'Your direct heals cost {}% less.',
-      does: (v) => [more('cost', 'direct-heal', -v)],
+      text: 'Mend casts {} sec faster.',
+      does: (v) => [plus('castTime', 'mend', -v)],
     }),
     talent({
       id: 'triage',
       name: 'Triage',
-      row: 1,
-      col: 0,
-      per: [10, 20, 30],
-      text: 'Your direct heals heal {}% more on allies below 40% health.',
-      does: (v) => [more('amount', 'direct-heal', v, { targetBelow: 40 })],
-    }),
-    talent({
-      id: 'lingering-mend',
-      name: 'Lingering Mend',
-      row: 1,
-      col: 2,
-      text: "Mend also leaves a heal-over-time effect on its target that heals for 30% of Mend's base over 6 sec.",
-      does: () => [grant('mend', hot(180, 6, 2, 'same', { name: 'Lingering Mend' }))],
-    }),
-    talent({
-      id: 'critical-mending',
-      name: 'Critical Mending',
-      row: 1,
+      row: 0,
       col: 3,
-      per: [5, 10],
-      text: 'Your direct heals have +{}% critical chance.',
-      does: (v) => [plus('critChance', 'direct-heal', v)],
-    }),
-    talent({
-      id: 'surge-of-light',
-      name: 'Surge of Light',
-      row: 2,
-      col: 1,
-      requires: 'swift-hands',
-      per: [15, 30],
-      text: 'Mend has a {}% chance to make your next Mend instant.',
-      does: (v) => [
-        proc(
-          'cast',
-          'mend',
-          [
-            buff({
-              id: 'surge-of-light',
-              name: 'Surge of Light',
-              duration: 10,
-              mods: [more('castTime', 'mend', -100)],
-              consumeOn: 'mend',
-            }),
-          ],
-          { chance: v },
-        ),
-      ],
-    }),
-    talent({
-      id: 'renewing-touch',
-      name: 'Renewing Touch',
-      row: 2,
-      col: 2,
-      per: [1, 2],
-      text: 'Mend adds {} sec to your heal-over-time effects on its target.',
-      does: (v) => [
-        proc('heal', { all: ['mend', 'direct-heal'] }, [{ do: 'extend', match: 'hot', seconds: v, scope: 'event' }]),
-      ],
+      per: [25, 50],
+      text: "Mend heals up to {}% more the lower its target's health: all of it on an ally near death.",
+      does: (v) => [more('amount', 'mend', v, { missing: true })],
     }),
     talent({
       id: 'echoing-mend',
       name: 'Echoing Mend',
+      row: 1,
+      col: 0,
+      requires: 'greater-mend',
+      per: [20, 40],
+      text: 'Mend also heals the next most injured ally for {}% as much.',
+      does: (v) => [grant('mend', heal((MEND * v) / 100, 'next-lowest', { name: 'Echoing Mend' }))],
+    }),
+    talent({
+      id: 'surge-of-light',
+      name: 'Surge of Light',
+      row: 1,
+      col: 1,
+      requires: 'swift-hands',
+      per: [5, 10],
+      text: 'Whenever you heal, a {}% chance that your next Mend is instant and free. At most once every 15 sec.',
+      does: (v) => [
+        proc(
+          'heal',
+          'healing',
+          [
+            buff({
+              id: 'surge-of-light',
+              name: 'Surge of Light',
+              duration: 15,
+              mods: [more('castTime', 'mend', -100), more('cost', 'mend', -100)],
+              consumeOn: 'mend',
+            }),
+          ],
+          { chance: v, cooldown: 15 },
+        ),
+      ],
+    }),
+    talent({
+      id: 'nurturing-mend',
+      name: 'Nurturing Mend',
+      row: 1,
+      col: 3,
+      per: [10, 20],
+      text: 'Mend heals {}% more on an ally with your heal-over-time effect or standing in your healing zone.',
+      does: (v) => [more('amount', 'mend', v, { affected: true })],
+    }),
+    talent({
+      id: 'mending-ward',
+      name: 'Mending Ward',
+      row: 2,
+      col: 0,
+      per: [50, 100],
+      text: "{}% of Mend's overhealing becomes a shield on the target for 12 sec, up to 20% of their maximum health.",
+      does: (v) => [
+        proc('heal', 'mend', [apply(shield(0, 12, 'event', { name: 'Mending Ward', maxShare: 20 }), { pct: v, of: 'overheal' })], {
+          when: { overheal: true },
+        }),
+      ],
+    }),
+    talent({
+      id: 'empowered-mend',
+      name: 'Empowered Mend',
+      row: 2,
+      col: 2,
+      per: [20, 40],
+      text: 'Mend costs {}% more and heals {}% more.',
+      does: (v) => [more('cost', 'mend', v), more('amount', 'mend', v)],
+    }),
+    talent({
+      id: 'lifeline',
+      name: 'Lifeline',
       row: 3,
       col: 1,
       requires: 'surge-of-light',
-      text: 'When Mend critically heals, the next most injured ally is healed for 50% as much.',
-      does: () => [
-        proc('crit', { all: ['mend', 'direct-heal'] }, [
-          apply(heal(0, 'next-lowest', { name: 'Echoing Mend' }), { pct: 50, of: 'amount' }),
-        ]),
-      ],
+      text:
+        'When you or an ally drops below 15% health, you cast Mend on them at once: free, instant and off the global ' +
+        'cooldown. Once every 45 sec.',
+      does: () => [proc('lowHealth', '*', [{ do: 'fire', ability: 'mend', at: 'event' }], { cooldown: 45 })],
     }),
   ],
 }

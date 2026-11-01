@@ -59,7 +59,7 @@ already in another slot swaps the two and keeps both builds.
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
 Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
-Carrion Curse, Overlord, Plague, Raise Ghoul and the Lifewarden Staff.
+Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff and Mend.
 
 ## The artifacts
 
@@ -124,6 +124,25 @@ between heals. Its tree is all about mana:
 
 A talent can now give a cooldown to an ability that has none (Lightspeed's charges), and the
 Reservoir stat (`spentToResource`) stores a share of what you spend rather than of your overhealing.
+
+**Mend** is the big single heal: a 2 sec cast for 130 mana that heals the lowest-health ally for 2,400.
+
+| Row | Talent | Ranks | What it does |
+| --- | --- | --- | --- |
+| 1 | Greater Mend | 3 | Your direct heals heal 8/16/24% more |
+| 1 | Swift Hands | 2 | Mend casts 0.25/0.5 sec faster |
+| 1 | Triage | 2 | Mend heals up to 25/50% more the lower its target's health (all of it near death) |
+| 2 | Echoing Mend (needs Greater Mend) | 2 | Mend also heals the next most injured ally for 20/40% as much |
+| 2 | Surge of Light (needs Swift Hands) | 2 | Whenever you heal, 5/10% chance your next Mend is instant and free; at most once every 15 sec |
+| 2 | Nurturing Mend | 2 | Mend heals 10/20% more on an ally with your HoT or in your healing zone |
+| 3 | Mending Ward | 2 | 50/100% of Mend's overhealing becomes a 12 sec shield, up to 20% of the target's maximum health |
+| 3 | Empowered Mend | 2 | Mend costs and heals 20/40% more |
+| 4 | Lifeline (needs Surge of Light) | 1 | When you or an ally drops below 15% health, you cast Mend on them at once: free, instant, off the global cooldown; once every 45 sec |
+
+New in the sim for it: a conditional bonus that grows with the target's **missing health** (`missing`),
+a shield's own cap (`maxShare`, 20% of maximum health here), and a `lowHealth` event when you or an ally
+drops below 15%. A **−100%** mod now always means none at all, whatever else adds to it, so a free or
+instant cast stays free even when another talent raises the cost.
 
 Abilities never hard-code mana: they cost the artifact's **resource**, and shared talent text says
 `@resource`, which shows as the held artifact's resource. Another healing weapon with its own resource

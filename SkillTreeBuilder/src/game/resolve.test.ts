@@ -20,9 +20,9 @@ describe('base numbers', () => {
 
   it('match each ability card', () => {
     const mend = abilityIn(kit, 'mend')
-    expect(mend).toMatchObject({ cost: 100, castTime: 1.5, range: 40, gcd: 1, charges: 1, resource: 'mana' })
-    expect(mend.effects[0]).toMatchObject({ amount: 1800, critChance: 5, critMultiplier: 1.5 })
-    expect(mend.text).toContain('1,800')
+    expect(mend).toMatchObject({ cost: 130, castTime: 2, range: 40, gcd: 1, charges: 1, resource: 'mana' })
+    expect(mend.effects[0]).toMatchObject({ amount: 2400, critChance: 5, critMultiplier: 1.5 })
+    expect(mend.text).toContain('2,400')
 
     const renew = abilityIn(kit, 'renew').effects[0]
     expect(renew).toMatchObject({ amount: 300, interval: 2, duration: 12, ticks: 6 })
@@ -45,9 +45,9 @@ describe('gear', () => {
     const mend = abilityIn(kit, 'mend')
     // Level 60's own +200%, and the ring's 37.8%: worth 12.6% on top of level 60's numbers.
     expect(kit.character.stats.power).toBe(237.8)
-    expect(mend.effects[0].amount).toBeCloseTo(1800 * 1.126)
+    expect(mend.effects[0].amount).toBeCloseTo(2400 * 1.126)
     // An even epic Haste and Critical ring: 30% and 50% over 18 (12 items at 150%) each, times its 1.5… 4 / 6.
-    expect(mend.castTime).toBeCloseTo(1.5 / (1 + 30 / 18 / 100))
+    expect(mend.castTime).toBeCloseTo(2 / (1 + 30 / 18 / 100))
     expect(mend.effects[0].critChance).toBeCloseTo(5 + 50 / 18)
   })
 
@@ -68,7 +68,7 @@ describe('talents reach across trees by family', () => {
     const kit = healerKit(SLOTS, { renew: { verdant: 3 } })
     expect(abilityIn(kit, 'renew').effects[0].amount).toBeCloseTo(354)
     expect(abilityIn(kit, 'lifetide').effects[0].amount).toBeCloseTo(1062)
-    expect(abilityIn(kit, 'mend').effects[0].amount).toBe(1800)
+    expect(abilityIn(kit, 'mend').effects[0].amount).toBe(2400)
     expect(reach(talentOf('renew', 'verdant').effects!(3), kit)).toEqual(['Renew', 'Lifetide'])
   })
 
@@ -79,25 +79,26 @@ describe('talents reach across trees by family', () => {
 
   it("lifts a whole family from each tree's \"heals more\" talent", () => {
     const kit = healerKit(['mend', 'chain-heal', 'bloom', 'miracle', null], { mend: { 'greater-mend': 3 } })
-    expect(abilityIn(kit, 'mend').effects[0].amount).toBeCloseTo(1800 * 1.24)
+    expect(abilityIn(kit, 'mend').effects[0].amount).toBeCloseTo(2400 * 1.24)
     expect(abilityIn(kit, 'chain-heal').effects[0].amount).toBeCloseTo(1400 * 1.24)
     expect(abilityIn(kit, 'bloom').effects[0].amount).toBeCloseTo(900 * 1.24)
     expect(abilityIn(kit, 'miracle').effects[0].amount).toBeCloseTo(6000 * 1.24)
   })
 
   it('adds percentages together, and reaches granted effects by their own family', () => {
-    const kit = healerKit(SLOTS, { mend: { 'greater-mend': 3, 'lingering-mend': 1 }, renew: { verdant: 3 } })
-    const [heal, lingering] = abilityIn(kit, 'mend').effects
-    expect(heal.amount).toBeCloseTo(1800 * 1.24)
-    expect(lingering).toMatchObject({ type: 'hot', granted: 'Lingering Mend', ticks: 3 })
-    // Lingering Mend is a HoT: Verdant lifts it, Greater Mend (direct heals) doesn't.
-    expect(lingering.amount).toBeCloseTo(180 * 1.18)
+    const kit = healerKit(SLOTS, { mend: { 'greater-mend': 3, 'echoing-mend': 2, 'empowered-mend': 2 }, renew: { verdant: 3 } })
+    const [heal, echo] = abilityIn(kit, 'mend').effects
+    // Greater Mend's 24% and Empowered Mend's 40%, added.
+    expect(heal.amount).toBeCloseTo(2400 * 1.64)
+    expect(echo).toMatchObject({ type: 'heal', granted: 'Echoing Mend', target: 'next-lowest' })
+    // Echoing Mend is a direct heal: Greater Mend lifts it, Verdant (HoTs) doesn't.
+    expect(echo.amount).toBeCloseTo(2400 * 0.4 * 1.64)
   })
 
   it('trades cost for healing on spells only (Overdrive)', () => {
     const kit = healerKit(['mend', 'conduit', null, 'miracle', null], { conduit: { overdrive: 1 } })
-    expect(abilityIn(kit, 'mend').cost).toBe(200)
-    expect(abilityIn(kit, 'mend').effects[0].amount).toBeCloseTo(1800 * 1.6)
+    expect(abilityIn(kit, 'mend').cost).toBe(260)
+    expect(abilityIn(kit, 'mend').effects[0].amount).toBeCloseTo(2400 * 1.6)
     // Conduit and Miracle cost nothing, so they aren't spells.
     expect(abilityIn(kit, 'conduit').effects[0].amount).toBe(250)
     expect(abilityIn(kit, 'miracle').effects[0].amount).toBe(6000)
@@ -111,19 +112,19 @@ describe('talents reach across trees by family', () => {
     expect(abilityIn(kit, 'sanctuary').effects[0].amount).toBeCloseTo(708)
     expect(abilityIn(kit, 'healing-rain')).toMatchObject({ charges: 2, cooldown: 10 })
 
-    const thrifty = healerKit(['mend', 'chain-heal', null, 'miracle', null], { mend: { 'efficient-prayers': 3 } })
-    expect(abilityIn(thrifty, 'chain-heal').cost).toBeCloseTo(140.8)
-    expect(abilityIn(thrifty, 'mend').cost).toBeCloseTo(88)
-    expect(abilityIn(thrifty, 'miracle').cost).toBe(0)
+    const empowered = healerKit(['mend', 'chain-heal', null, 'miracle', null], { mend: { 'empowered-mend': 2 } })
+    expect(abilityIn(empowered, 'mend').cost).toBeCloseTo(182)
+    expect(abilityIn(empowered, 'chain-heal').cost).toBe(160)
   })
 
   it('keeps conditional bonuses for the moment the heal lands', () => {
-    const kit = healerKit(['mend', 'conduit', null, null, null], { mend: { triage: 3 } })
+    const kit = healerKit(['mend', 'conduit', null, null, null], { mend: { triage: 2, 'nurturing-mend': 2 } })
     expect(abilityIn(kit, 'mend').effects[0].conditionals).toEqual([
-      { pct: 30, when: { targetBelow: 40 }, source: 'Triage' },
+      { pct: 50, when: { missing: true }, source: 'Triage' },
+      { pct: 20, when: { affected: true }, source: 'Nurturing Mend' },
     ])
-    // Conduit's heal is a direct heal too, so Triage reaches it.
-    expect(abilityIn(kit, 'conduit').effects[0].conditionals).toHaveLength(1)
+    // Both are Mend's own: Conduit's direct heal doesn't get them.
+    expect(abilityIn(kit, 'conduit').effects[0].conditionals).toHaveLength(0)
   })
 
   it('collects stat talents into the character sheet', () => {
@@ -139,8 +140,8 @@ describe('levels', () => {
   it('grow Health and Power from a third at level 1 to all of it at 60', () => {
     expect([1, 30, 60].map((l) => at(l).character.stats.health)).toEqual([800, 1586, 2400])
     expect([1, 30, 60].map((l) => at(l).character.stats.power)).toEqual([0, 98.3, 200])
-    expect(abilityIn(at(1), 'mend').effects[0].amount).toBeCloseTo(600)
-    expect(abilityIn(at(60), 'mend').effects[0].amount).toBeCloseTo(1800)
+    expect(abilityIn(at(1), 'mend').effects[0].amount).toBeCloseTo(800)
+    expect(abilityIn(at(60), 'mend').effects[0].amount).toBeCloseTo(2400)
   })
 
   it('scale the arena with you: the boss, the bots and every hit you take', () => {

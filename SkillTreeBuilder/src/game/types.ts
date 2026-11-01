@@ -319,6 +319,8 @@ export interface EffectSpec {
   taunt?: number
   /** % of each hit splashed onto every other enemy within 8 yd of the one it hit (Harvest's talents). */
   splash?: number
+  /** A shield: at most this % of the target's maximum health (50% when not set). */
+  maxShare?: number
   /** A curse: % chance a stack bursts without being taken. */
   keepChance?: number
   /** A summon: % more damage for your other minions while it's up. */
@@ -356,6 +358,8 @@ export interface Condition {
   affected?: boolean
   /** Target is you. */
   targetSelf?: boolean
+  /** The bonus grows with the target's missing health: all of it at 0 health, none at full (Triage). */
+  missing?: boolean
   /** The heal overhealed. */
   overheal?: boolean
   /** The bonus counts once for each of your effects matching this on the target (Convalescence). */
@@ -406,6 +410,8 @@ export type EventKind =
   | 'second'
   | 'sacrifice'
   | 'moving'
+  /** You or an ally drops below 15% health (and is still alive). */
+  | 'lowHealth'
 
 export type Action =
   /**
@@ -588,6 +594,7 @@ export interface ResolvedEffect {
   patron: number
   burst: number
   burstSplash: number
+  maxShare: number
   explode: number
   explodeLeft: number
   fury: number

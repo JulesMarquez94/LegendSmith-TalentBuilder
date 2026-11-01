@@ -126,6 +126,7 @@ describe('design passes', () => {
         'festering-rot',
         'harvest',
         'lifewarden-staff',
+        'mend',
         'miasma',
         'overlord',
         'plague',

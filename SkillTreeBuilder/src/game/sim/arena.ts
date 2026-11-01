@@ -33,6 +33,9 @@ const PATH_WIDTH = 3
 const RESERVOIR_CAP = 0.3
 /** A shield never grows past this share of its target's health. */
 const SHIELD_CAP = 0.5
+/** Below this % health, you or an ally sets off `lowHealth` events (Lifeline). */
+const LOW_HEALTH = 15
+const NO_TAGS: ReadonlySet<Tag> = new Set<Tag>()
 /** Presses are remembered this long, so a key hit just before a cast ends still goes off (like WoW's spell queue). */
 const QUEUE_WINDOW = 0.35
 const DASH_TIME = 0.15
@@ -869,7 +872,9 @@ export class Arena {
     effects: readonly ResolvedEffect[] = a.effects,
   ) {
     for (const e of effects) {
-      this.applyEffect(forceTarget ? { ...e, target: forceTarget } : e, ctx, { label: e.name ?? a.name }, input)
+      // A heal on the next most injured ally (Echoing Mend) still finds its own target.
+      const forced = forceTarget && e.target !== 'next-lowest'
+      this.applyEffect(forced ? { ...e, target: forceTarget } : e, ctx, { label: e.name ?? a.name }, input)
     }
   }
 
@@ -1246,7 +1251,7 @@ export class Arena {
 
   private addShield(target: Ally, e: ResolvedEffect, name: string) {
     if (!target.alive || e.amount <= 0) return
-    const cap = target.maxHp * SHIELD_CAP
+    const cap = target.maxHp * (e.maxShare > 0 ? e.maxShare / 100 : SHIELD_CAP)
     const existing = target.shields.find((s) => s.key === e.key)
     if (existing) {
       existing.amount = Math.min(cap, existing.amount + e.amount)
@@ -1619,7 +1624,7 @@ export class Arena {
     if (when.affected && !this.affected(target)) return 0
     if (when.targetSelf && !target.isPlayer) return 0
     if (when.alone) return 0
-    let n = 1
+    let n = when.missing ? 1 - target.hp / target.maxHp : 1
     if (when.each) n = target.hots.filter((h) => matches(when.each!, h.effect.tags)).length
     if (when.stacksOf) n = target.hots.filter((h) => matches(when.stacksOf!, h.effect.tags)).length
     return c.pct * n
@@ -1638,7 +1643,7 @@ export class Arena {
     if (when.inZone && !this.enemyInZone(enemy)) return 0
     if (when.affected && !(enemy.dots.length > 0 || this.enemyInZone(enemy))) return 0
     if (when.targetSelf || when.overheal) return 0
-    let n = 1
+    let n = when.missing ? 1 - enemy.hp / enemy.maxHp : 1
     if (when.each) n = this.countEffects(enemy, when.each)
     if (when.stacksOf) {
       n = enemy.dots.filter((d) => matches(when.stacksOf!, d.effect.tags)).reduce((sum, d) => sum + this.liveStacks(d), 0)
@@ -2414,10 +2419,17 @@ export class Arena {
       }
     }
     a.shields = a.shields.filter((s) => s.amount > 0)
+    const before = a.hp / a.maxHp
     a.hp -= left
     this.meter.damageTaken += left
     if (!quiet && left >= 1) this.text(a.pos, `-${int(left)}`, '#ff7a6b', false)
-    if (a.hp > 0) return
+    if (a.hp > 0) {
+      // Dropping below 15% health (Lifeline).
+      if (before * 100 >= LOW_HEALTH && (a.hp / a.maxHp) * 100 < LOW_HEALTH) {
+        this.emit({ kind: 'lowHealth', tags: NO_TAGS, ctx: this.newContext(null, -1, 0), target: a, before })
+      }
+      return
+    }
     if (this.options.noDeaths) {
       a.hp = 1
       return

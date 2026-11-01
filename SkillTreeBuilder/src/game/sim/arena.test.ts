@@ -28,9 +28,9 @@ describe('mana', () => {
   it('drains as you cast and comes back slowly', () => {
     const arena = arenaWith(['mend', null, null, null, null])
     cast(arena, 1)
-    expect(arena.resource).toBeCloseTo(900, 0)
+    expect(arena.resource).toBeCloseTo(870, 0)
     run(arena, 2)
-    expect(arena.resource).toBeCloseTo(916, 0)
+    expect(arena.resource).toBeCloseTo(886, 0)
   })
 
   it('is restored by Radiant Bolt, a 1.5 sec cast', () => {
@@ -91,17 +91,17 @@ describe("Radiant Bolt's tree", () => {
   it('stores some of the mana you spend with Reservoir, for the next bolt, up to 30% of your maximum', () => {
     const arena = arenaWith(['mend', null, null, null, null], { 'lifewarden-staff': { meditation: 2, reservoir: 2 } })
     cast(arena, 1)
-    // Mend costs 100: 10 of it stored.
-    expect(arena.reservoir).toBeCloseTo(10)
-    run(arena, 1.6)
+    // Mend costs 130: 13 of it stored.
+    expect(arena.reservoir).toBeCloseTo(13)
+    run(arena, 2.1)
     cast(arena, 0)
     run(arena, 1.6)
-    expect(arena.meter.resourceGained.get('Reservoir')).toBeCloseTo(10)
+    expect(arena.meter.resourceGained.get('Reservoir')).toBeCloseTo(13)
     expect(arena.reservoir).toBe(0)
     for (let i = 0; i < 40; i++) {
       arena.resource = 1000
       cast(arena, 1)
-      run(arena, 1.6)
+      run(arena, 2.1)
     }
     expect(arena.reservoir).toBeCloseTo(300)
   })
@@ -120,14 +120,84 @@ describe("Radiant Bolt's tree", () => {
   })
 })
 
+describe("Mend's tree", () => {
+  /** No crits from slotted abilities, so heal numbers are exact. */
+  const noCrits = (kit: Kit): Kit => ({
+    ...kit,
+    slots: kit.slots.map((a) => a && { ...a, effects: a.effects.map((e) => ({ ...e, critChance: 0 })) }),
+  })
+  /** Everyone at full health but the ones given here, as a share of their maximum. */
+  const healthAt = (arena: Arena, shares: Record<string, number>) => {
+    for (const a of arena.allies) a.hp = a.maxHp * (shares[a.isPlayer ? 'You' : a.name] ?? 1)
+  }
+  const healed = (arena: Arena, name: string) => arena.meter.rows.get(name)?.healing ?? 0
+
+  it('heals more the lower its target is with Triage, and the next most injured ally with Echoing Mend', () => {
+    const kit = noCrits(healerKit(['mend', null, null, null, null], { mend: { 'greater-mend': 3, triage: 2, 'echoing-mend': 2 } }))
+    const arena = new Arena(kit, QUIET, { seed: 7 })
+    healthAt(arena, { Tank: 0.2, Blade: 0.6 })
+    cast(arena, 1)
+    run(arena, 2.1)
+    // Triage: up to 50% more, here 80% of it (the tank was missing 80% of their health). Like every
+    // conditional bonus, it multiplies what the talents' added % give.
+    expect(healed(arena, 'Mend')).toBeCloseTo(2400 * 1.24 * (1 + 0.5 * 0.8))
+    // Echoing Mend: 40% as much on the Blade, missing 40%: Greater Mend and Triage count there too.
+    expect(healed(arena, 'Echoing Mend')).toBeCloseTo(2400 * 0.4 * 1.24 * (1 + 0.5 * 0.4))
+  })
+
+  it("turns overhealing into a shield with Mending Ward, up to 20% of the target's maximum health", () => {
+    const kit = noCrits(healerKit(['mend', null, null, null, null], { mend: { 'mending-ward': 2 } }))
+    const arena = new Arena(kit, QUIET, { seed: 7 })
+    healthAt(arena, { You: 2000 / 2400 })
+    cast(arena, 1)
+    run(arena, 2.1)
+    expect(arena.player.shields.find((x) => x.name === 'Mending Ward')?.amount).toBeCloseTo(2400 * 0.2)
+  })
+
+  it('makes the next Mend instant and free with Surge of Light, even when Empowered Mend raises its cost', () => {
+    const arena = arenaWith(['mend', 'renew', null, null, null], { mend: { 'swift-hands': 2, 'surge-of-light': 2, 'empowered-mend': 2 } })
+    expect(arena.current(1)!.cost).toBeCloseTo(182)
+    // Renews and their ticks are heals: each has a 10% chance.
+    for (let t = 0; t < 60 && !arena.buffs.some((b) => b.id === 'surge-of-light'); t += DT) {
+      arena.resource = 1000
+      arena.press(2)
+      arena.step(DT)
+    }
+    expect(arena.current(1)).toMatchObject({ castTime: 0, cost: 0 })
+    // Past the last Renew's global cooldown.
+    run(arena, 1.1)
+    const before = arena.resource
+    cast(arena, 1)
+    expect(arena.cast).toBeNull()
+    expect(arena.resource).toBeGreaterThanOrEqual(before)
+    expect(arena.buffs.some((b) => b.id === 'surge-of-light')).toBe(false)
+  })
+
+  it('casts Mend on whoever drops below 15% with Lifeline: free, instant, off the global cooldown, once every 45 sec', () => {
+    // 300 to everyone every second: you go 1200, 900, 600, 300 (12.5%).
+    const pulse: Scenario = { ...QUIET, events: [{ kind: 'pulse', name: 'Test pulse', every: 1, amount: 300, first: 0.5 }] }
+    const arena = arenaWith(['mend', null, null, null, null], { mend: { 'swift-hands': 2, 'surge-of-light': 2, lifeline: 1 } }, pulse)
+    run(arena, 3.6)
+    expect(hits(arena, 'Mend')).toBe(1)
+    expect(arena.player.hp).toBeGreaterThan(2000)
+    expect(arena.cast).toBeNull()
+    expect(arena.resource).toBe(1000)
+    expect(arena.use(1)).toBe('ok')
+    arena.cast = null
+    // Healed to full, you drop below 15% again 7 sec later: still on its cooldown.
+    run(arena, 8)
+    expect(hits(arena, 'Mend')).toBe(1)
+  })
+})
+
 describe('heals', () => {
   it('land on the lowest-health ally when the cast finishes', () => {
     const arena = arenaWith(['mend', null, null, null, null])
     ally(arena, 'Tank').hp = 3000
     cast(arena, 1)
     expect(arena.cast?.ability.name).toBe('Mend')
-    run(arena, 1.5)
-    expect(ally(arena, 'Tank').hp).toBeGreaterThanOrEqual(4800)
+    run(arena, 2.1)
+    expect(ally(arena, 'Tank').hp).toBeGreaterThanOrEqual(5400)
   })
 
   it('tick a HoT once per interval for its whole duration', () => {
@@ -209,7 +279,7 @@ describe('cooldowns and charges', () => {
     const arena = arenaWith(['mend', null, null, null, null])
     for (let i = 0; i < 3; i++) {
       cast(arena, 1)
-      run(arena, 1.6)
+      run(arena, 2.1)
     }
     expect(arena.meter.casts.get('Mend')).toBe(3)
   })
@@ -344,7 +414,7 @@ describe('the new mechanics', () => {
     }
     expect(arena.buffs.find((b) => b.id === 'latent-charge')?.stacks).toBe(3)
     // 10% per stack, on top of Strong Current's 6%.
-    expect(arena.current(1)!.effects[0].amount).toBeCloseTo(1800 * (1 + 0.06 + 0.3))
+    expect(arena.current(1)!.effects[0].amount).toBeCloseTo(2400 * (1 + 0.06 + 0.3))
     cast(arena, 1)
     expect(arena.buffs.some((b) => b.id === 'latent-charge')).toBe(false)
   })
