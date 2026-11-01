@@ -1,4 +1,5 @@
 import { counted, int, ranks, sec, yd } from '../../game/format.ts'
+import { overTime } from '../../game/resolve.ts'
 import type { EffectSpec } from '../../game/types.ts'
 import type { TreeDef } from '../../talents/types.ts'
 import {
@@ -210,7 +211,7 @@ export const festeringRot: TreeDef = {
           ? `Each stack deals nothing over time, then ${int(e.amount * (e.duration / e.interval))} damage at once when its ` +
             `${sec(e.duration)} sec run out` +
             (e.burstSplash > 0 ? `, and ${int(e.burstSplash)}% of it to every other enemy within 8 yd` : '')
-          : `Each stack deals ${int(e.amount)} damage every ${sec(e.interval)} sec for ${sec(e.duration)} sec`
+          : `Each stack deals ${overTime(e, ' damage')}`
       return (
         `Adds ${stacks} of Festering Rot to the enemy nearest your crosshair within ${yd(a.range)} yd. ${each}, on its ` +
         `own timer, so stacks roll off one by one. Costs ${counted(a.cost, a.resource)}.`
@@ -343,8 +344,7 @@ export const miasma: TreeDef = {
       const p = zone.inflicts!
       const stacks = p.stacks > 1 ? `${p.stacks} stacks` : 'a stack'
       const poxText =
-        `Pox deals ${int(p.amount)} damage per stack every ${sec(p.interval)} sec for ${sec(p.duration)} sec, ` +
-        'each stack on its own timer.'
+        `Pox deals ${overTime(p, ' damage per stack')}, each stack on its own timer.`
       if (a.autocast > 0) {
         const aura = a.effects.find((e) => e.auto)!
         return (
@@ -601,7 +601,7 @@ export const ashfall: TreeDef = {
       const e = a.effects[0]
       return (
         `Rains ash in a ${yd(e.radius)} yd area around the enemy nearest your crosshair for ${sec(e.duration)} sec. ` +
-        `Every enemy inside takes ${int(e.amount)} damage every ${sec(e.interval)} sec. Costs ${counted(a.cost, a.resource)}.`
+        `Every enemy inside takes ${overTime(e, ' damage')}. Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },

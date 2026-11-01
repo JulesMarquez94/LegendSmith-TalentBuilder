@@ -1,5 +1,5 @@
 import { counted, int, sec, yd } from '../game/format.ts'
-import { periodicTotal } from '../game/resolve.ts'
+import { overTime } from '../game/resolve.ts'
 import type { TreeDef } from '../talents/types.ts'
 import {
   apply,
@@ -302,8 +302,7 @@ export const poisonArrow: TreeDef = {
     text: (a) => {
       const e = a.effects[0]
       return (
-        `Shoots a poisoned arrow at the enemy nearest your crosshair within ${yd(a.range)} yd: ${int(e.amount)} damage ` +
-        `every ${sec(e.interval)} sec for ${sec(e.duration)} sec, ${int(periodicTotal(e))} in all. ` +
+        `Shoots a poisoned arrow at the enemy nearest your crosshair within ${yd(a.range)} yd: ${overTime(e, ' damage')}. ` +
         `Costs ${counted(a.cost, a.resource)}.`
       )
     },
@@ -417,7 +416,7 @@ export const rainOfArrows: TreeDef = {
       const e = a.effects[0]
       return (
         `Rains arrows on a ${yd(e.radius)} yd area around the enemy nearest your crosshair for ${sec(e.duration)} sec. ` +
-        `Every enemy inside takes ${int(e.amount)} damage every ${sec(e.interval)} sec. Costs ${counted(a.cost, a.resource)}.`
+        `Every enemy inside takes ${overTime(e, ' damage')}. Costs ${counted(a.cost, a.resource)}.`
       )
     },
   },

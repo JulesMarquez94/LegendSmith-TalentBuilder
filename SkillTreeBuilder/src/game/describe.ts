@@ -37,6 +37,7 @@ export function describeCondition(when: Condition): string {
   if (when.inZone) parts.push('in your zone')
   if (when.affected) parts.push('with your HoT or in your zone')
   if (when.targetSelf) parts.push('on you')
+  if (when.full) parts.push('at full health')
   if (when.missing) parts.push('the lower its health, all of it near death')
   if (when.each !== undefined) parts.push('for each of your effects on it')
   if (when.stacksOf !== undefined) parts.push('for each stack on it')
@@ -118,7 +119,7 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
         format: seconds,
         better: 'up',
         detail:
-          `${e.ticks} ticks${e.instantTicks ? ` + ${e.instantTicks} on landing` : ''}` +
+          `${Math.round((e.interval > 0 ? e.duration / e.interval : 0) * 10) / 10} ticks${e.instantTicks ? ` + ${e.instantTicks} on landing` : ''}` +
           (e.rolling && e.stacks > 1 ? ` · ${e.stacks} stacks a cast` : '') +
           (e.maxStacks > 0 ? ` · stacks up to ${e.maxStacks}${e.stacks > 1 ? `, ${e.stacks} a cast` : ''}` : ''),
       })

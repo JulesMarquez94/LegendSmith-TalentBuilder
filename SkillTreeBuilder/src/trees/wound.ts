@@ -1,4 +1,5 @@
-import { counted, int, sec, yd } from '../game/format.ts'
+import { counted, int, yd } from '../game/format.ts'
+import { overTime } from '../game/resolve.ts'
 import type { TreeDef } from '../talents/types.ts'
 import { apply, damage, dot, more, plus, proc, spread, talent } from './authoring.ts'
 
@@ -31,7 +32,7 @@ export const festeringWound: TreeDef = {
       const [hit, rot] = a.effects
       return (
         `Hits the enemy nearest your crosshair within ${yd(a.range)} yd for ${int(hit.amount)} damage and adds a stack ` +
-        `of Wound Rot: ${int(rot.amount)} damage per stack every ${sec(rot.interval)} sec for ${sec(rot.duration)} sec, ` +
+        `of Wound Rot: ${overTime(rot, ' damage per stack')}, ` +
         `up to ${rot.maxStacks} stacks. Each cast refreshes every stack. Costs ${counted(a.cost, a.resource)}.`
       )
     },

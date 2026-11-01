@@ -103,7 +103,8 @@ export const sanctuary: TreeDef = {
       return (
         `Creates a ${yd(e.radius)} yd sanctuary around the lowest-health ally within ${yd(a.range)} yd who isn't in one, for ` +
         `${sec(e.duration)} sec. Everyone inside is healed for ${int(e.amount)} every ${sec(e.interval)} sec` +
-        (e.growth ? `, ${e.growth}% more with each tick.` : '.') +
+        (e.growth ? `, ${e.growth}% more with each tick` : '') +
+        `, for a total of ${int(periodicTotal(e))} each.` +
         (e.follow ? ' It follows that ally.' : '')
       )
     },
@@ -181,7 +182,7 @@ export const lifetide: TreeDef = {
       const e = a.effects[0]
       return (
         `Every ally within ${yd(a.range)} yd heals for ${int(e.amount)} on the first tick, then ${-e.growth}% less ` +
-        `with each tick, every ${sec(e.interval)} sec for ${sec(e.duration)} sec: ${int(periodicTotal(e))} each in all.`
+        `with each tick, every ${sec(e.interval)} sec for ${sec(e.duration)} sec, for a total of ${int(periodicTotal(e))} each.`
       )
     },
   },

@@ -1,5 +1,5 @@
-import { ranks, int, sec, yd } from '../game/format.ts'
-import { periodicTotal } from '../game/resolve.ts'
+import { ranks, yd } from '../game/format.ts'
+import { overTime } from '../game/resolve.ts'
 import type { TreeDef } from '../talents/types.ts'
 import { dot, more, plus, proc, spread, talent } from './authoring.ts'
 
@@ -60,7 +60,7 @@ export const plague: TreeDef = {
     text: (a) => {
       const line = (i: number) => {
         const e = a.effects[i]
-        return `${e.name} (${int(e.amount)} every ${sec(e.interval)} sec for ${sec(e.duration)} sec, ${int(periodicTotal(e))} in all)`
+        return `${e.name} (${overTime(e, ' damage')})`
       }
       return (
         `Plague the enemy nearest your crosshair within ${yd(a.range)} yd. Each use inflicts the next of ` +

@@ -1,7 +1,7 @@
 import type { Ranks } from '../talents/rules.ts'
 import type { ArtifactDef, TreeDef } from '../talents/types.ts'
 import { gearTotals, type Gear } from './gear.ts'
-import { int, pct } from './format.ts'
+import { int, pct, sec } from './format.ts'
 import { LEVEL_GROWTH, levelPower, levelShare, MAX_LEVEL } from '../talents/levels.ts'
 import { BASE_STATS, MIN_GCD } from './stats.ts'
 import {
@@ -295,6 +295,8 @@ function resolveEffectWith(
     stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
     maxStacks: effect.maxStacks ? Math.max(1, Math.round(effect.maxStacks + get('maxStacks').add)) : 0,
     maxShare: effect.maxShare ?? 0,
+    copies: Math.max(1, Math.round(1 + get('copies').add)),
+    bookend: Math.max(0, get('bookend').add),
     // Healing, so Power and the zone's "heals more" talents raise it too.
     opening: Math.max(0, get('opening').add) * power * (1 + get('amount').pct / 100),
     swell: Math.max(0, get('swell').add),
@@ -481,12 +483,21 @@ function addStats(a: Partial<CharStats>, b: Partial<CharStats>): Partial<CharSta
 export const tickAmount = (e: Pick<ResolvedEffect, 'amount' | 'growth'>, tick: number) =>
   e.amount * Math.max(0, 1 + e.growth / 100) ** tick
 
-/** Total healing one target gets from a HoT or zone over its whole duration. */
+/**
+ * Total healing one target gets from a HoT or zone over its whole duration (or a DoT's damage). A
+ * duration that isn't a whole number of ticks ends on a part tick: half an interval left, half a tick.
+ */
 export function periodicTotal(e: ResolvedEffect): number {
   let total = e.instantTicks * e.amount
   for (let i = 0; i < e.ticks; i++) total += tickAmount(e, i)
+  const part = e.interval > 0 ? e.duration / e.interval - e.ticks : 0
+  if (part > 1e-6) total += tickAmount(e, e.ticks) * part
   return total
 }
+
+/** "150 every 1 sec for 18 sec, for a total of 2,700": how ability text gives an over-time effect. */
+export const overTime = (e: ResolvedEffect, what = '') =>
+  `${int(e.amount)}${what} every ${sec(e.interval)} sec for ${sec(e.duration)} sec, for a total of ${int(periodicTotal(e))}`
 
 /** Healing a chain does if every jump lands. */
 export function chainTotal(e: ResolvedEffect): number {
