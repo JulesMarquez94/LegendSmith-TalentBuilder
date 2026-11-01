@@ -126,6 +126,7 @@ describe('design passes', () => {
         'chain-heal',
         'festering-rot',
         'harvest',
+        'healing-rain',
         'lifewarden-staff',
         'mend',
         'miasma',

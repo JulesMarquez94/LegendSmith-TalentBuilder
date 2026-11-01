@@ -295,6 +295,9 @@ function resolveEffectWith(
     stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
     maxStacks: effect.maxStacks ? Math.max(1, Math.round(effect.maxStacks + get('maxStacks').add)) : 0,
     maxShare: effect.maxShare ?? 0,
+    // Healing, so Power and the zone's "heals more" talents raise it too.
+    opening: Math.max(0, get('opening').add) * power * (1 + get('amount').pct / 100),
+    swell: Math.max(0, get('swell').add),
     hotJumps: get('hotJumps').add > 0 ? 1 : 0,
     rechain: Math.min(100, Math.max(0, get('rechain').add)),
     max: Math.max(1, Math.round((effect.max ?? 1) + get('max').add)),
@@ -331,7 +334,7 @@ function resolveEffectWith(
     conditionals: mods
       .filter((m) => m.key === 'amount' && m.when !== undefined && matches(m.match, tags))
       .map((m) => ({
-        pct: m.pct ?? 0,
+        pct: m.pctOfTags ? sum(mods, 'amount', new Set<Tag>(m.pctOfTags), stats).pct : (m.pct ?? 0),
         when: m.when!,
         source: (m as Partial<Sourced<ModMechanic>>).source?.talentName ?? 'Buff',
       })),

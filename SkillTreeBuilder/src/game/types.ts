@@ -160,6 +160,10 @@ export type EffectKey =
   | 'patron'
   /** A rolling DoT: above 0, it doesn't tick; each stack deals all its damage at once when it runs out. */
   | 'burst'
+  /** A healing zone: healing when placed, shared out among the injured allies inside it (Downburst). */
+  | 'opening'
+  /** A healing zone: % more healing on an ally for each tick it has healed them, up to 10 (Swelling Rain). */
+  | 'swell'
   /** A chain heal: past its jumps, it keeps jumping to every ally with your HoT (Tidal Web). */
   | 'hotJumps'
   /** A chain heal: % chance that a crit starts one more chain from that ally, once per cast (Chain Reaction). */
@@ -388,6 +392,11 @@ export interface ModMechanic {
   pct?: number
   /** A % change equal to one of your stats, added to the others (Ripening: Potency on Harvest's damage). */
   pctOf?: CharStat
+  /**
+   * With `when`: a bonus equal to the % more `amount` your other mods give effects with all these tags
+   * (Rain-Soaked: your zone healing bonus, on direct heals in your zones).
+   */
+  pctOfTags?: readonly Tag[]
   /** Only for `amount`: a bonus that applies only when this holds, checked as the hit or heal lands. */
   when?: Condition
 }
@@ -473,6 +482,11 @@ export type Action =
   | { do: 'extendMinions'; seconds: number }
   /** Adds stacks to your matching curse on the event's enemy, never past what it started with. */
   | { do: 'curseStack'; match: Match; stacks: number }
+  /**
+   * Takes `seconds` off one of your matching HoTs on an ally inside the event's zone and adds them to
+   * the zone, never past `capPct`% longer than it started (Siphoning Storm).
+   */
+  | { do: 'siphon'; match: Match; seconds: number; capPct: number }
   /** Adds seconds to your summons that match (Undying Hunger: your ghouls). */
   | { do: 'extendSummons'; match: Match; seconds: number }
   /** Does one of these, picked at random (Dark Bargain: haste, crit, echo or minion power). */
@@ -599,6 +613,8 @@ export interface ResolvedEffect {
   burst: number
   burstSplash: number
   maxShare: number
+  opening: number
+  swell: number
   hotJumps: number
   rechain: number
   explode: number
