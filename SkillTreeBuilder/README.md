@@ -3,7 +3,7 @@
 A WoW Classic–style talent builder for testing LegendSmith's skill trees. You hold an artifact (one of
 eight weapons: two tanks, two healers, two melee and two ranged damage dealers), level up from 1 to 60,
 fill eight slots, and each slotted ability brings its own talent tree. Trinkets set your stats, every ability shows its live numbers, and a **Test arena** lets
-you play the build against dummies or a boss.
+you play the build against dummies or a boss. The **Interface** tab is a clickable prototype of the game's own screens.
 
 ## Run it
 
@@ -657,6 +657,31 @@ move, and Dash and Sprint still work mid-cast. Teleport doesn't, unless you take
 The meter shows healing per ability, overheal and crits, plus where your mana went and came from. The
 boss damage slider and "Nobody dies" make it easier or harder. Leaving the arena pauses the fight; change
 gear or talents and come back to carry on with the new numbers.
+
+## Interface
+
+The **Interface** tab prototypes the game's front-end screens on a 16:9 screen, with made-up data:
+there's no account, server or real login. The strip above it jumps straight to any screen, and
+**Reset prototype** puts the sample characters back. The arrow keys, Enter and Esc drive every screen
+the way a pad will, and each screen lists its keys along the bottom.
+
+- **Title**, then **offline or online**. Offline is solo with AI bots, progress saved on the device.
+  Online goes through a pretend **log in** (any name and password work) and a **realm** list. Your
+  characters go with you to any realm.
+- **Characters**: the list (up to 8) with each one's level, seat and zone, the selected one shown big,
+  and Enter world, Create new, Delete (with a confirm step) and Back. A character played offline is
+  tagged *Not checked* until you next log in online, when the server checks its progress.
+- **Create**: appearance (placeholder body, skin and hair), a starting artifact from the builder's
+  eight, a name, then a last look. Names are one word of 2 to 12 letters, no letter three times in a
+  row, not reserved and not taken (online, by someone else on the server too), and show with a capital
+  first letter.
+- **Enter world** goes through a loading screen to a placeholder for the world, with the game menu on
+  Esc (log out, exit to title).
+
+The characters are kept in this browser (`legendsmith.interface.v1`); nothing else is, so a reload
+starts at the title like the game. Everything lives in `src/components/interface/`: the screens, the
+rules with their tests (`names.ts`, `roster.ts`, `keys.ts`, `flow.ts`, `appearance.ts`) and the fake
+data (`fake.ts`). The figure in the previews is a placeholder drawn from the appearance and the artifact.
 
 ## Editing trees
 
