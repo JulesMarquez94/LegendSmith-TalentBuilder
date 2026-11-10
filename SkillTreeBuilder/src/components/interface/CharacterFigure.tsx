@@ -5,8 +5,15 @@ import { optionOf, type Appearance } from './appearance.ts'
 interface Props {
   appearance: Appearance
   artifact: ArtifactDef
+  /** Standing, or sitting on a log (around the campfire). Either way the feet are on the same ground. */
+  pose?: 'stand' | 'sit'
   className?: string
 }
+
+/** Where the feet touch the ground, in the figure's units. */
+const GROUND = 306
+/** How far sitting lowers everything above the hips. */
+const SIT_DROP = 44
 
 /** A hex colour mixed toward black (`by` 0–1), for the clothes' shading. */
 function shade(hex: string, by: number): string {
@@ -15,10 +22,12 @@ function shade(hex: string, by: number): string {
   return `rgb(${ch(16)} ${ch(8)} ${ch(0)})`
 }
 
-/** The weapon in the figure's right hand (on the viewer's right), drawn from what the artifact is. */
+/** The weapon in the figure's right hand (on the viewer's right), drawn from what the artifact is. Long ones rest on the ground. */
 function Weapon({ artifact, hand }: { artifact: ArtifactDef; hand: { x: number; y: number } }) {
   const { traits, color } = artifact
-  const { x, y } = hand
+  const { x } = hand
+  // A seated figure's hand is lower: long weapons slide up so they stand on the ground instead of in it.
+  const y = Math.min(hand.y, GROUND - 96)
   const wood = '#7a5a36'
   const steel = '#c9ccd3'
   if (traits.includes('bow'))
@@ -39,33 +48,35 @@ function Weapon({ artifact, hand }: { artifact: ArtifactDef; hand: { x: number; 
   if (traits.includes('book'))
     return (
       <g>
-        <rect x={x - 4} y={y - 22} width={30} height={38} rx={3} fill={shade(color, 0.25)} stroke={color} strokeWidth={2} />
-        <path d={`M${x + 3},${y - 22} L${x + 3},${y + 16}`} stroke="rgba(0,0,0,0.35)" strokeWidth={2} />
-        <circle cx={x + 14} cy={y - 3} r={5} fill={color} />
+        <rect x={x - 4} y={hand.y - 22} width={30} height={38} rx={3} fill={shade(color, 0.25)} stroke={color} strokeWidth={2} />
+        <path d={`M${x + 3},${hand.y - 22} L${x + 3},${hand.y + 16}`} stroke="rgba(0,0,0,0.35)" strokeWidth={2} />
+        <circle cx={x + 14} cy={hand.y - 3} r={5} fill={color} />
       </g>
     )
+  // Short weapons and ones held point up stay in the hand.
+  const h = hand.y
   if (traits.includes('dagger'))
     return (
       <g fill={steel}>
-        <path d={`M${x - 3},${y + 4} L${x + 3},${y + 4} L${x},${y + 44} Z`} />
-        <rect x={x - 7} y={y - 1} width={14} height={4} rx={1} fill={color} />
+        <path d={`M${x - 3},${h + 4} L${x + 3},${h + 4} L${x},${h + 44} Z`} />
+        <rect x={x - 7} y={h - 1} width={14} height={4} rx={1} fill={color} />
       </g>
     )
   if (traits.includes('shield'))
     return (
       <g>
-        <path d={`M${x},${y - 6} L${x},${y - 112}`} stroke={steel} strokeWidth={6} strokeLinecap="round" />
-        <rect x={x - 10} y={y - 6} width={20} height={5} rx={2} fill={color} />
+        <path d={`M${x},${h - 6} L${x},${h - 112}`} stroke={steel} strokeWidth={6} strokeLinecap="round" />
+        <rect x={x - 10} y={h - 6} width={20} height={5} rx={2} fill={color} />
       </g>
     )
   if (traits.includes('large') && traits.includes('blade'))
     return (
       <g>
         <path
-          d={`M${x - 5},${y - 10} L${x + 5},${y - 10} L${x + 5},${y - 150} L${x},${y - 162} L${x - 5},${y - 150} Z`}
+          d={`M${x - 5},${h - 10} L${x + 5},${h - 10} L${x + 5},${h - 150} L${x},${h - 162} L${x - 5},${h - 150} Z`}
           fill={steel}
         />
-        <rect x={x - 14} y={y - 12} width={28} height={6} rx={2} fill={color} />
+        <rect x={x - 14} y={h - 12} width={28} height={6} rx={2} fill={color} />
       </g>
     )
   // A spear: a long haft with a point.
@@ -81,7 +92,7 @@ function Weapon({ artifact, hand }: { artifact: ArtifactDef; hand: { x: number; 
  * A placeholder figure for the character previews, until the game has character art: body, skin and
  * hair from the appearance, clothes in the artifact's colour, holding a rough shape of the artifact.
  */
-export function CharacterFigure({ appearance, artifact, className = '' }: Props) {
+export function CharacterFigure({ appearance, artifact, pose = 'stand', className = '' }: Props) {
   const id = useId()
   const skin = optionOf(appearance, 'skin').color ?? '#e0b08c'
   const hairColor = optionOf(appearance, 'hairColor').color ?? '#4b3221'
@@ -92,15 +103,17 @@ export function CharacterFigure({ appearance, artifact, className = '' }: Props)
   // Shoulders and waist, left and right.
   const [s1, s2] = broad ? [60, 140] : [68, 132]
   const [w1, w2] = broad ? [70, 130] : [78, 122]
-  const left = { x: s1 - 9, y: 206 }
-  const right = { x: s2 + 9, y: 206 }
+  const sitting = pose === 'sit'
+  const drop = sitting ? SIT_DROP : 0
+  const left = { x: s1 - 9, y: 206 + drop }
+  const right = { x: s2 + 9, y: 206 + drop }
 
   return (
     <svg
       className={`figure ${className}`}
       viewBox="0 0 200 330"
       role="img"
-      aria-label={`${hair} hair, holding the ${artifact.name}`}
+      aria-label={`${sitting ? 'Sitting' : 'Standing'}, ${hair.toLowerCase()} hair, holding the ${artifact.name}`}
     >
       <defs>
         <radialGradient id={`${id}-aura`}>
@@ -111,38 +124,52 @@ export function CharacterFigure({ appearance, artifact, className = '' }: Props)
       <ellipse cx={100} cy={180} rx={100} ry={150} fill={`url(#${id}-aura)`} />
       <ellipse cx={100} cy={312} rx={66} ry={10} fill="rgba(0,0,0,0.5)" />
 
-      {/* Long hair falls behind the shoulders. */}
-      {hair === 'Long' && (
-        <path d="M74,64 Q74,34 100,34 Q126,34 126,64 L130,128 Q118,134 112,118 L88,118 Q82,134 70,128 Z" fill={hairColor} />
+      {sitting ? (
+        <>
+          <Log />
+          {/* Knees toward us, then the shins down to the ground */}
+          <rect x={w1 + 3} y={244} width={28} height={34} rx={13} fill="#2a2a30" />
+          <rect x={w2 - 31} y={244} width={28} height={34} rx={13} fill="#2a2a30" />
+          <rect x={w1 + 7} y={266} width={20} height={34} rx={8} fill="#242429" />
+          <rect x={w2 - 27} y={266} width={20} height={34} rx={8} fill="#242429" />
+        </>
+      ) : (
+        <>
+          <rect x={w1 + 6} y={204} width={22} height={100} rx={8} fill="#2a2a30" />
+          <rect x={w2 - 28} y={204} width={22} height={100} rx={8} fill="#2a2a30" />
+        </>
       )}
-
-      {/* Legs and boots */}
-      <rect x={w1 + 6} y={204} width={22} height={100} rx={8} fill="#2a2a30" />
-      <rect x={w2 - 28} y={204} width={22} height={100} rx={8} fill="#2a2a30" />
       <rect x={w1 + 2} y={290} width={28} height={16} rx={6} fill="#18181c" />
       <rect x={w2 - 30} y={290} width={28} height={16} rx={6} fill="#18181c" />
 
-      {/* Arms, then the torso over them */}
-      <rect x={s1 - 18} y={112} width={18} height={92} rx={9} fill={sleeve} />
-      <rect x={s2} y={112} width={18} height={92} rx={9} fill={sleeve} />
-      <path
-        d={`M${s1},118 Q${s1},104 ${s1 + 16},102 L${s2 - 16},102 Q${s2},104 ${s2},118 L${w2},212 L${w1},212 Z`}
-        fill={tunic}
-      />
-      <path d={`M${100 - 10},102 L100,124 L${100 + 10},102`} fill="none" stroke={artifact.color} strokeWidth={3} />
-      <rect x={w1} y={196} width={w2 - w1} height={9} fill="#3a2a1c" />
-      <rect x={96} y={195} width={8} height={11} rx={1} fill={artifact.color} />
+      <g transform={drop ? `translate(0 ${drop})` : undefined}>
+        {/* Long hair falls behind the shoulders. */}
+        {hair === 'Long' && (
+          <path d="M74,64 Q74,34 100,34 Q126,34 126,64 L130,128 Q118,134 112,118 L88,118 Q82,134 70,128 Z" fill={hairColor} />
+        )}
 
-      {/* Neck, head and hair */}
-      <rect x={92} y={84} width={16} height={22} rx={4} fill={skin} />
-      <ellipse cx={100} cy={66} rx={22} ry={26} fill={skin} />
-      <ellipse cx={93} cy={58} rx={7} ry={9} fill="rgba(255,255,255,0.12)" />
-      {hair === 'Shaved' ? (
-        <path d="M78,62 Q78,40 100,40 Q122,40 122,62 Q112,50 100,49 Q88,50 78,62 Z" fill={hairColor} opacity={0.35} />
-      ) : (
-        <path d="M76,68 Q74,36 100,36 Q126,36 124,68 Q118,52 100,50 Q84,52 76,68 Z" fill={hairColor} />
-      )}
-      {hair === 'Topknot' && <circle cx={100} cy={31} r={10} fill={hairColor} />}
+        {/* Arms, then the torso over them */}
+        <rect x={s1 - 18} y={112} width={18} height={92} rx={9} fill={sleeve} />
+        <rect x={s2} y={112} width={18} height={92} rx={9} fill={sleeve} />
+        <path
+          d={`M${s1},118 Q${s1},104 ${s1 + 16},102 L${s2 - 16},102 Q${s2},104 ${s2},118 L${w2},212 L${w1},212 Z`}
+          fill={tunic}
+        />
+        <path d={`M${100 - 10},102 L100,124 L${100 + 10},102`} fill="none" stroke={artifact.color} strokeWidth={3} />
+        <rect x={w1} y={196} width={w2 - w1} height={9} fill="#3a2a1c" />
+        <rect x={96} y={195} width={8} height={11} rx={1} fill={artifact.color} />
+
+        {/* Neck, head and hair */}
+        <rect x={92} y={84} width={16} height={22} rx={4} fill={skin} />
+        <ellipse cx={100} cy={66} rx={22} ry={26} fill={skin} />
+        <ellipse cx={93} cy={58} rx={7} ry={9} fill="rgba(255,255,255,0.12)" />
+        {hair === 'Shaved' ? (
+          <path d="M78,62 Q78,40 100,40 Q122,40 122,62 Q112,50 100,49 Q88,50 78,62 Z" fill={hairColor} opacity={0.35} />
+        ) : (
+          <path d="M76,68 Q74,36 100,36 Q126,36 124,68 Q118,52 100,50 Q84,52 76,68 Z" fill={hairColor} />
+        )}
+        {hair === 'Topknot' && <circle cx={100} cy={31} r={10} fill={hairColor} />}
+      </g>
 
       {/* Hands, and the weapon in the right one */}
       <Weapon artifact={artifact} hand={right} />
@@ -157,6 +184,30 @@ export function CharacterFigure({ appearance, artifact, className = '' }: Props)
       )}
       <circle cx={left.x} cy={left.y} r={8} fill={skin} />
       <circle cx={right.x} cy={right.y} r={8} fill={skin} />
+    </svg>
+  )
+}
+
+/** A log to sit on by the fire. */
+function Log() {
+  return (
+    <g>
+      <rect x={34} y={268} width={132} height={26} rx={12} fill="#4a3424" />
+      <path d="M48,276 L120,276 M70,286 L152,286" stroke="rgba(0,0,0,0.3)" strokeWidth={2} strokeLinecap="round" />
+      <ellipse cx={162} cy={281} rx={8} ry={13} fill="#7a5a3c" />
+      <ellipse cx={162} cy={281} rx={4} ry={7} fill="none" stroke="#5a4029" strokeWidth={1.5} />
+    </g>
+  )
+}
+
+/** An empty seat by the fire: the log, waiting for a new character. */
+export function EmptySeat({ className = '' }: { className?: string }) {
+  return (
+    <svg className={`figure ${className}`} viewBox="0 0 200 330" aria-hidden="true">
+      <ellipse cx={100} cy={312} rx={66} ry={10} fill="rgba(0,0,0,0.5)" />
+      <Log />
+      <circle cx={100} cy={214} r={22} fill="none" stroke="currentColor" strokeWidth={2.5} strokeDasharray="5 5" />
+      <path d="M100,203 L100,225 M89,214 L111,214" stroke="currentColor" strokeWidth={3} strokeLinecap="round" />
     </svg>
   )
 }

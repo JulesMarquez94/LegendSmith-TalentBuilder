@@ -668,9 +668,12 @@ the way a pad will, and each screen lists its keys along the bottom.
 - **Title**, then **offline or online**. Offline is solo with AI bots, progress saved on the device.
   Online goes through a pretend **log in** (any name and password work) and a **realm** list. Your
   characters go with you to any realm.
-- **Characters**: the list (up to 8) with each one's level, seat and zone, the selected one shown big,
-  and Enter world, Create new, Delete (with a confirm step) and Back. A character played offline is
-  tagged *Not checked* until you next log in online, when the server checks its progress.
+- **Characters**: four character slots, shown as your characters sitting around a campfire in the
+  woods at night. The left and right arrows (or a click) choose a seat. The selected character stands
+  up, and its level, role, artifact and zone show under the fire. Enter world, Delete (with a confirm
+  step) and Back. An empty seat is where you make a new character. A character keeps its seat, so
+  deleting one leaves that seat empty. A character played offline is tagged *Not checked* until you
+  next log in online, when the server checks its progress.
 - **Create**: appearance (placeholder body, skin and hair), a starting artifact from the builder's
   eight, a name, then a last look. Names are one word of 2 to 12 letters, no letter three times in a
   row, not reserved and not taken (online, by someone else on the server too), and show with a capital
@@ -678,10 +681,11 @@ the way a pad will, and each screen lists its keys along the bottom.
 - **Enter world** goes through a loading screen to a placeholder for the world, with the game menu on
   Esc (log out, exit to title).
 
-The characters are kept in this browser (`legendsmith.interface.v1`); nothing else is, so a reload
+The characters are kept in this browser (`legendsmith.interface.v2`); nothing else is, so a reload
 starts at the title like the game. Everything lives in `src/components/interface/`: the screens, the
 rules with their tests (`names.ts`, `roster.ts`, `keys.ts`, `flow.ts`, `appearance.ts`) and the fake
-data (`fake.ts`). The figure in the previews is a placeholder drawn from the appearance and the artifact.
+data (`fake.ts`). The figures are placeholders drawn from the appearance and the artifact, standing or
+sitting on a log, and the campfire scene is `CampScene.tsx`.
 
 ## Editing trees
 

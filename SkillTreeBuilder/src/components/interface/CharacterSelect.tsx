@@ -1,12 +1,12 @@
-import { useEffect, useId, useRef, useState } from 'react'
-import { ArtIcon } from '../ArtIcon.tsx'
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import { seatOf } from '../labels.ts'
-import { CharacterFigure } from './CharacterFigure.tsx'
+import { CampScene } from './CampScene.tsx'
+import { CharacterFigure, EmptySeat } from './CharacterFigure.tsx'
 import { DeleteDialog } from './DeleteDialog.tsx'
 import type { Realm } from './fake.ts'
 import type { Mode } from './flow.ts'
 import { KeyHints } from './KeyHints.tsx'
-import { artifactOf, hasRoom, MAX_CHARACTERS, selectedCharacter, type Roster } from './roster.ts'
+import { artifactOf, selectedCharacter, type Roster } from './roster.ts'
 import { useNavKeys } from './useNavKeys.ts'
 
 interface Props {
@@ -16,13 +16,24 @@ interface Props {
   realm: Realm | null
   /** A message from the server on arrival (its check of your offline progress). */
   notice: string | null
-  onSelect: (id: string) => void
+  onSelect: (slot: number) => void
   onStep: (by: number) => void
   onEnter: () => void
   onCreate: () => void
-  onDelete: (id: string) => void
+  onDelete: (slot: number) => void
   onBack: () => void
 }
+
+/**
+ * The four seats around the fire, left to right: where each one's feet touch the ground (% of the
+ * screen) and how big it is there. The two at the back sit further away, so a little smaller.
+ */
+const SEATS = [
+  { x: 17, y: 67, scale: 1 },
+  { x: 35.5, y: 57, scale: 0.86 },
+  { x: 64.5, y: 57, scale: 0.86 },
+  { x: 83, y: 67, scale: 1 },
+] as const
 
 /** A map pin, before the zone name. */
 const Pin = () => (
@@ -31,32 +42,28 @@ const Pin = () => (
   </svg>
 )
 
-/** Your characters, the selected one shown big, and the way into the world. */
+/**
+ * Your characters, sitting around a campfire in the woods at night: four seats, some of them empty.
+ * The selected one stands up. Enter takes it into the world, or makes a character for an empty seat.
+ */
 export function CharacterSelect(props: Props) {
   const { active, roster, mode, realm, notice, onSelect, onStep, onEnter, onCreate, onDelete, onBack } = props
   const id = useId()
   const [deleting, setDeleting] = useState(false)
-  const list = useRef<HTMLDivElement>(null)
-  const create = useRef<HTMLButtonElement>(null)
+  const seats = useRef<HTMLDivElement>(null)
   const current = selectedCharacter(roster)
-  const empty = roster.characters.length === 0
-  const room = hasRoom(roster)
+  const primary = current ? onEnter : onCreate
 
   useEffect(() => {
-    if (!active) return
-    if (empty) create.current?.focus({ preventScroll: true })
-    else list.current?.focus({ preventScroll: true })
-  }, [active, empty])
-
-  // A long list scrolls: keep the selected character in sight as the arrows move.
-  useEffect(() => {
-    if (active) list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
-  }, [active, roster.selected])
+    if (active) seats.current?.focus({ preventScroll: true })
+  }, [active])
 
   useNavKeys(active, {
+    left: () => onStep(-1),
+    right: () => onStep(1),
     up: () => onStep(-1),
     down: () => onStep(1),
-    confirm: () => (current ? onEnter() : room && onCreate()),
+    confirm: primary,
     delete: () => current && setDeleting(true),
     back: onBack,
   })
@@ -64,8 +71,54 @@ export function CharacterSelect(props: Props) {
   const artifact = current ? artifactOf(current) : null
 
   return (
-    <section className="ui-screen ui-select" aria-label="Character selection">
-      <header className="ui-select__head">
+    <section className="ui-screen camp" aria-label="Character selection">
+      <div className="camp__world">
+        <CampScene />
+        <div
+          ref={seats}
+          className="camp__seats"
+          role="listbox"
+          tabIndex={0}
+          aria-label="Characters around the fire"
+          aria-activedescendant={`${id}-seat-${roster.selected}`}
+        >
+          {roster.slots.map((c, i) => {
+            const chosen = i === roster.selected
+            const seat = SEATS[i]
+            const a = c ? artifactOf(c) : null
+            return (
+              <div
+                key={c?.id ?? `empty-${i}`}
+                id={`${id}-seat-${i}`}
+                className={`camp__seat ${c ? '' : 'camp__seat--empty'} camp__seat--${c && chosen ? 'stand' : 'sit'}`}
+                style={{ '--x': `${seat.x}%`, '--y': `${seat.y}%`, '--scale': seat.scale } as CSSProperties}
+                role="option"
+                aria-selected={chosen}
+                aria-label={c && a ? `${c.name}, level ${c.level} ${seatOf(a).toLowerCase()}` : 'Empty seat'}
+                onClick={() => onSelect(i)}
+                onDoubleClick={() => (c ? onEnter() : onCreate())}
+              >
+                {c && a ? (
+                  <CharacterFigure
+                    appearance={c.appearance}
+                    artifact={a}
+                    pose={chosen ? 'stand' : 'sit'}
+                    className="camp__figure"
+                  />
+                ) : (
+                  <EmptySeat className="camp__figure" />
+                )}
+                <span className="camp__tag">
+                  <b>{c ? c.name : 'Empty seat'}</b>
+                  {c && <small>Level {c.level}</small>}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <header className="camp__head">
         {mode === 'offline' ? (
           <>
             <span className="tag tag--mode">Offline</span>
@@ -84,117 +137,49 @@ export function CharacterSelect(props: Props) {
         )}
       </header>
 
-      <div className="ui-select__preview">
+      <div className="camp__plate" aria-live="polite">
         {current && artifact ? (
           <>
-            <CharacterFigure appearance={current.appearance} artifact={artifact} className="ui-select__figure" />
-            <span className="tag ui-placeholder">Placeholder art</span>
-            <div className="ui-plate">
-              <h2 className="ui-plate__name">{current.name}</h2>
-              <div className="ui-plate__line">
-                Level {current.level} · {seatOf(artifact)}
-              </div>
-              <div className="ui-plate__artifact">
-                <ArtIcon label={artifact.name} tint={artifact.color} className="ui-plate__icon" />
-                <span className="ui-plate__text">
-                  <b>{artifact.name}</b>
-                  <small>{artifact.resource}</small>
+            <h2 className="camp__name">{current.name}</h2>
+            <div className="camp__line">
+              Level {current.level} · {seatOf(artifact)} · {artifact.name}
+              {current.unchecked && (
+                <span
+                  className="tag tag--wip"
+                  title="Played offline: the server checks this progress the next time you go online."
+                >
+                  Not checked
                 </span>
-              </div>
-              <div className="ui-plate__zone">
-                <Pin />
-                {current.zone}
-              </div>
+              )}
+            </div>
+            <div className="ui-plate__zone">
+              <Pin />
+              {current.zone}
             </div>
           </>
         ) : (
-          <div className="ui-empty">
-            <h2 className="ui-heading">No characters yet</h2>
-            <p className="ui-note">Create one to step into the world.</p>
-          </div>
+          <>
+            <h2 className="camp__name">Empty seat</h2>
+            <div className="camp__line">Make a character to sit here.</div>
+          </>
         )}
       </div>
 
-      <aside className="ui-panel ui-select__side" aria-labelledby={`${id}-list`}>
-        <div className="ui-select__side-head">
-          <h2 id={`${id}-list`} className="ui-subheading">
-            Characters
-          </h2>
-          <span className="ui-note">
-            {roster.characters.length} / {MAX_CHARACTERS}
-          </span>
-        </div>
-        {!empty && (
-          <div
-            ref={list}
-            className="ui-list ui-chars"
-            role="listbox"
-            tabIndex={0}
-            aria-labelledby={`${id}-list`}
-            aria-activedescendant={current ? `${id}-${current.id}` : undefined}
-          >
-            {roster.characters.map((c) => {
-              const a = artifactOf(c)
-              return (
-                <div
-                  key={c.id}
-                  id={`${id}-${c.id}`}
-                  className="ui-char"
-                  role="option"
-                  aria-selected={c.id === roster.selected}
-                  onClick={() => onSelect(c.id)}
-                  onDoubleClick={onEnter}
-                >
-                  <ArtIcon label={a.name} tint={a.color} className="ui-char__icon" />
-                  <span className="ui-char__text">
-                    <span className="ui-char__name">
-                      {c.name}
-                      {c.unchecked && (
-                        <span
-                          className="tag tag--wip"
-                          title="Played offline: the server checks this progress the next time you go online."
-                        >
-                          Not checked
-                        </span>
-                      )}
-                    </span>
-                    <span className="ui-char__meta">
-                      Level {c.level} · {seatOf(a)}
-                    </span>
-                    <span className="ui-char__zone">{c.zone}</span>
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-        <div className="ui-select__side-actions">
-          <button
-            ref={create}
-            type="button"
-            className={empty ? 'btn btn--lg btn--primary' : 'btn btn--lg'}
-            disabled={!room}
-            title={room ? undefined : `All ${MAX_CHARACTERS} character slots are taken.`}
-            onClick={onCreate}
-          >
-            Create new character
+      <footer className="ui-footer camp__foot">
+        <div className="camp__foot-start">
+          <button type="button" className="btn btn--lg" onClick={onBack}>
+            {mode === 'online' ? 'Change realm' : 'Back'}
           </button>
           <button type="button" className="btn btn--lg" disabled={!current} onClick={() => setDeleting(true)}>
-            Delete character
+            Delete
           </button>
         </div>
-      </aside>
-
-      <footer className="ui-footer ui-select__foot">
-        <button type="button" className="btn btn--lg" onClick={onBack}>
-          {mode === 'online' ? 'Change realm' : 'Back'}
-        </button>
-        <button type="button" className="btn btn--primary ui-enter" disabled={!current} onClick={onEnter}>
-          Enter world
+        <button type="button" className="btn btn--primary ui-enter" onClick={primary}>
+          {current ? 'Enter world' : 'Create character'}
         </button>
         <KeyHints
           hints={[
-            ['↑ ↓', 'Choose'],
+            ['← →', 'Choose'],
             ['Enter', current ? 'Enter world' : 'Create'],
             ['Del', 'Delete'],
             ['Esc', 'Back'],
@@ -203,7 +188,7 @@ export function CharacterSelect(props: Props) {
       </footer>
 
       {deleting && current && (
-        <DeleteDialog character={current} onDelete={() => onDelete(current.id)} onClose={() => setDeleting(false)} />
+        <DeleteDialog character={current} onDelete={() => onDelete(roster.selected)} onClose={() => setDeleting(false)} />
       )}
     </section>
   )

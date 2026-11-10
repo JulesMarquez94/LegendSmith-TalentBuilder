@@ -8,12 +8,13 @@ import { LoginScreen } from './LoginScreen.tsx'
 import { ModeScreen } from './ModeScreen.tsx'
 import { RealmScreen } from './RealmScreen.tsx'
 import {
-  hasRoom,
+  characters,
   loadRoster,
   newCharacter,
   rosterReducer,
   sampleRoster,
   saveRoster,
+  seatForNew,
   selectedCharacter,
   uncheckedCount,
 } from './roster.ts'
@@ -68,12 +69,14 @@ export function InterfaceView({ active }: Props) {
 
   const enterWorld = () => {
     if (!current) return
-    dispatch({ type: 'play', id: current.id, offline: mode === 'offline' })
+    dispatch({ type: 'play', slot: roster.selected, offline: mode === 'offline' })
     go('loading')
   }
 
+  // A new character takes the selected seat when it's empty, or else the first empty one.
   const create = (made: NewCharacter) => {
-    dispatch({ type: 'create', character: newCharacter({ ...made, offline: mode === 'offline' }) })
+    const slot = seatForNew(roster)
+    if (slot >= 0) dispatch({ type: 'create', slot, character: newCharacter({ ...made, offline: mode === 'offline' }) })
     go('select')
   }
 
@@ -93,9 +96,9 @@ export function InterfaceView({ active }: Props) {
     go('title')
   }
 
-  // The loading screen and the world need a character: without one, you're back at the list.
+  // The loading screen and the world need a character: without one, you're back at the fire.
   const shown: Screen = (screen === 'loading' || screen === 'world') && !current ? 'select' : screen
-  const taken = { yours: roster.characters.map((c) => c.name), others: mode === 'online' ? TAKEN_NAMES : [] }
+  const taken = { yours: characters(roster).map((c) => c.name), others: mode === 'online' ? TAKEN_NAMES : [] }
 
   return (
     <div className="ui">
@@ -109,7 +112,7 @@ export function InterfaceView({ active }: Props) {
                 type="button"
                 className="tabs__tab"
                 aria-pressed={s === shown || (s === 'world' && shown === 'loading')}
-                disabled={(s === 'world' && !current) || (s === 'create' && !hasRoom(roster))}
+                disabled={(s === 'world' && !current) || (s === 'create' && seatForNew(roster) < 0)}
                 onClick={() => jump(s === 'world' ? 'loading' : s)}
               >
                 {SCREEN_LABEL[s]}
@@ -148,11 +151,11 @@ export function InterfaceView({ active }: Props) {
             mode={mode}
             realm={realm}
             notice={notice}
-            onSelect={(id) => dispatch({ type: 'select', id })}
+            onSelect={(slot) => dispatch({ type: 'select', slot })}
             onStep={(by) => dispatch({ type: 'step', by })}
             onEnter={enterWorld}
             onCreate={() => go('create')}
-            onDelete={(id) => dispatch({ type: 'delete', id })}
+            onDelete={(slot) => dispatch({ type: 'delete', slot })}
             onBack={back}
           />
         )}

@@ -25,8 +25,8 @@ export const RECOMMENDED_REALM = REALMS.reduce((best, r) => (r.ping < best.ping 
 /** Where every new character starts. */
 export const STARTING_ZONE = 'Ashvale'
 
-/** Characters to start the prototype with, one of each seat at different levels. */
-export const SAMPLE_CHARACTERS: readonly Character[] = [
+/** Characters to start the prototype with, by seat around the fire: the third seat is left empty. */
+export const SAMPLE_SLOTS: readonly (Character | null)[] = [
   {
     id: 'sample-seren',
     name: 'Seren',
@@ -44,22 +44,14 @@ export const SAMPLE_CHARACTERS: readonly Character[] = [
     appearance: { body: 0, skin: 4, hair: 2, hairColor: 0 },
     unchecked: true,
   },
-  {
-    id: 'sample-vessa',
-    name: 'Vessa',
-    level: 12,
-    artifact: 'twin-daggers',
-    zone: 'Greyhollow',
-    appearance: { body: 1, skin: 2, hair: 0, hairColor: 5 },
-  },
+  null,
   {
     id: 'sample-bram',
     name: 'Bram',
-    level: 1,
+    level: 12,
     artifact: 'sword-and-shield',
-    zone: STARTING_ZONE,
+    zone: 'Greyhollow',
     appearance: { body: 0, skin: 0, hair: 3, hairColor: 1 },
-    unchecked: true,
   },
 ]
 
