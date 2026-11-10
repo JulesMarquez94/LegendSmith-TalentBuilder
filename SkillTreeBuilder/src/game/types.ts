@@ -68,8 +68,13 @@ export type CharStat =
   | 'resourceRegen'
   /** Extra regeneration as a % of your maximum resource per second, so it means the same on any weapon. */
   | 'resourceRegenPct'
-  /** Resource you gain each time an enemy's hit lands on you (Rage). In the weapon's own units. */
-  | 'resourceWhenHit'
+  /**
+   * Resource for each 1% of your maximum health that damage takes (after damage reduction, shields
+   * included), up to `damageResourceCap` a second (Fervor). In the weapon's own units.
+   */
+  | 'resourceFromDamage'
+  /** Most of your maximum health, in %, that counts toward `resourceFromDamage` in any one second. */
+  | 'damageResourceCap'
   /** Resource you gain each time you parry. In the weapon's own units. */
   | 'resourceOnParry'
   /** % chance each minion you sacrifice to pay for an ability survives, and isn't spent (the book's imps). */

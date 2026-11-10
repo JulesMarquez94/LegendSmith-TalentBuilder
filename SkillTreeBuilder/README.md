@@ -69,7 +69,7 @@ picker groups them by it.
 
 | Seat | Artifact | Resource | Main attack | File |
 | --- | --- | --- | --- | --- |
-| Tank | **Sword & Shield** (first version) | Rage | Shield Bash | `src/trees/tank/shield.ts` |
+| Tank | **Sword & Shield** (first version) | Fervor | Shield Bash | `src/trees/tank/shield.ts` |
 | Tank | **Greatsword** (first version) | Momentum | Wide Swing | `src/trees/tank/greatsword.ts` |
 | Healer | Lifewarden Staff | Mana | Radiant Bolt | `src/trees/healer/staff.ts` |
 | Healer | **Tome of Dawn** (first version) | Light | Dawn Bolt | `src/trees/healer/dawn.ts` |
@@ -517,11 +517,13 @@ where it stood, the boss and its adds hit you, and in fights with a bot healer t
 usual spot. In the raid the boss still swaps between you and the off tank every 20 sec, so Provoke
 pulls it back.
 
-The **Sword & Shield** (first version) is the block tank: traits `blade` and `shield`. **Rage** starts
-empty, holds 100 and counts in tens. **Shield Bash**, its main attack, hits for 300 and gives 10 rage,
-and every hit you take gives 5 more (a new stat, `resourceWhenHit`, "Rage when hit"), even one a shield
-soaks. Its tree: damage reduction, more rage from bashes and hits, bigger and longer shields, shields
-on crits, and damage reduction when you spend rage.
+The **Sword & Shield** (first version) is the block tank: traits `blade` and `shield`. **Fervor** starts
+empty, holds 100 and counts in tens. **Shield Bash**, its main attack, hits for 300 and gives 10 fervor.
+The damage you take gives more: 1 fervor for each 1% of your maximum health it takes, after damage
+reduction and even what a shield soaks, but only the first 10% of your health in any one second counts
+(`resourceFromDamage` and `damageResourceCap`, "Fervor from damage" and "Damage counted"). So a 42% hit
+gives 10, and so do ten 1% ticks in one second. Its tree: damage reduction, more fervor from bashes and
+from damage, bigger and longer shields, shields on crits, and damage reduction when you spend fervor.
 
 The **Greatsword** (first version) is the parry tank: traits `blade` and `large`, no shield. **Wide
 Swing**, its main attack, hits its target and every enemy within 5 yd of it for 220, so it holds packs,
@@ -629,7 +631,7 @@ you take shrink the same way, so a fight is as hard at any level.
 The stat sheet shows Power and Health together at the top with the resource, then **Secondary**
 (Haste, Critical, Crit damage, Potency), **Defensive** (Damage reduction, Dodge, and Parry once
 something gives it) and **Extra** (Echo, Minion power, Speed and anything only talents or a weapon
-give, like Rage when hit).
+give, like Fervor from damage).
 
 **Ability numbers**, under the trees, shows every number on every slotted ability. Numbers flash green
 when they improve and red when they drop, with the base (no Power, nothing equipped or learned) in grey.

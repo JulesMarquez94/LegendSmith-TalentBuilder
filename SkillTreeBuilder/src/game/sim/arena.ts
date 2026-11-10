@@ -424,6 +424,8 @@ export class Arena {
   readonly cooldowns = new Map<string, Cooldown>()
   /** Overhealing stored by Reservoir, as resource. */
   reservoir = 0
+  /** Damage you took in the last second that gave resource, as % of your maximum health (Fervor's cap). */
+  private hurt: { t: number; pct: number }[] = []
   /** Regeneration since the last `gain` event: one fires per 10% of your maximum. */
   private regenPool = 0
   /** True while a `gain` event runs, so a talent that gives resource on a gain can't loop. */
@@ -2492,12 +2494,11 @@ export class Arena {
       this.text(a.pos, 'Dodge', '#9fe7ff', false)
       return
     }
-    // Rage: a hit that lands gives resource, even when a shield soaks it.
-    if (!quiet && a.isPlayer) this.gainResource(this.stats().resourceWhenHit, 'Getting hit', true)
     const zoneDr = Math.max(0, ...this.zones.filter((z) => !z.hostile && dist(z.pos, a.pos) <= z.radius).map((z) => z.damageReduction))
     const ownDr = a.isPlayer ? this.stats().damageReduction : (group.damageReduction ?? 0)
     const dr = Math.min(90, zoneDr + ownDr)
     let left = amount * (1 - dr / 100)
+    if (a.isPlayer) this.resourceFromDamage(left / a.maxHp)
     for (const s of a.shields) {
       const absorbed = Math.min(s.amount, left)
       s.amount -= absorbed
@@ -2533,6 +2534,21 @@ export class Arena {
     a.dest = null
     if (a.isPlayer) this.cast = null
     this.addLog(`${a.isPlayer ? 'You die' : `${a.name} dies`} to ${source}`, 'death')
+  }
+
+  /**
+   * Fervor: damage you take gives resource by the share of your maximum health it takes, even what a
+   * shield soaks, but only up to the cap's worth (10%) in any one second.
+   */
+  private resourceFromDamage(share: number) {
+    const { resourceFromDamage: per, damageResourceCap: cap } = this.stats()
+    if (per <= 0 || share <= 0) return
+    this.hurt = this.hurt.filter((h) => h.t > this.time - 1 + 1e-9)
+    const counted = this.hurt.reduce((sum, h) => sum + h.pct, 0)
+    const pct = Math.min(share * 100, Math.max(0, cap - counted))
+    if (pct <= 0) return
+    this.hurt.push({ t: this.time, pct })
+    this.gainResource(pct * per, 'Taking damage', true)
   }
 
   // ---------- Feedback ----------

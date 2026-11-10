@@ -27,6 +27,8 @@ export function statValue(stat: CharStat, n: number): string {
   // Minion power counts per minion, so its values are small: 0.04%.
   if (unit === '%') return stat === 'minionPower' ? `${trim(n, 2)}%` : `${pct(n)}%`
   if (unit === 'per-sec') return `${trim(n, 1)} /sec`
+  // Fervor from damage counts per 1% of health: 1.6, not 2.
+  if (stat === 'resourceFromDamage') return trim(n, 1)
   return int(n)
 }
 

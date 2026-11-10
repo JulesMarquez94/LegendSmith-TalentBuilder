@@ -23,7 +23,8 @@ export const BASE_STATS: CharStats = {
   maxResource: 0,
   resourceRegen: 0,
   resourceRegenPct: 0,
-  resourceWhenHit: 0,
+  resourceFromDamage: 0,
+  damageResourceCap: 0,
   resourceOnParry: 0,
   spareChance: 0,
   comboBonus: 0,
@@ -150,11 +151,19 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
     unit: '%',
     help: 'More @resource per second, as a share of your maximum.',
   },
-  resourceWhenHit: {
-    label: '@Resource when hit',
+  resourceFromDamage: {
+    label: '@Resource from damage',
     color: '#5aa9ff',
     unit: 'flat',
-    help: "@Resource you gain each time an enemy's hit lands on you, even one a shield soaks.",
+    help:
+      '@Resource you gain for each 1% of your maximum health that damage takes, after damage reduction, even ' +
+      'what a shield soaks.',
+  },
+  damageResourceCap: {
+    label: 'Damage counted',
+    color: '#5aa9ff',
+    unit: '%',
+    help: 'Most of your maximum health a second that gives @resource when you take damage.',
   },
   resourceOnParry: {
     label: '@Resource per parry',
@@ -218,7 +227,8 @@ export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[
       'comboBonus',
       'splash',
       'resourceRegenPct',
-      'resourceWhenHit',
+      'resourceFromDamage',
+      'damageResourceCap',
       'resourceOnParry',
       'spareChance',
       'spentToResource',
@@ -231,7 +241,8 @@ export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[
 /** Shown only once something gives them: a talent, a group buff or the weapon (the Greatsword's parry). */
 export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>([
   'parry',
-  'resourceWhenHit',
+  'resourceFromDamage',
+  'damageResourceCap',
   'resourceOnParry',
   'spareChance',
   'spentToResource',

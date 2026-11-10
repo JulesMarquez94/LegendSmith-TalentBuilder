@@ -18,7 +18,7 @@ import {
 
 // FIRST VERSIONS, improvised until the real designs arrive: the tank's role abilities, so a tank's
 // three role slots aren't empty. Provoke, Stand Firm and Tremor fit any tank weapon; Shield Block
-// needs a shield. Costs are in points, so they mean the same in rage or momentum, and the talents
+// needs a shield. Costs are in points, so they mean the same in fervor or momentum, and the talents
 // aim only at their own ability or at families (shields, area damage), as on every shared tree.
 
 const tank = { role: 'tank', kind: 'tank', columns: 4, pointsPerRow: 2 } as const

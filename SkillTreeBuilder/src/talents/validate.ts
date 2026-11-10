@@ -180,7 +180,8 @@ function modsOf(m: Mechanic): ModMechanic[] {
 const WEAPON_STATS: readonly CharStat[] = [
   'maxResource',
   'resourceRegen',
-  'resourceWhenHit',
+  'resourceFromDamage',
+  'damageResourceCap',
   'resourceOnParry',
   'spareChance',
   'spentToResource',

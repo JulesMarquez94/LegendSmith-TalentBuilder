@@ -5,7 +5,7 @@ import { apply, buff, damage, more, plus, proc, restore, stat, talent } from '..
 // FIRST VERSION, improvised until the real design arrives: the parry tank. No shield: it turns
 // swings aside with parries. Wide Swing (the main attack) hits every enemy close to its target, so
 // it holds packs. Momentum starts empty and comes from swinging and from every parry, and counts in
-// tens (`unit: 10`) like rage, so the tank abilities cost the same share of it. This is the
+// tens (`unit: 10`) like fervor, so the tank abilities cost the same share of it. This is the
 // artifact's own tree, so it may talk in momentum and give it back as a flat amount.
 
 /** Wide Swing's hits, but not Riposte's: only the swing hits an area. */
