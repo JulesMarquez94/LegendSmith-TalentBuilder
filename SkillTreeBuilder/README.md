@@ -3,7 +3,7 @@
 A WoW Classic–style talent builder for testing LegendSmith's skill trees. You hold an artifact (one of
 eight weapons: two tanks, two healers, two melee and two ranged damage dealers), level up from 1 to 60,
 fill eight slots, and each slotted ability brings its own talent tree. Trinkets set your stats, every ability shows its live numbers, and a **Test arena** lets
-you play the build against dummies or a boss.
+you play the build against dummies or a boss. The **Interface** tab is a clickable prototype of the game's own screens.
 
 ## Run it
 
@@ -659,6 +659,37 @@ move, and Dash and Sprint still work mid-cast. Teleport doesn't, unless you take
 The meter shows healing per ability, overheal and crits, plus where your mana went and came from. The
 boss damage slider and "Nobody dies" make it easier or harder. Leaving the arena pauses the fight; change
 gear or talents and come back to carry on with the new numbers.
+
+## Interface
+
+The **Interface** tab prototypes the game's front-end screens on a 16:9 screen, with made-up data:
+there's no account, server or real login. The strip above it jumps straight to any screen, and
+**Reset prototype** puts the sample characters back. The arrow keys, Enter and Esc drive every screen
+the way a pad will, and each screen lists its keys.
+
+- **Title**, then straight to your characters.
+- **Characters, around a campfire**: four character slots, shown as your characters sitting around a
+  campfire in the woods at night. Left and right (or a click) choose a seat; the selected character
+  stands up, and its level, role, artifact and zone show under the fire. **Create character** makes a
+  new one for an empty seat, and **Delete** (with a confirm step) empties a seat; the others keep theirs.
+- **Play offline or Play online**, under the fire, is how you go in. Up and down switch between them
+  and Enter plays. Offline is solo with AI bots, with progress saved on the device. Online puts you in
+  an instance with other players: there's no server to pick. The first time you play online in a
+  session you log in (a pretend login: any name and password work), and on the way in the server checks
+  the progress saved on the device. A character with progress the server hasn't seen yet (made or
+  played offline) is tagged *Not synced* until then.
+- **Create**: appearance (placeholder body, skin and hair), a starting artifact from the builder's
+  eight, a name, then a last look. Names are one word of 2 to 12 letters, no letter three times in a
+  row, not reserved and not taken (by your characters or anyone else's), and show with a capital first
+  letter.
+- Going in shows a loading screen, then a placeholder for the world, with the game menu on Esc (log
+  out back to the fire, exit to title).
+
+The characters are kept in this browser (`legendsmith.interface.v2`); nothing else is, so a reload
+starts at the title like the game. Everything lives in `src/components/interface/`: the screens, the
+rules with their tests (`names.ts`, `roster.ts`, `keys.ts`, `flow.ts`, `appearance.ts`) and the fake
+data (`fake.ts`). The figures are placeholders drawn from the appearance and the artifact, standing or
+sitting on a log, and the campfire scene is `CampScene.tsx`.
 
 ## Editing trees
 

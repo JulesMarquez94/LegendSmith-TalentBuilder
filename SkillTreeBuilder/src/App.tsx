@@ -5,6 +5,7 @@ import { AbilityPicker, type PickerOption } from './components/AbilityPicker.tsx
 import { ArenaView } from './components/arena/ArenaView.tsx'
 import { CharacterSkills } from './components/CharacterSkills.tsx'
 import { CharacterPanel } from './components/gear/CharacterPanel.tsx'
+import { InterfaceView } from './components/interface/InterfaceView.tsx'
 import { KIND_LABEL, SEATS, seatOf } from './components/labels.ts'
 import { LevelControl } from './components/LevelControl.tsx'
 import { ShareButton } from './components/ShareButton.tsx'
@@ -32,7 +33,8 @@ const PROBLEMS = [
 
 const TREE_BY_ID = new Map(TREES.map((tree) => [tree.id, tree]))
 
-type View = 'build' | 'arena'
+/** The builder, the test arena, and a prototype of the game's own screens. */
+type View = 'build' | 'arena' | 'interface'
 
 /** The build view's two tabs: the artifact's abilities, and the character's own tree. */
 type SkillTab = 'artifact' | 'character'
@@ -131,27 +133,35 @@ export default function App() {
           <button type="button" className="tabs__tab" aria-pressed={view === 'arena'} onClick={() => setView('arena')}>
             Test arena
           </button>
+          <button type="button" className="tabs__tab" aria-pressed={view === 'interface'} onClick={() => setView('interface')}>
+            Interface
+          </button>
         </nav>
         {view === 'build' && <p className="topbar__help">Click to learn · Right-click or Shift-click to unlearn</p>}
-        <LevelControl level={loadout.level} needed={levelNeeded(loadout)} onLevel={build.level} />
-        <div className="points">
-          <span className="points__label">Talent points</span>
-          <span className="points__left" aria-live="polite">
-            {rules.total - spent}
-          </span>
-          <span className="points__total">
-            {loadout.level <= SLOT_LEVELS
-              ? `/ ${rules.total} · the first comes at level ${SLOT_LEVELS + 1}`
-              : `/ ${rules.total} · max ${rules.perTree} per tree, ${rules.perSmall} per mobility, ultimate or group buff`}
-          </span>
-        </div>
-        <ShareButton build={{ loadout, gear }} />
-        <button type="button" className="btn btn--lg" onClick={build.resetTalents} disabled={spent === 0}>
-          Reset talents
-        </button>
+        {/* The interface prototype doesn't use the build, so its controls step aside there. */}
+        {view !== 'interface' && (
+          <>
+            <LevelControl level={loadout.level} needed={levelNeeded(loadout)} onLevel={build.level} />
+            <div className="points">
+              <span className="points__label">Talent points</span>
+              <span className="points__left" aria-live="polite">
+                {rules.total - spent}
+              </span>
+              <span className="points__total">
+                {loadout.level <= SLOT_LEVELS
+                  ? `/ ${rules.total} · the first comes at level ${SLOT_LEVELS + 1}`
+                  : `/ ${rules.total} · max ${rules.perTree} per tree, ${rules.perSmall} per mobility, ultimate or group buff`}
+              </span>
+            </div>
+            <ShareButton build={{ loadout, gear }} />
+            <button type="button" className="btn btn--lg" onClick={build.resetTalents} disabled={spent === 0}>
+              Reset talents
+            </button>
+          </>
+        )}
       </header>
 
-      {/* Both views stay mounted, so a paused fight survives a trip to the build view for new gear or talents. */}
+      {/* Every view stays mounted, so a paused fight survives a trip to the build view for new gear or talents. */}
       <main className="builder" hidden={view !== 'build'}>
         {PROBLEMS.length > 0 && (
           <div className="data-problems" role="alert">
@@ -236,6 +246,9 @@ export default function App() {
       </main>
       <main className="builder builder--arena" hidden={view !== 'arena'}>
         <ArenaView kit={kit} trees={trees} active={view === 'arena'} />
+      </main>
+      <main className="builder builder--interface" hidden={view !== 'interface'}>
+        <InterfaceView active={view === 'interface'} />
       </main>
 
       {picking !== null && (
