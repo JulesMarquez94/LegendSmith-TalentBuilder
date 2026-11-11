@@ -5,7 +5,7 @@ import { Arena } from './arena.ts'
 import { SCENARIOS, type Scenario } from './scenarios.ts'
 
 // The first versions of the Sword & Shield, Greatsword, Tome of Dawn and Spear, and the arena's
-// tank rules they lean on: you take the tank's place, rage from hits, parries and taunts.
+// tank rules they lean on: you take the tank's place, fervor from damage, parries and taunts.
 
 const scenario = (id: string) => SCENARIOS.find((s) => s.id === id)!
 const DUMMIES = scenario('dummies')
@@ -89,17 +89,38 @@ describe('a tank', () => {
 })
 
 describe('the Sword & Shield', () => {
-  it('gains rage from Shield Bash and from every hit you take', () => {
+  it('gains fervor from Shield Bash and from the damage you take, up to 10% of your health a second', () => {
     const arena = new Arena(kitFor(sword, [null, null, null, null, null, null]), SWAP, { seed: 1 })
     expect(arena.resource).toBe(0)
     cast(arena, 0)
     expect(arena.meter.resourceGained.get('Shield Bash')).toBe(10)
     run(arena, 3)
-    // One swing a second, 5 rage each.
-    expect(arena.meter.resourceGained.get('Getting hit')).toBe(15)
+    // One swing a second for 1,000: 42% of your 2,400 health, but only 10% a second counts.
+    expect(arena.meter.resourceGained.get('Taking damage')).toBeCloseTo(30)
   })
 
-  it('spends rage on Shield Block, a shield on you', () => {
+  it('gives 1 fervor for each 1% of your health a hit takes, under the cap', () => {
+    const arena = new Arena(withStats(kitFor(sword, [null, null, null, null, null, null]), { health: 25000 }), SWAP, { seed: 1 })
+    run(arena, 3.1)
+    // Swings of about 1,000 on 25,000 health: about 4% each, all of it counted.
+    const lost = (100 * (25000 - arena.player.hp)) / 25000
+    expect(lost).toBeGreaterThan(11)
+    expect(arena.meter.resourceGained.get('Taking damage')).toBeCloseTo(lost)
+  })
+
+  it('counts what a shield soaks, and one big hit only up to the cap', () => {
+    const kit = withStats(kitFor(sword, ['shield-block', null, null, null, null, null]), { health: 10000 })
+    const arena = new Arena(kit, SWAP, { seed: 1 })
+    arena.resource = 30
+    cast(arena, 1)
+    const before = arena.meter.resourceGained.get('Taking damage') ?? 0
+    run(arena, 1)
+    // Shield Block soaks the 1,000 (10% of 10,000): it still counts, all 10.
+    expect(arena.player.hp).toBe(10000)
+    expect((arena.meter.resourceGained.get('Taking damage') ?? 0) - before).toBeCloseTo(10)
+  })
+
+  it('spends fervor on Shield Block, a shield on you', () => {
     const kit = withStats(kitFor(sword, ['shield-block', null, null, null, null, null]), { health: 10000 })
     const arena = new Arena(kit, DUMMIES, { seed: 1 })
     arena.resource = 30
