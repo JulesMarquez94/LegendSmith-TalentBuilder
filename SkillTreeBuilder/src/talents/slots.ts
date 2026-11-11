@@ -1,16 +1,24 @@
 import type { Loadout } from './loadout.ts'
-import type { ArtifactDef, SlotKind, TreeDef, WeaponTrait } from './types.ts'
+import type { AbilityKind, ArtifactDef, Role, SlotKind, TreeDef, WeaponTrait } from './types.ts'
+
+/**
+ * What a role's three role slots hold. A tank's are typed: one damage reduction ability, one transfer
+ * ability, and one damage ability it shares with damage dealers.
+ */
+const ROLE_SLOTS: Record<Role, readonly AbilityKind[]> = {
+  damage: ['damage', 'damage', 'damage'],
+  healer: ['heal', 'heal', 'heal'],
+  tank: ['reduction', 'transfer', 'damage'],
+}
 
 /**
  * The eight slots: the artifact, three role abilities, mobility, the big cooldown, the group buff
  * (the artifact skill tab's grid, after its overview), and the character skill tree, on a tab of its
- * own. The artifact decides what the role slots hold and which group buffs fit.
+ * own. The artifact's role decides what the role slots hold and which group buffs fit.
  */
 export const slotKinds = (artifact: ArtifactDef): readonly SlotKind[] => [
   'artifact',
-  artifact.roleKind,
-  artifact.roleKind,
-  artifact.roleKind,
+  ...ROLE_SLOTS[artifact.role],
   'mobility',
   'cooldown',
   'buff',
@@ -31,12 +39,15 @@ export const NEEDS_LABEL: Record<WeaponTrait, string> = {
   shield: 'a shield',
 }
 
-/** A tree is the right kind for a slot, and belongs to the artifact's role or to every role. */
+/**
+ * A tree is the right kind for a slot, and belongs to the artifact's role or to every role. Damage
+ * abilities are shared: a tank's damage slot takes the damage dealers' too.
+ */
 export const fitsKind = (tree: TreeDef, kind: SlotKind, artifact: ArtifactDef) =>
   tree.kind === kind &&
   kind !== 'artifact' &&
   kind !== 'character' &&
-  (tree.role === undefined || tree.role === artifact.role)
+  (tree.role === undefined || tree.role === artifact.role || (kind === 'damage' && tree.role === 'damage'))
 
 /** The held weapon can make the ability: a spell needs nothing, a weapon strike or shot needs its weapon. */
 export const canMake = (tree: TreeDef, artifact: ArtifactDef) =>

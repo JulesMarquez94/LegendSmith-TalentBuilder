@@ -2,6 +2,7 @@ import { counted, int, pct, sec, yd } from '../../game/format.ts'
 import type { TreeDef } from '../../talents/types.ts'
 import {
   apply,
+  aura,
   buff,
   cooldown,
   damage,
@@ -16,12 +17,15 @@ import {
   talent,
 } from '../authoring.ts'
 
-// FIRST VERSIONS, improvised until the real designs arrive: the tank's role abilities, so a tank's
-// three role slots aren't empty. Provoke, Stand Firm and Tremor fit any tank weapon; Shield Block
-// needs a shield. Costs are in points, so they mean the same in fervor or momentum, and the talents
-// aim only at their own ability or at families (shields, area damage), as on every shared tree.
+// The tank's role abilities. A tank's three role slots are typed: a damage reduction ability
+// (Retribution, Stand Firm, Shield Block), a transfer ability that takes damage for the group (Shared
+// Burden), and a damage ability, shared with damage dealers (Provoke and Tremor are the tank's own).
+// Retribution and Shared Burden are designed, with talents to come; the others are FIRST VERSIONS,
+// improvised until their designs arrive. Shield Block needs a shield. Costs are in points, so they
+// mean the same in fervor or momentum, and the talents aim only at their own ability or at families
+// (shields, area damage), as on every shared tree.
 
-const tank = { role: 'tank', kind: 'tank', columns: 4, pointsPerRow: 2 } as const
+const tank = { role: 'tank', columns: 4, pointsPerRow: 2 } as const
 
 /** "You take 40% less damage": a buff effect's damage reduction. */
 const reduction = (n: number | undefined) => `${pct(n ?? 0)}%`
@@ -30,6 +34,7 @@ const reduction = (n: number | undefined) => `${pct(n ?? 0)}%`
 
 export const provoke: TreeDef = {
   ...tank,
+  kind: 'damage',
   id: 'provoke',
   color: '#ffb347',
   ability: {
@@ -141,6 +146,7 @@ export const provoke: TreeDef = {
 
 export const standFirm: TreeDef = {
   ...tank,
+  kind: 'reduction',
   id: 'stand-firm',
   color: '#9fb4c8',
   ability: {
@@ -253,6 +259,7 @@ export const standFirm: TreeDef = {
 
 export const tremor: TreeDef = {
   ...tank,
+  kind: 'damage',
   id: 'tremor',
   color: '#c9a66b',
   ability: {
@@ -368,6 +375,7 @@ export const tremor: TreeDef = {
 
 export const shieldBlock: TreeDef = {
   ...tank,
+  kind: 'reduction',
   id: 'shield-block',
   madeFor: 'sword-and-shield',
   needs: 'shield',
@@ -482,5 +490,60 @@ export const shieldBlock: TreeDef = {
   ],
 }
 
-/** The tank's role abilities, for its three role slots. */
-export const TANK_ABILITIES: readonly TreeDef[] = [provoke, standFirm, tremor, shieldBlock]
+// ---------- Retribution: damage reduction, passive ----------
+
+export const retribution: TreeDef = {
+  ...tank,
+  kind: 'reduction',
+  id: 'retribution',
+  reviewed: true,
+  color: '#e8c25a',
+  ability: {
+    name: 'Retribution',
+    castTime: 'Passive',
+    range: 'Self',
+    description: 'Whenever you take damage, Retribution strikes the enemies around you and heals you for half of it.',
+  },
+  spec: {
+    passive: { on: 'hurt', match: 'hurt' },
+    // At most once a second, so a stream of small hits doesn't set it off twenty times over.
+    cooldown: 1,
+    effects: [damage(250, 'self', { radius: 8, lifesteal: 50 })],
+    text: (a) => {
+      const [strike] = a.effects
+      return (
+        `Passive. Whenever you take damage, Retribution strikes every enemy within ${yd(strike.radius)} yd of you for ` +
+        `${int(strike.amount)} damage, and heals you for ${pct(strike.lifesteal)}% of the damage it deals. ` +
+        `At most once every ${sec(a.cooldown)} sec.`
+      )
+    },
+  },
+  talents: [],
+}
+
+// ---------- Shared Burden: transfer, an aura ----------
+
+export const sharedBurden: TreeDef = {
+  ...tank,
+  kind: 'transfer',
+  id: 'shared-burden',
+  reviewed: true,
+  color: '#8fb3e0',
+  ability: {
+    name: 'Shared Burden',
+    castTime: 'Passive',
+    range: 'Your group',
+    description: "An aura: some of the damage your allies take comes to you instead.",
+  },
+  spec: {
+    effects: [aura({ transfer: 15 })],
+    text: (a) =>
+      `Aura, always on. ${pct(a.effects[0].stats?.transfer ?? 0)}% of the damage each ally takes comes to you instead, ` +
+      "unless the hit is more than that ally's maximum health. It goes through your own damage reduction and " +
+      'shields, and counts as damage you take.',
+  },
+  talents: [],
+}
+
+/** The tank's role abilities: damage reduction, transfer, and the tank's own damage abilities. */
+export const TANK_ABILITIES: readonly TreeDef[] = [retribution, standFirm, shieldBlock, sharedBurden, provoke, tremor]

@@ -138,7 +138,6 @@ export const tomeOfDawn: ArtifactDef = {
   name: 'Tome of Dawn',
   color: '#9fd4f0',
   role: 'healer',
-  roleKind: 'heal',
   reach: 'ranged',
   firstVersion: true,
   resource: 'Light',

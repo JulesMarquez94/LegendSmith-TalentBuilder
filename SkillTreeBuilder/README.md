@@ -59,8 +59,8 @@ already in another slot swaps the two and keeps both builds.
 Abilities we haven't done a design pass on yet are tagged **WIP**: greyed out in the picker (still
 selectable) and tagged in their slot. A tree that has had its pass sets `reviewed: true`; so far the
 Ashwood Longbow, the Tome of Summoning, Harvest, Miasma, Festering Rot, Blood Frenzy, Teleport,
-Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff, Mend, Chain Heal, Healing Rain and
-Renew.
+Carrion Curse, Overlord, Plague, Raise Ghoul, the Lifewarden Staff, Mend, Chain Heal, Healing Rain,
+Renew, Retribution and Shared Burden.
 
 ## The artifacts
 
@@ -500,16 +500,24 @@ Focused Mind uses the `second` event, which fires once a second (a proc with `ev
 
 ## The tanks
 
-A tank's three role slots hold **tank abilities** (`kind: 'tank'`), first versions too
-(`src/trees/tank/abilities.ts`). Fervor fills the ultimate slot, mobility is shared, and the tank
-group buffs fill slot 7.
+A tank's three role slots are typed (`src/trees/tank/abilities.ts`): slot 2 holds a **damage
+reduction** ability (`kind: 'reduction'`), slot 3 a **transfer** ability that takes damage for the group
+(`kind: 'transfer'`), and slot 4 a **damage** ability, shared with damage dealers: any of their spells
+(and weapon strikes the tank's weapon can make), plus the tank's own Provoke and Tremor. Fervor fills
+the ultimate slot, mobility is shared, and the tank group buffs fill slot 7.
 
-| Tank ability | |
-| --- | --- |
-| Provoke | Taunts the enemy under your crosshair from 30 yd for 6 sec, off the global cooldown (8 sec cooldown) |
-| Stand Firm | 40% less damage taken for 8 sec, off the global cooldown (45 sec cooldown) |
-| Tremor | Hits every enemy within 8 yd of you for 260 and taunts them for 4 sec (2 points of resource) |
-| Shield Block | Needs a shield (`needs: 'shield'`): a 2,000 shield on you for 6 sec, 2 charges (3 points) |
+| Slot | Tank ability | |
+| --- | --- | --- |
+| Reduction | **Retribution** | Passive. Whenever damage reaches you, every enemy within 8 yd takes 250, and you heal for 50% of what it dealt (`lifesteal`). At most once a second |
+| Reduction | Stand Firm (first version) | 40% less damage taken for 8 sec, off the global cooldown (45 sec cooldown) |
+| Reduction | Shield Block (first version) | Needs a shield (`needs: 'shield'`): a 2,000 shield on you for 6 sec, 2 charges (3 points) |
+| Transfer | **Shared Burden** | Aura. 15% of the damage each ally takes comes to you instead (the `transfer` stat, "Taken for allies"), unless the hit is more than that ally's maximum health. It goes through your damage reduction and shields, and gives fervor and sets off Retribution like any damage you take |
+| Damage | Provoke (first version) | Taunts the enemy under your crosshair from 30 yd for 6 sec, off the global cooldown (8 sec cooldown) |
+| Damage | Tremor (first version) | Hits every enemy within 8 yd of you for 260 and taunts them for 4 sec (2 points of resource) |
+
+Retribution and Shared Burden are designed, with their talents to come: a tree with no talents yet
+shows "Talents to come" (the 18-rank rule applies once it has any). A passive can now have a cooldown,
+and a `hurt` event fires whenever damage reaches you.
 
 A **taunt** (`taunt` on a damage effect) makes every enemy it hits swing only at you for that long,
 even when the boss would hit another tank. In the arena **you take the first tank's place**: you start

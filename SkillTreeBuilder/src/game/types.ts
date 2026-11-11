@@ -79,6 +79,8 @@ export type CharStat =
   | 'resourceOnParry'
   /** % chance each minion you sacrifice to pay for an ability survives, and isn't spent (the book's imps). */
   | 'spareChance'
+  /** % of the damage each ally takes that comes to you instead (Shared Burden), unless the hit is more than their whole health. */
+  | 'transfer'
   /**
    * Combo weapons: each step past the first adds this % on top of its usual 100%, so three steps at
    * +20% land at 1 + 2 × 1.2 = 3.4 times the ability's strength.
@@ -173,6 +175,8 @@ export type EffectKey =
   | 'opening'
   /** A healing zone: % more healing on an ally for each tick it has healed them, up to 10 (Swelling Rain). */
   | 'swell'
+  /** Damage: % of what it deals that heals you (Retribution). */
+  | 'lifesteal'
   /** A chain heal: past its jumps, it keeps jumping to every ally with your HoT (Tidal Web). */
   | 'hotJumps'
   /** A chain heal: % chance that a crit starts one more chain from that ally, once per cast (Chain Reaction). */
@@ -336,6 +340,8 @@ export interface EffectSpec {
   taunt?: number
   /** % of each hit splashed onto every other enemy within 8 yd of the one it hit (Harvest's talents). */
   splash?: number
+  /** Damage: heals you for this % of what it deals (Retribution). */
+  lifesteal?: number
   /** A shield: at most this % of the target's maximum health (50% when not set). */
   maxShare?: number
   /** A curse: % chance a stack bursts without being taken. */
@@ -434,6 +440,8 @@ export type EventKind =
   | 'second'
   | 'sacrifice'
   | 'moving'
+  /** Damage reached you, after damage reduction (even what a shield soaks). Tagged `hurt`. */
+  | 'hurt'
   /** You or an ally drops below 15% health (and is still alive). Tagged `low-health`. */
   | 'lowHealth'
 
@@ -625,6 +633,7 @@ export interface ResolvedEffect {
   burst: number
   burstSplash: number
   maxShare: number
+  lifesteal: number
   copies: number
   bookend: number
   opening: number

@@ -75,7 +75,10 @@ export function validateTree(tree: TreeDef, hasArt: (folder: string, name: strin
   }
 
   const total = treeRanks(tree)
-  if (total !== ranksFor(tree)) problems.push(`${tree.ability.name}'s talents hold ${total} ranks in all, not ${ranksFor(tree)}`)
+  // A designed ability can come before its talents: no talents at all is fine, a partial tree isn't.
+  if (tree.talents.length > 0 && total !== ranksFor(tree)) {
+    problems.push(`${tree.ability.name}'s talents hold ${total} ranks in all, not ${ranksFor(tree)}`)
+  }
 
   // Power comes from your level and gear only; talents and buffs give their own multipliers instead.
   for (const t of tree.talents) {

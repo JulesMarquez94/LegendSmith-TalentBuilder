@@ -147,7 +147,6 @@ export const spear: ArtifactDef = {
   name: 'Spear',
   color: '#b9a3e8',
   role: 'damage',
-  roleKind: 'damage',
   reach: 'melee',
   firstVersion: true,
   resource: 'Vigor',

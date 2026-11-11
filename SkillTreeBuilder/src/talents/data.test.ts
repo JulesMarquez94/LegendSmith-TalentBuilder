@@ -23,7 +23,8 @@ describe('tree data', () => {
   })
 
   it('gives every tree 18 ranks (an ultimate, mobility or group buff 9), more than it can take, so the cap forces choices', () => {
-    for (const tree of TREES) {
+    // Retribution and Shared Burden are designed, with their talents to come.
+    for (const tree of TREES.filter((t) => t.talents.length > 0)) {
       expect(treeRanks(tree), tree.id).toBe(isSmallTree(tree) ? SMALL_RANKS : TREE_RANKS)
       expect(treeRanks(tree), tree.id).toBeGreaterThan(capFor(tree, POINT_RULES))
     }
@@ -134,6 +135,8 @@ describe('design passes', () => {
         'plague',
         'raise-ghoul',
         'renew',
+        'retribution',
+        'shared-burden',
         'teleport',
         'tome-of-summoning',
       ],

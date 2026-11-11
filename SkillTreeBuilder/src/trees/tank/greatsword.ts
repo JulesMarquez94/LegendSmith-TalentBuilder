@@ -151,7 +151,6 @@ export const greatsword: ArtifactDef = {
   name: 'Greatsword',
   color: '#d39a5e',
   role: 'tank',
-  roleKind: 'tank',
   reach: 'melee',
   firstVersion: true,
   resource: 'Momentum',

@@ -295,6 +295,7 @@ function resolveEffectWith(
     stacks: Math.max(1, Math.round((effect.stacks ?? 1) + get('stacks').add)),
     maxStacks: effect.maxStacks ? Math.max(1, Math.round(effect.maxStacks + get('maxStacks').add)) : 0,
     maxShare: effect.maxShare ?? 0,
+    lifesteal: Math.max(0, (effect.lifesteal ?? 0) + get('lifesteal').add),
     copies: Math.max(1, Math.round(1 + get('copies').add)),
     bookend: Math.max(0, get('bookend').add),
     // Healing, so Power and the zone's "heals more" talents raise it too.

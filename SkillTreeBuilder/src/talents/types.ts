@@ -1,7 +1,11 @@
 import type { AbilitySpec, CharStats, Mechanic } from '../game/types.ts'
 
 /** What an ability slot accepts. `tank` holds a tank's role abilities; `buff` is the group buff slot. */
-export type AbilityKind = 'damage' | 'heal' | 'tank' | 'cooldown' | 'mobility' | 'buff'
+/**
+ * What a slot holds. A tank's three role slots are typed: a damage reduction ability, a transfer
+ * ability (taking damage for the group) and a damage ability, shared with damage dealers.
+ */
+export type AbilityKind = 'damage' | 'heal' | 'reduction' | 'transfer' | 'cooldown' | 'mobility' | 'buff'
 
 /** Slot 1 holds the artifact; the last slot holds the character skill tree (none yet); the rest hold abilities. */
 export type SlotKind = 'artifact' | AbilityKind | 'character'
@@ -106,8 +110,6 @@ export interface ArtifactDef {
   name: string
   color: string
   role: Role
-  /** What the three role slots hold. */
-  roleKind: AbilityKind
   /** Up close or from range: the picker groups artifacts by seat (tank, healer, melee or ranged damage). */
   reach: Reach
   /**

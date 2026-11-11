@@ -88,6 +88,58 @@ describe('a tank', () => {
   })
 })
 
+describe('the tank role abilities', () => {
+  /** The dungeon group with you as the tank, no healer, and only this hitting anyone. */
+  const only = (events: Scenario['events']): Scenario => ({ ...scenario('dungeon'), events, botHealer: undefined, noDeaths: true })
+  const pulses = (every: number, amount: number): Scenario => only([{ kind: 'pulse', name: 'Test pulse', every, amount, first: every }])
+  const dealt = (arena: Arena, name: string) => arena.meter.damageRows.get(name)
+  const healed = (arena: Arena, name: string) => arena.meter.rows.get(name)?.healing ?? 0
+
+  it('strikes the enemies around you with Retribution when you take damage, healing you for half of it', () => {
+    // Enough health that no swing is a killing blow.
+    const arena = new Arena(withStats(kitFor(sword, ['retribution', null, null, null, null, null]), { health: 10000 }), SWAP, { seed: 1 })
+    expect(arena.use(1)).toBe('Retribution is passive')
+    run(arena, 3.1)
+    // Three swings, three strikes on the boss beside you.
+    const row = dealt(arena, 'Retribution')!
+    expect(row.hits).toBe(3)
+    expect(healed(arena, 'Retribution')).toBeCloseTo(row.damage / 2)
+  })
+
+  it('goes off at most once a second, however many hits land', () => {
+    const arena = new Arena(kitFor(sword, ['retribution', null, null, null, null, null]), pulses(0.25, 50), { seed: 1 })
+    run(arena, 0.3)
+    const each = dealt(arena, 'Retribution')!.hits
+    expect(each).toBeGreaterThan(0)
+    // Eight hits by 2 sec, but only the ones at 0.25 and 1.25 sec set it off.
+    run(arena, 1.8)
+    expect(dealt(arena, 'Retribution')!.hits).toBe(2 * each)
+  })
+
+  it("moves 15% of each ally's damage to you with Shared Burden, through your own damage reduction", () => {
+    const lost = (burden: boolean) => {
+      const kit = kitFor(sword, [null, burden ? 'shared-burden' : null, null, null, null, null])
+      const arena = new Arena(kit, pulses(1, 500), { seed: 1 })
+      run(arena, 1.1)
+      const blade = arena.allies.find((a) => a.name === 'Blade')!
+      const allies = arena.allies.filter((a) => !a.isPlayer).length
+      return { blade: blade.maxHp - blade.hp, you: arena.player.maxHp - arena.player.hp, allies }
+    }
+    const without = lost(false)
+    const shared = lost(true)
+    expect(without).toMatchObject({ blade: 500, you: 500 })
+    expect(shared.blade).toBeCloseTo(425)
+    expect(shared.you).toBeCloseTo(500 + 75 * shared.allies)
+  })
+
+  it("leaves a hit bigger than an ally's whole health to them alone", () => {
+    const arena = new Arena(withStats(kitFor(sword, [null, 'shared-burden', null, null, null, null]), { health: 100000 }), pulses(1, 20000), { seed: 1 })
+    run(arena, 1.1)
+    // 20,000 on 16,000 health: nothing comes to you but your own 20,000.
+    expect(arena.player.maxHp - arena.player.hp).toBeCloseTo(20000)
+  })
+})
+
 describe('the Sword & Shield', () => {
   it('gains fervor from Shield Bash and from the damage you take, up to 10% of your health a second', () => {
     const arena = new Arena(kitFor(sword, [null, null, null, null, null, null]), SWAP, { seed: 1 })

@@ -79,6 +79,7 @@ export function TalentTree({ tree, ranks, pointsLeft, cap, onLearn, onUnlearn, o
         <h2 className="tree__name">{ability.name}</h2>
       </header>
       <div className="tree__divider" />
+      {tree.talents.length === 0 && <p className="tree__none">Talents to come</p>}
 
       {nodes.map((node) => {
         if ('choice' in node) {
