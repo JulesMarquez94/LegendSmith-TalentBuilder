@@ -13,7 +13,7 @@ interface Props {
 /** How long the pretend connection takes. */
 const CONNECT_MS = 900
 
-/** A placeholder login: any account name and password work, and nothing is sent anywhere. */
+/** A placeholder login, the first time you play online: any account name and password work, and nothing is sent anywhere. */
 export function LoginScreen({ active, account, onLogin, onBack }: Props) {
   const id = useId()
   const [name, setName] = useState(account)
@@ -50,8 +50,11 @@ export function LoginScreen({ active, account, onLogin, onBack }: Props) {
       <div className="ui-center">
         <form className="ui-panel ui-login" onSubmit={submit} noValidate>
           <h2 id={`${id}-title`} className="ui-heading">
-            Log in
+            Log in to play online
           </h2>
+          <p className="ui-note">
+            Once per session: after this, Play online takes you straight into an instance with other players.
+          </p>
           <p className="ui-note">
             Prototype: any account name and password work, and nothing is sent anywhere. Don't type a real password.
           </p>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { backFrom, flowFor } from './flow.ts'
+import { backFrom, FLOW } from './flow.ts'
 import { keyTarget, navAction, wrap, type KeyPress } from './keys.ts'
 
 const press = (key: string, more: Partial<KeyPress> = {}): KeyPress => ({
@@ -64,24 +64,14 @@ describe('interface keys', () => {
 })
 
 describe('the screen flow', () => {
-  it('logs in and picks a realm only online', () => {
-    expect(flowFor('online')).toContain('realm')
-    expect(flowFor('offline')).not.toContain('login')
+  it('goes from the title to the fire, and back to the fire from everywhere after', () => {
+    expect(backFrom('title')).toBeNull()
+    expect(backFrom('loading')).toBeNull()
+    expect(backFrom('select')).toBe('title')
+    for (const screen of ['create', 'login', 'world'] as const) expect(backFrom(screen)).toBe('select')
   })
 
-  it('goes back one screen at a time, to the realm list or the mode choice from the characters', () => {
-    expect(backFrom('title', 'offline')).toBeNull()
-    expect(backFrom('loading', 'online')).toBeNull()
-    expect(backFrom('select', 'offline')).toBe('mode')
-    expect(backFrom('select', 'online')).toBe('realm')
-    expect(backFrom('realm', 'online')).toBe('login')
-    expect(backFrom('create', 'online')).toBe('select')
-    // Every step back stays on the mode's path.
-    for (const mode of ['offline', 'online'] as const) {
-      for (const screen of flowFor(mode)) {
-        const back = backFrom(screen, mode)
-        if (back) expect(flowFor(mode)).toContain(back)
-      }
-    }
+  it('has no realm list or offline/online screen: that choice is made at the fire', () => {
+    expect(FLOW).toEqual(['title', 'select', 'create', 'login', 'loading', 'world'])
   })
 })

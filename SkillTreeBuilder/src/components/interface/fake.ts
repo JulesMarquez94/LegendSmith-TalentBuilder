@@ -2,26 +2,6 @@
 
 import type { Character } from './roster.ts'
 
-export interface Realm {
-  id: string
-  name: string
-  region: string
-  population: 'Low' | 'Medium' | 'High'
-  /** Round trip from you to the realm, in milliseconds. */
-  ping: number
-}
-
-export const REALMS: readonly Realm[] = [
-  { id: 'emberfall', name: 'Emberfall', region: 'Europe', population: 'High', ping: 38 },
-  { id: 'stonewatch', name: 'Stonewatch', region: 'Europe', population: 'Medium', ping: 44 },
-  { id: 'thornvale', name: 'Thornvale', region: 'North America', population: 'High', ping: 112 },
-  { id: 'ravenmoor', name: 'Ravenmoor', region: 'North America', population: 'Low', ping: 121 },
-  { id: 'glimmerdeep', name: 'Glimmerdeep', region: 'Oceania', population: 'Medium', ping: 268 },
-]
-
-/** The realm with the lowest ping, tagged "Recommended". */
-export const RECOMMENDED_REALM = REALMS.reduce((best, r) => (r.ping < best.ping ? r : best))
-
 /** Where every new character starts. */
 export const STARTING_ZONE = 'Ashvale'
 

@@ -14,8 +14,7 @@ import {
   type AppearanceKey,
 } from './appearance.ts'
 import { CharacterFigure } from './CharacterFigure.tsx'
-import { NAME_IDEAS, STARTING_ZONE, type Realm } from './fake.ts'
-import type { Mode } from './flow.ts'
+import { NAME_IDEAS, STARTING_ZONE } from './fake.ts'
 import { wrap } from './keys.ts'
 import { KeyHints } from './KeyHints.tsx'
 import { formatName, NAME_MAX, NAME_MIN, nameProblem, type TakenNames } from './names.ts'
@@ -29,9 +28,7 @@ export interface NewCharacter {
 
 interface Props {
   active: boolean
-  mode: Mode
-  realm: Realm | null
-  /** Names it can't have: your characters' and, online, other players'. */
+  /** Names it can't have: your characters' and other players'. */
   taken: TakenNames
   onCreate: (character: NewCharacter) => void
   onCancel: () => void
@@ -44,7 +41,7 @@ const BY_SEAT: readonly ArtifactDef[] = [...ARTIFACTS].sort((a, b) => SEATS.inde
 const ROW = 2
 
 /** Steps through the new character: appearance, starting artifact, name, then a last look before creating it. */
-export function CharacterCreate({ active, mode, realm, taken, onCreate, onCancel }: Props) {
+export function CharacterCreate({ active, taken, onCreate, onCancel }: Props) {
   const id = useId()
   const [step, setStep] = useState(0)
   const [appearance, setAppearance] = useState<Appearance>(DEFAULT_APPEARANCE)
@@ -108,10 +105,8 @@ export function CharacterCreate({ active, mode, realm, taken, onCreate, onCancel
     next()
   }
 
-  const where =
-    mode === 'offline'
-      ? 'On this device. The server checks it the next time you go online.'
-      : `On your account, playing on ${realm?.name ?? 'your realm'}.`
+  // You choose offline or online at the fire, after this: the character starts out on the device.
+  const where = 'On this device. The server checks it the first time you play online.'
 
   return (
     <section className="ui-screen ui-create" aria-labelledby={`${id}-title`}>

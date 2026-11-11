@@ -17,14 +17,16 @@ import {
   type Roster,
 } from './roster.ts'
 
-const make = (name: string, offline = false): Character =>
-  newCharacter({ name, artifact: 'spear', appearance: DEFAULT_APPEARANCE, offline })
+const make = (name: string): Character => newCharacter({ name, artifact: 'spear', appearance: DEFAULT_APPEARANCE })
 
 /** Seats from names, `null` for an empty seat; the first seat is selected. */
 const roster = (...names: (string | null)[]): Roster => ({
   slots: Array.from({ length: SLOT_COUNT }, (_, i) => {
     const n = names[i]
-    return n ? { ...make(n), id: n.toLowerCase() } : null
+    if (!n) return null
+    const c: Character = { ...make(n), id: n.toLowerCase() }
+    delete c.unchecked
+    return c
   }),
   selected: 0,
 })
@@ -55,13 +57,11 @@ describe('the sample characters', () => {
 
 describe('a new character', () => {
   it('starts at level 1 in the starting zone, its name formatted', () => {
-    const c = make('  nYSSA')
-    expect(c).toMatchObject({ name: 'Nyssa', level: 1, zone: STARTING_ZONE, artifact: 'spear' })
-    expect(c.unchecked).toBeUndefined()
+    expect(make('  nYSSA')).toMatchObject({ name: 'Nyssa', level: 1, zone: STARTING_ZONE, artifact: 'spear' })
   })
 
-  it("made offline waits for the server's check", () => {
-    expect(make('Nyssa', true).unchecked).toBe(true)
+  it("is made on the device, so it waits for the server's check until it first plays online", () => {
+    expect(make('Nyssa').unchecked).toBe(true)
   })
 
   it('takes the selected seat when it is empty, or else the first empty one', () => {
@@ -130,7 +130,7 @@ describe('the saved seats', () => {
   })
 
   it('read back what was saved, empty seats included', () => {
-    let r = rosterReducer(sampleRoster(), { type: 'create', slot: 2, character: make('Nyssa', true) })
+    let r = rosterReducer(sampleRoster(), { type: 'create', slot: 2, character: make('Nyssa') })
     r = rosterReducer(r, { type: 'delete', slot: 0 })
     expect(readRoster(JSON.stringify(r))).toEqual(r)
   })
