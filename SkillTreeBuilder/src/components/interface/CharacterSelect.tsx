@@ -3,26 +3,33 @@ import { seatOf } from '../labels.ts'
 import { CampScene } from './CampScene.tsx'
 import { CharacterFigure, EmptySeat } from './CharacterFigure.tsx'
 import { DeleteDialog } from './DeleteDialog.tsx'
-import type { Realm } from './fake.ts'
 import type { Mode } from './flow.ts'
 import { KeyHints } from './KeyHints.tsx'
-import { artifactOf, selectedCharacter, type Roster } from './roster.ts'
+import { artifactOf, characters, seatForNew, selectedCharacter, SLOT_COUNT, type Roster } from './roster.ts'
 import { useNavKeys } from './useNavKeys.ts'
 
 interface Props {
   active: boolean
   roster: Roster
+  /** The way to play the arrows have on: offline or online. */
   mode: Mode
-  realm: Realm | null
-  /** A message from the server on arrival (its check of your offline progress). */
-  notice: string | null
+  /** The account you logged in with this session, or '' before you've played online. */
+  account: string
   onSelect: (slot: number) => void
   onStep: (by: number) => void
-  onEnter: () => void
+  onMode: (mode: Mode) => void
+  /** Play the selected character, offline or online. */
+  onPlay: (mode: Mode) => void
   onCreate: () => void
   onDelete: (slot: number) => void
   onBack: () => void
 }
+
+/** The two ways into the game, as the buttons under the fire show them. */
+const WAYS: readonly { mode: Mode; label: string; sub: string }[] = [
+  { mode: 'offline', label: 'Play offline', sub: 'Solo, with AI bots' },
+  { mode: 'online', label: 'Play online', sub: 'Join an instance with other players' },
+]
 
 /**
  * The four seats around the fire, left to right: where each one's feet touch the ground (% of the
@@ -44,26 +51,29 @@ const Pin = () => (
 
 /**
  * Your characters, sitting around a campfire in the woods at night: four seats, some of them empty.
- * The selected one stands up. Enter takes it into the world, or makes a character for an empty seat.
+ * The selected one stands up. From here you create a character, or take the selected one into the
+ * game: offline (solo with AI bots) or online (an instance with other players).
  */
 export function CharacterSelect(props: Props) {
-  const { active, roster, mode, realm, notice, onSelect, onStep, onEnter, onCreate, onDelete, onBack } = props
+  const { active, roster, mode, account, onSelect, onStep, onMode, onPlay, onCreate, onDelete, onBack } = props
   const id = useId()
   const [deleting, setDeleting] = useState(false)
   const seats = useRef<HTMLDivElement>(null)
   const current = selectedCharacter(roster)
-  const primary = current ? onEnter : onCreate
+  const canCreate = seatForNew(roster) >= 0
+  const other: Mode = mode === 'offline' ? 'online' : 'offline'
 
   useEffect(() => {
     if (active) seats.current?.focus({ preventScroll: true })
   }, [active])
 
+  // Left and right choose a character, up and down offline or online, Enter goes in (or creates, on an empty seat).
   useNavKeys(active, {
     left: () => onStep(-1),
     right: () => onStep(1),
-    up: () => onStep(-1),
-    down: () => onStep(1),
-    confirm: primary,
+    up: () => onMode(other),
+    down: () => onMode(other),
+    confirm: () => (current ? onPlay(mode) : canCreate && onCreate()),
     delete: () => current && setDeleting(true),
     back: onBack,
   })
@@ -96,7 +106,7 @@ export function CharacterSelect(props: Props) {
                 aria-selected={chosen}
                 aria-label={c && a ? `${c.name}, level ${c.level} ${seatOf(a).toLowerCase()}` : 'Empty seat'}
                 onClick={() => onSelect(i)}
-                onDoubleClick={() => (c ? onEnter() : onCreate())}
+                onDoubleClick={() => (c ? onPlay(mode) : onCreate())}
               >
                 {c && a ? (
                   <CharacterFigure
@@ -119,22 +129,23 @@ export function CharacterSelect(props: Props) {
       </div>
 
       <header className="camp__head">
-        {mode === 'offline' ? (
-          <>
-            <span className="tag tag--mode">Offline</span>
-            <span className="ui-note">Solo with AI bots · progress saved on this device</span>
-          </>
-        ) : (
-          <>
-            <span className="tag tag--mode tag--good">Online</span>
-            <span className="ui-note">{realm ? `${realm.name} · ${realm.region} · ${realm.ping} ms` : 'Connected'}</span>
-          </>
-        )}
-        {notice && (
-          <span className="ui-notice" role="status">
-            {notice}
-          </span>
-        )}
+        <span className="ui-note">
+          {characters(roster).length} of {SLOT_COUNT} character slots
+          {account && (
+            <>
+              {' · '}Logged in as <b>{account}</b>
+            </>
+          )}
+        </span>
+        <KeyHints
+          hints={[
+            ['← →', 'Character'],
+            ['↑ ↓', 'Offline / online'],
+            ['Enter', current ? 'Play' : 'Create'],
+            ['Del', 'Delete'],
+            ['Esc', 'Back'],
+          ]}
+        />
       </header>
 
       <div className="camp__plate" aria-live="polite">
@@ -146,9 +157,9 @@ export function CharacterSelect(props: Props) {
               {current.unchecked && (
                 <span
                   className="tag tag--wip"
-                  title="Played offline: the server checks this progress the next time you go online."
+                  title="Saved on this device: the server checks this progress the next time you play online."
                 >
-                  Not checked
+                  Not synced
                 </span>
               )}
             </div>
@@ -160,31 +171,43 @@ export function CharacterSelect(props: Props) {
         ) : (
           <>
             <h2 className="camp__name">Empty seat</h2>
-            <div className="camp__line">Make a character to sit here.</div>
+            <div className="camp__line">Create a character to sit here.</div>
           </>
         )}
       </div>
 
       <footer className="ui-footer camp__foot">
-        <div className="camp__foot-start">
-          <button type="button" className="btn btn--lg" onClick={onBack}>
-            {mode === 'online' ? 'Change realm' : 'Back'}
+        <button type="button" className="btn btn--lg camp__back" onClick={onBack}>
+          Back
+        </button>
+        <div className="camp__play" role="group" aria-label="Play">
+          {WAYS.map((w) => (
+            <button
+              key={w.mode}
+              type="button"
+              className={`camp__way ${w.mode === mode ? 'camp__way--on' : ''}`}
+              disabled={!current}
+              onClick={() => onPlay(w.mode)}
+            >
+              <b>{w.label}</b>
+              <small>{w.sub}</small>
+            </button>
+          ))}
+        </div>
+        <div className="camp__manage">
+          <button
+            type="button"
+            className="btn btn--lg"
+            disabled={!canCreate}
+            title={canCreate ? undefined : `All ${SLOT_COUNT} character slots are taken: delete one to make room.`}
+            onClick={onCreate}
+          >
+            Create character
           </button>
           <button type="button" className="btn btn--lg" disabled={!current} onClick={() => setDeleting(true)}>
             Delete
           </button>
         </div>
-        <button type="button" className="btn btn--primary ui-enter" onClick={primary}>
-          {current ? 'Enter world' : 'Create character'}
-        </button>
-        <KeyHints
-          hints={[
-            ['← →', 'Choose'],
-            ['Enter', current ? 'Enter world' : 'Create'],
-            ['Del', 'Delete'],
-            ['Esc', 'Back'],
-          ]}
-        />
       </footer>
 
       {deleting && current && (

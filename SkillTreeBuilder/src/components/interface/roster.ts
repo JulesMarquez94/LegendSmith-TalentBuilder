@@ -68,8 +68,11 @@ export const seatForNew = (roster: Roster): number =>
 /** How many characters have offline progress the server hasn't checked yet. */
 export const uncheckedCount = (roster: Roster) => characters(roster).filter((c) => c.unchecked).length
 
-/** A brand new level 1 character in the starting zone. Created offline, the server hasn't seen it yet. */
-export function newCharacter(input: { name: string; artifact: string; appearance: Appearance; offline: boolean }): Character {
+/**
+ * A brand new level 1 character in the starting zone. It's made on this device, before you choose to
+ * play offline or online, so the server first sees (and checks) it the first time you play online.
+ */
+export function newCharacter(input: { name: string; artifact: string; appearance: Appearance }): Character {
   const id = `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
   return {
     id,
@@ -78,7 +81,7 @@ export function newCharacter(input: { name: string; artifact: string; appearance
     artifact: input.artifact,
     zone: STARTING_ZONE,
     appearance: { ...input.appearance },
-    ...(input.offline ? { unchecked: true } : {}),
+    unchecked: true,
   }
 }
 

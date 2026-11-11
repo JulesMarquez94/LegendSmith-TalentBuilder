@@ -2810,16 +2810,6 @@ select {
   border-color: var(--red);
 }
 
-.tag--good {
-  color: var(--heal);
-  border-color: rgba(143, 227, 160, 0.5);
-}
-
-.tag--mode {
-  font-weight: 900;
-  color: var(--text);
-}
-
 /* Lists that take the keyboard (realms, characters, artifacts): arrows move the gold highlight. */
 .ui-list {
   display: grid;
@@ -2839,7 +2829,6 @@ select {
   outline-offset: 4px;
 }
 
-.ui-realm,
 .ui-artifact,
 .ui-look {
   padding: 10px;
@@ -2853,14 +2842,12 @@ select {
     border-color 120ms;
 }
 
-.ui-realm:hover,
 .ui-artifact:hover,
 .ui-look:hover {
   background: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.55);
 }
 
-.ui-realm[aria-selected='true'],
 .ui-artifact[aria-selected='true'],
 .ui-look[aria-current='true'] {
   background: rgba(231, 183, 37, 0.09);
@@ -2962,92 +2949,7 @@ select {
   cursor: default;
 }
 
-/* ---------- Offline or online ---------- */
-
-.ui-modes {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 340px));
-  gap: 24px;
-}
-
-.ui-mode {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 24px;
-  text-align: left;
-  background: linear-gradient(#1d1d1d, #151515);
-  border: 1.5px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-  transition: border-color 120ms;
-}
-
-.ui-mode:hover {
-  border-color: rgba(255, 255, 255, 0.55);
-}
-
-.ui-mode[aria-current='true'] {
-  border-color: var(--gold);
-  box-shadow:
-    0 0 0 3px rgba(231, 183, 37, 0.18),
-    0 24px 60px rgba(0, 0, 0, 0.45);
-}
-
-/* The gold border already shows where the keyboard is. */
-.ui-mode:focus-visible {
-  outline: none;
-}
-
-.ui-mode__icon {
-  width: 44px;
-  height: 44px;
-  margin-bottom: 6px;
-  color: var(--muted);
-}
-
-.ui-mode[aria-current='true'] .ui-mode__icon {
-  color: var(--gold);
-}
-
-.ui-mode__title {
-  font-weight: 900;
-  font-size: 24px;
-}
-
-.ui-mode__sub {
-  font-size: 14px;
-  color: var(--gold);
-}
-
-.ui-mode__points {
-  display: grid;
-  gap: 6px;
-  margin: 10px 0 16px;
-  padding-left: 18px;
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--muted);
-}
-
-.ui-mode__action {
-  margin-top: auto;
-  padding: 7px 16px;
-  font-size: 13px;
-  font-weight: 900;
-  border: 1.5px solid rgba(255, 255, 255, 0.8);
-  border-radius: 6px;
-}
-
-.ui-mode[aria-current='true'] .ui-mode__action {
-  color: #111;
-  background: var(--gold);
-  border-color: var(--gold);
-}
-
-/* ---------- Log in and realms ---------- */
+/* ---------- Log in ---------- */
 
 .ui-login {
   width: min(400px, 100%);
@@ -3127,64 +3029,6 @@ select {
   }
 }
 
-.ui-realms {
-  width: min(720px, 100%);
-}
-
-.ui-realms__head,
-.ui-realm {
-  display: grid;
-  grid-template-columns: 1.7fr 1.2fr 1fr 64px;
-  align-items: center;
-  gap: 12px;
-}
-
-.ui-realms__head {
-  margin-top: 4px;
-  padding: 0 11px;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.ui-realm {
-  font-size: 13px;
-}
-
-.ui-realms__head > :last-child,
-.ui-realm > :last-child {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.ui-realm__name {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  font-weight: 900;
-  font-size: 15px;
-}
-
-.ui-pop--low,
-.ui-good {
-  color: var(--heal);
-}
-
-.ui-pop--medium,
-.ui-fair {
-  color: var(--gold);
-}
-
-.ui-pop--high {
-  color: #ff9f5a;
-}
-
-.ui-poor {
-  color: #ff8b7a;
-}
-
 /* ---------- Characters: four seats around a campfire at night ---------- */
 
 .camp {
@@ -3220,7 +3064,6 @@ select {
 }
 
 .ui-notice {
-  margin-left: auto;
   padding: 3px 12px;
   font-size: 12.5px;
   color: var(--heal);
@@ -3365,26 +3208,85 @@ select {
   color: rgba(255, 255, 255, 0.8);
 }
 
-/* Back and Delete on the left, Enter world in the middle, the keys on the right. */
+/* On the loading screen, under the zone. */
+.ui-notice--center {
+  margin-top: 6px;
+}
+
+/* Back on the left, the two ways into the game in the middle, Create and Delete on the right. */
 .camp__foot {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
 }
 
-.camp__foot-start {
-  display: flex;
-  gap: 8px;
+.camp__back {
   justify-self: start;
 }
 
-.camp__foot .ui-hints {
-  justify-self: end;
+.camp__play {
+  display: flex;
+  gap: 10px;
 }
 
-.ui-enter {
-  padding: 10px 44px;
-  font-size: 16px;
+/* Play offline / Play online: the one the arrows are on is gold. */
+.camp__way {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 190px;
+  padding: 8px 22px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1.5px solid rgba(255, 255, 255, 0.8);
   border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background-color 120ms,
+    border-color 120ms;
+}
+
+.camp__way b {
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.camp__way small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.camp__way:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.camp__way--on {
+  color: #111;
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.camp__way--on small {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.camp__way--on:hover:not(:disabled) {
+  background: #f3c93c;
+}
+
+.camp__way:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.camp__way:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.camp__manage {
+  display: flex;
+  gap: 8px;
+  justify-self: end;
 }
 
 /* The fire flickers, embers rise and a few stars twinkle. */
@@ -3972,18 +3874,15 @@ select {
     flex-wrap: wrap;
   }
 
-  .ui-modes {
-    grid-template-columns: minmax(0, 1fr);
+  .camp__play {
+    flex-wrap: wrap;
+    order: -1;
+    width: 100%;
   }
 
-  .ui-realms__head,
-  .ui-realm {
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 56px;
-  }
-
-  .ui-realms__head > :nth-child(2),
-  .ui-realm > :nth-child(2) {
-    display: none;
+  .camp__way {
+    flex: 1;
+    min-width: 0;
   }
 
   .ui-hints {
