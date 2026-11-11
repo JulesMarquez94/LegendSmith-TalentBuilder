@@ -27,6 +27,7 @@ export const BASE_STATS: CharStats = {
   damageResourceCap: 0,
   resourceOnParry: 0,
   spareChance: 0,
+  transfer: 0,
   comboBonus: 0,
   splash: 0,
   spentToResource: 0,
@@ -159,6 +160,12 @@ export const STAT_INFO: Record<CharStat, StatInfo> = {
       '@Resource you gain for each 1% of your maximum health that damage takes, after damage reduction, even ' +
       'what a shield soaks.',
   },
+  transfer: {
+    label: 'Taken for allies',
+    color: '#8fb3e0',
+    unit: '%',
+    help: "Share of each ally's damage that comes to you instead, unless the hit is more than their maximum health.",
+  },
   damageResourceCap: {
     label: 'Damage counted',
     color: '#5aa9ff',
@@ -231,6 +238,7 @@ export const SHEET_SECTIONS: readonly { title: string; stats: readonly CharStat[
       'damageResourceCap',
       'resourceOnParry',
       'spareChance',
+      'transfer',
       'spentToResource',
       'lowResourceRegen',
       'zoneResourceRegen',
@@ -245,6 +253,7 @@ export const TALENT_ONLY: ReadonlySet<CharStat> = new Set<CharStat>([
   'damageResourceCap',
   'resourceOnParry',
   'spareChance',
+  'transfer',
   'spentToResource',
   'lowResourceRegen',
   'zoneResourceRegen',

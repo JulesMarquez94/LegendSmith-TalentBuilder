@@ -19,7 +19,8 @@ describe('the artifact', () => {
   it('decides what the role slots hold', () => {
     expect(slotKinds(lifewardenStaff)).toEqual(['artifact', 'heal', 'heal', 'heal', 'mobility', 'cooldown', 'buff', 'character'])
     expect(slotKinds(tomeOfSummoning)).toEqual(['artifact', 'damage', 'damage', 'damage', 'mobility', 'cooldown', 'buff', 'character'])
-    expect(slotKinds(swordAndShield)).toEqual(['artifact', 'tank', 'tank', 'tank', 'mobility', 'cooldown', 'buff', 'character'])
+    // A tank's role slots are typed: damage reduction, transfer, and a damage ability shared with damage dealers.
+    expect(slotKinds(swordAndShield)).toEqual(['artifact', 'reduction', 'transfer', 'damage', 'mobility', 'cooldown', 'buff', 'character'])
   })
 
   it('clears abilities and group buffs that no longer fit when it changes, keeping shared mobility', () => {
@@ -74,22 +75,27 @@ describe('the artifact', () => {
     expect(fits(tree('vitality-aura'), 'buff', lifewardenStaff)).toBe(true)
   })
 
-  it('fills a tank: tank abilities, Fervor, mobility and the tank group buffs', () => {
+  it('fills a tank: damage reduction, transfer, a shared damage ability, Fervor, mobility and the tank group buffs', () => {
     for (const weapon of [swordAndShield, greatsword]) {
-      const fitting = (kind: 'tank' | 'cooldown' | 'buff') => TREES.filter((t) => fits(t, kind, weapon)).map((t) => t.id)
+      const fitting = (kind: 'reduction' | 'transfer' | 'cooldown' | 'buff') => TREES.filter((t) => fits(t, kind, weapon)).map((t) => t.id)
+      expect(fitting('transfer')).toEqual(['shared-burden'])
       expect(fitting('cooldown')).toEqual(['fervor'])
       expect(fitting('buff')).toEqual(['stoneskin', 'evasion-drill', 'forced-march'])
       expect(fits(tree('dash'), 'mobility', weapon)).toBe(true)
-      expect(fits(tree('plague'), 'damage', weapon)).toBe(false)
+      // The damage slot takes the damage dealers' spells, and the tank's own Provoke and Tremor.
+      expect(fits(tree('plague'), 'damage', weapon)).toBe(true)
+      expect(fits(tree('provoke'), 'damage', weapon)).toBe(true)
+      expect(fits(tree('tremor'), 'damage', weapon)).toBe(true)
+      // But never a healer's heal, and nothing a damage dealer couldn't slot there either.
+      expect(fits(tree('mend'), 'damage', weapon)).toBe(false)
+      expect(fits(tree('provoke'), 'damage', tomeOfSummoning)).toBe(false)
     }
-    // Shield Block needs a shield; the other tank abilities fit any tank weapon.
-    expect(TREES.filter((t) => fits(t, 'tank', swordAndShield)).map((t) => t.id)).toEqual([
-      'provoke',
-      'stand-firm',
-      'tremor',
-      'shield-block',
-    ])
-    expect(TREES.filter((t) => fits(t, 'tank', greatsword)).map((t) => t.id)).toEqual(['provoke', 'stand-firm', 'tremor'])
+    // Shield Block needs a shield; Retribution and Stand Firm fit any tank weapon.
+    expect(TREES.filter((t) => fits(t, 'reduction', swordAndShield)).map((t) => t.id)).toEqual(['retribution', 'stand-firm', 'shield-block'])
+    expect(TREES.filter((t) => fits(t, 'reduction', greatsword)).map((t) => t.id)).toEqual(['retribution', 'stand-firm'])
+    // Weapon strikes still need their weapon: the Sword & Shield has a blade, not daggers.
+    expect(fits(tree('backstab'), 'damage', swordAndShield)).toBe(true)
+    expect(fits(tree('fan-of-knives'), 'damage', swordAndShield)).toBe(false)
   })
 
   it('gives the new healer the shared heals and the spear the spells, but no blade strikes', () => {

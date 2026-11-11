@@ -36,6 +36,7 @@ const SHIELD_CAP = 0.5
 /** Below this % health, you or an ally sets off `lowHealth` events (Lifeline). */
 const LOW_HEALTH = 15
 const LOW_HEALTH_TAGS: ReadonlySet<Tag> = new Set<Tag>(['low-health'])
+const HURT_TAGS: ReadonlySet<Tag> = new Set<Tag>(['hurt'])
 /** Presses are remembered this long, so a key hit just before a cast ends still goes off (like WoW's spell queue). */
 const QUEUE_WINDOW = 0.35
 const DASH_TIME = 0.15
@@ -743,7 +744,7 @@ export class Arena {
     if (!base) return 'Nothing playable in that slot'
     if (base.passive) return `${base.name} is passive`
     if (base.autocast > 0) return `${base.name} goes off on its own`
-    if (base.effects.every((e) => e.type === 'aura')) return `${base.name} is a group buff: always on`
+    if (base.effects.every((e) => e.type === 'aura')) return `${base.name} is an aura: always on`
     if (!this.player.alive) return 'You are dead'
     const offGcd = base.gcd === 0
     if (!offGcd && (this.cast || this.time < this.gcdUntil)) return 'busy'
@@ -982,14 +983,18 @@ export class Arena {
     // An effect's own splash (Harvest's talents), more when the cast hits only one enemy.
     const own = opts.secondary ? 0 : e.splash * (victims.length === 1 ? 1 + e.soloSplash / 100 : 1)
     const hitCtx = { ...ctx, victims: victims.length }
+    let total = 0
     for (const enemy of victims) {
       if (e.target !== 'self') this.beam(this.player.pos, enemy.pos, e.color)
       if (e.taunt > 0 && enemy.alive) this.taunt(enemy, e.taunt)
       const per = e.perEffect ? this.countEffects(enemy, e.perEffect) : 1
       const dealt = per > 0 ? this.hitEnemy(enemy, e.amount * per, e, hitCtx, opts) : 0
+      total += dealt
       if (volley > 0 && dealt > 0) this.splashAround(enemy, (dealt * volley) / 100, e, ctx, 'Volley')
       if (own > 0 && dealt > 0) this.splashAround(enemy, (dealt * own) / 100, e, ctx, `${opts.label} splash`)
     }
+    // Lifesteal (Retribution): a share of what it dealt heals you.
+    if (e.lifesteal > 0 && total > 0) this.heal(this.player, (total * e.lifesteal) / 100, e, ctx, { ...opts, fixed: true })
   }
 
   /** The enemy attacks only you for a while: its swings land on you, not on its tank. */
@@ -1367,6 +1372,14 @@ export class Arena {
     if (ev.ctx.depth >= 2) return
     for (const a of this.kit.slots) {
       if (a?.passive && a.passive.on === ev.kind && matches(a.passive.match, ev.tags)) {
+        // A passive with a cooldown (Retribution) goes off at most that often.
+        const cd = a.cooldown > 0 ? this.cooldowns.get(a.treeId) : undefined
+        if (cd) {
+          this.recharge(cd)
+          if (cd.charges < 1) continue
+          cd.charges -= 1
+          if (cd.rechargeAt === null) cd.rechargeAt = this.time + cd.duration
+        }
         this.runEffects(a, this.childContext(ev, a))
       }
     }
@@ -2251,11 +2264,14 @@ export class Arena {
   private updateTimers() {
     this.buffs = this.buffs.filter((b) => this.time < b.endsAt)
     for (const a of this.allies) a.shields = a.shields.filter((s) => this.time < s.endsAt && s.amount > 0)
-    for (const cd of this.cooldowns.values()) {
-      while (cd.rechargeAt !== null && this.time >= cd.rechargeAt) {
-        cd.charges = Math.min(cd.max, cd.charges + 1)
-        cd.rechargeAt = cd.charges < cd.max ? cd.rechargeAt + cd.duration : null
-      }
+    for (const cd of this.cooldowns.values()) this.recharge(cd)
+  }
+
+  /** Gives back the charges whose time is up (also checked the moment a passive with a cooldown would go off). */
+  private recharge(cd: Cooldown) {
+    while (cd.rechargeAt !== null && this.time >= cd.rechargeAt - 1e-6) {
+      cd.charges = Math.min(cd.max, cd.charges + 1)
+      cd.rechargeAt = cd.charges < cd.max ? cd.rechargeAt + cd.duration : null
     }
   }
 
@@ -2480,7 +2496,7 @@ export class Arena {
    */
   private damage(a: Ally, written: number, source: string, quiet = false, swing?: Enemy) {
     if (!a.alive || written <= 0) return
-    const amount = written * this.share
+    let amount = written * this.share
     const group = this.groupStats()
     const parry = swing && a.isPlayer ? this.stats().parry : 0
     if (this.decks.draw('parry', parry)) {
@@ -2494,11 +2510,21 @@ export class Arena {
       this.text(a.pos, 'Dodge', '#9fe7ff', false)
       return
     }
+    // Shared Burden: a share of what hits an ally comes to you instead, unless the hit is more than
+    // their whole health. It goes through your own damage reduction and shields.
+    const transfer = a.isPlayer || !this.player.alive ? 0 : this.stats().transfer
+    if (transfer > 0 && amount <= a.maxHp) {
+      const moved = (amount * transfer) / 100
+      amount -= moved
+      this.damage(this.player, moved / this.share, source, true)
+    }
     const zoneDr = Math.max(0, ...this.zones.filter((z) => !z.hostile && dist(z.pos, a.pos) <= z.radius).map((z) => z.damageReduction))
     const ownDr = a.isPlayer ? this.stats().damageReduction : (group.damageReduction ?? 0)
     const dr = Math.min(90, zoneDr + ownDr)
     let left = amount * (1 - dr / 100)
-    if (a.isPlayer) this.resourceFromDamage(left / a.maxHp)
+    // What reached you, shields included: it gives fervor and sets off Retribution.
+    const reached = left
+    if (a.isPlayer) this.resourceFromDamage(reached / a.maxHp)
     for (const s of a.shields) {
       const absorbed = Math.min(s.amount, left)
       s.amount -= absorbed
@@ -2517,6 +2543,8 @@ export class Arena {
     this.meter.damageTaken += left
     if (!quiet && left >= 1) this.text(a.pos, `-${int(left)}`, '#ff7a6b', false)
     if (a.hp > 0) {
+      // Damage reached you (Retribution).
+      if (a.isPlayer && reached > 0) this.emit({ kind: 'hurt', tags: HURT_TAGS, ctx: this.newContext(null, -1, 0), target: a, amount: reached })
       // Dropping below 15% health (Lifeline).
       if (before * 100 >= LOW_HEALTH && (a.hp / a.maxHp) * 100 < LOW_HEALTH) {
         this.emit({ kind: 'lowHealth', tags: LOW_HEALTH_TAGS, ctx: this.newContext(null, -1, 0), target: a, before })

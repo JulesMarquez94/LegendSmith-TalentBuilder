@@ -174,6 +174,9 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
           detail: `of each hit, to every other enemy within 8 yd${e.soloSplash ? ` · +${pct(e.soloSplash)}% when it hits only one` : ''}`,
         })
       }
+      if (e.lifesteal > 0) {
+        out.push({ key: key('lifesteal'), label: 'Heals you', value: e.lifesteal, format: percent, better: 'up', detail: 'of the damage it deals' })
+      }
       if (e.taunt > 0) {
         out.push({ key: key('taunt'), label: 'Taunt', value: e.taunt, format: seconds, better: 'up', detail: 'they attack only you' })
       }
@@ -235,9 +238,10 @@ function effectLines(e: ResolvedEffect, prefix: string, resource: string): Numbe
           key: key(stat),
           label: STAT_INFO[stat as CharStat].label,
           value: n ?? 0,
-          format: (v) => `+${statValue(stat as CharStat, v)}`,
+          format: (v) => (stat === 'transfer' ? statValue(stat, v) : `+${statValue(stat as CharStat, v)}`),
           better: 'up',
-          detail: 'you and your group',
+          // Shared Burden's share is taken from your allies, not given to them.
+          detail: stat === 'transfer' ? "of each ally's damage, to you" : 'you and your group',
         })
       }
       break

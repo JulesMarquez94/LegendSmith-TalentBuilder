@@ -140,7 +140,6 @@ export const swordAndShield: ArtifactDef = {
   name: 'Sword & Shield',
   color: '#8fb3e0',
   role: 'tank',
-  roleKind: 'tank',
   reach: 'melee',
   firstVersion: true,
   resource: 'Fervor',

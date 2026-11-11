@@ -185,7 +185,6 @@ export const tomeOfSummoning: ArtifactDef = {
   name: 'Tome of Summoning',
   color: '#c89b4c',
   role: 'damage',
-  roleKind: 'damage',
   reach: 'ranged',
   resource: 'Imps',
   resourceStart: 0,
