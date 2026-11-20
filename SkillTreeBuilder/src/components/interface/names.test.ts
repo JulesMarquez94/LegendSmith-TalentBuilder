@@ -1,44 +1,61 @@
 import { describe, expect, it } from 'vitest'
-import { formatName, NAME_MAX, nameProblem } from './names.ts'
+import { formatName, fullName, hasProblem, NAME_MAX, nameProblems, partProblem } from './names.ts'
 
 const none = { yours: [] }
 
-describe('character names', () => {
-  it('show with a capital first letter and the rest lower case, trimmed', () => {
+describe('each part of a name', () => {
+  it('shows with a capital first letter and the rest lower case, trimmed', () => {
     expect(formatName('  bRYNN ')).toBe('Brynn')
     expect(formatName('élodie')).toBe('Élodie')
     expect(formatName('')).toBe('')
   })
 
-  it('take one word of letters, accented ones too', () => {
-    expect(nameProblem('Seren', none)).toBeNull()
-    expect(nameProblem('  seren  ', none)).toBeNull()
-    expect(nameProblem('Zoë', none)).toBeNull()
-    expect(nameProblem('', none)).toBe('Enter a name.')
-    expect(nameProblem('   ', none)).toBe('Enter a name.')
-    expect(nameProblem('Big Bob', none)).toMatch(/no spaces/)
-    expect(nameProblem('Bob2', none)).toMatch(/Letters only/)
-    expect(nameProblem('Bo-b', none)).toMatch(/Letters only/)
+  it('is one word of letters, accented ones too', () => {
+    expect(partProblem('Seren')).toBeNull()
+    expect(partProblem('  seren  ')).toBeNull()
+    expect(partProblem('Zoë')).toBeNull()
+    expect(partProblem('')).toBe('Required.')
+    expect(partProblem('   ')).toBe('Required.')
+    expect(partProblem('Big Bob')).toMatch(/no spaces/)
+    expect(partProblem('Bob2')).toMatch(/Letters only/)
+    expect(partProblem('Bo-b')).toMatch(/Letters only/)
   })
 
-  it(`are 2 to ${NAME_MAX} letters long`, () => {
-    expect(nameProblem('A', none)).toMatch(/Too short/)
-    expect(nameProblem('Al', none)).toBeNull()
-    expect(nameProblem('Abcdefghijkl', none)).toBeNull()
-    expect(nameProblem('Abcdefghijklm', none)).toMatch(/Too long/)
+  it(`is 2 to ${NAME_MAX} letters long`, () => {
+    expect(partProblem('A')).toMatch(/Too short/)
+    expect(partProblem('Al')).toBeNull()
+    expect(partProblem('Abcdefghijkl')).toBeNull()
+    expect(partProblem('Abcdefghijklm')).toMatch(/Too long/)
   })
 
-  it("can't have a letter three times in a row, whatever its case", () => {
-    expect(nameProblem('Aaron', none)).toBeNull()
-    expect(nameProblem('Aaaron', none)).toMatch(/three times/)
-    expect(nameProblem('Brynnn', none)).toMatch(/three times/)
+  it("can't have a letter three times in a row, or be a reserved word, whatever the case", () => {
+    expect(partProblem('Aaron')).toBeNull()
+    expect(partProblem('Aaaron')).toMatch(/three times/)
+    expect(partProblem('ADMIN')).toMatch(/reserved/)
+    expect(partProblem('Legendsmith')).toMatch(/reserved/)
+  })
+})
+
+describe('a full name', () => {
+  it('is the name and surname as they show, and an old one may have no surname', () => {
+    expect(fullName('seren', 'ASHDOWN')).toBe('Seren Ashdown')
+    expect(fullName('Seren')).toBe('Seren')
   })
 
-  it("can't be reserved, yours already, or (online) someone else's, whatever the case", () => {
-    expect(nameProblem('ADMIN', none)).toMatch(/reserved/)
-    expect(nameProblem('Legendsmith', none)).toMatch(/reserved/)
-    expect(nameProblem('seren', { yours: ['Seren'] })).toMatch(/your characters/)
-    expect(nameProblem('wren', { yours: [], others: ['Wren'] })).toMatch(/server/)
-    expect(nameProblem('Wren', { yours: [] })).toBeNull()
+  it('needs both parts to be good, and says which one is not', () => {
+    expect(nameProblems('Seren', 'Ashdown', none)).toEqual({ name: null, surname: null, full: null })
+    expect(nameProblems('Seren', '', none)).toEqual({ name: null, surname: 'Required.', full: null })
+    expect(nameProblems('S', 'Ash down', none)).toMatchObject({
+      name: expect.stringMatching(/short/),
+      surname: expect.stringMatching(/spaces/),
+    })
+    expect(hasProblem(nameProblems('', '', none))).toBe(true)
+  })
+
+  it("can't be yours already or someone else's, whatever the case, but either part alone can repeat", () => {
+    expect(nameProblems('seren', 'ashdown', { yours: ['Seren Ashdown'] }).full).toMatch(/your characters/)
+    expect(nameProblems('wren', 'FAIRWEATHER', { yours: [], others: ['Wren Fairweather'] }).full).toMatch(/Someone/)
+    expect(hasProblem(nameProblems('Seren', 'Blackwood', { yours: ['Seren Ashdown'] }))).toBe(false)
+    expect(hasProblem(nameProblems('Wren', 'Ashdown', { yours: [], others: ['Wren Fairweather'] }))).toBe(false)
   })
 })
