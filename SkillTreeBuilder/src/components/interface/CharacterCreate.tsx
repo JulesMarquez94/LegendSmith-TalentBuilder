@@ -14,6 +14,7 @@ import {
   type AppearanceKey,
 } from './appearance.ts'
 import { CharacterFigure } from './CharacterFigure.tsx'
+import { isInUnity, unityArtifact } from './hud/unity.ts'
 import { NAME_IDEAS, STARTING_ZONE } from './fake.ts'
 import { wrap } from './keys.ts'
 import { KeyHints } from './KeyHints.tsx'
@@ -237,6 +238,18 @@ export function CharacterCreate({ active, taken, onCreate, onCancel }: Props) {
                           <span className="ui-artifact__meta">
                             {a.resource}
                             {a.firstVersion && <span className="tag">First version</span>}
+                            {/* What the Unity game has: four of the builder's weapons, and its own sword and shield on rage. */}
+                            {!isInUnity(a.id) ? (
+                              <span className="tag" title="The game doesn't have this weapon yet">
+                                Not in Unity yet
+                              </span>
+                            ) : (
+                              unityArtifact(a.id)?.provisional && (
+                                <span className="tag" title={unityArtifact(a.id)?.provisional}>
+                                  Unity: stand-in on rage
+                                </span>
+                              )
+                            )}
                           </span>
                         </span>
                       </div>

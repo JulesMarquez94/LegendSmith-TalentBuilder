@@ -3917,3 +3917,1861 @@ select {
     animation: none;
   }
 }
+
+/* ---------- The in-game HUD: elements on a 32 × 18 grid of blocks over the world ---------- */
+
+/* The world screen holds the HUD edge to edge. */
+.ui-screen.ui-world {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.ui-world-controls .tabs {
+  flex-wrap: wrap;
+}
+
+.ui-world-hints {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ui-world-hints .ui-hints {
+  margin: 0;
+}
+
+/* Full screen: the real screen size, with the 16:9 HUD letterboxed in it. */
+.ui__stage:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  background: #000;
+}
+
+.ui__stage:fullscreen > .ui-world {
+  flex: none;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  border-radius: 0;
+}
+
+/*
+ * --b is a block in pixels (the HUD's width / 32) and --px one pixel of the game's 1920 × 1080 design,
+ * so sizes copied from the Unity HUD scale with the screen like the grid does.
+ */
+.hud {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  font-size: calc(15 * var(--px));
+  line-height: 1.25;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hud__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* An element's box. The HUD never swallows a click (Unity: picking-mode Ignore); its buttons and windows do. */
+.hud-part {
+  position: absolute;
+  display: flex;
+  container-type: size;
+  pointer-events: none;
+}
+
+.hud-part > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Windows open over the HUD. */
+.hud-part--character,
+.hud-part--bags {
+  z-index: 1;
+}
+
+/* The objectives hug their content rather than shading the whole box. */
+.hud-part--objectives > * {
+  align-self: flex-start;
+  max-height: 100%;
+}
+
+.hud-tile,
+.hud-micro__button,
+.hud-map__zoom button,
+.hud-window {
+  pointer-events: auto;
+}
+
+.hud__grid--editing .hud-part,
+.hud__grid--editing .hud-part * {
+  pointer-events: none;
+}
+
+.hud kbd {
+  font: inherit;
+}
+
+/* ----- The world behind it ----- */
+
+.hud-world {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.hud-world__sky {
+  position: absolute;
+  inset: 0 0 58% 0;
+  background:
+    radial-gradient(circle at 12% 30%, rgba(255, 255, 255, 0.55) 0 1px, transparent 1.6px) 0 0 / 180px 90px,
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.35) 0 1px, transparent 1.6px) 0 0 / 130px 70px,
+    linear-gradient(#141b29, #2a3546 75%, #46504c);
+}
+
+.hud-world__ground {
+  position: absolute;
+  inset: 42% 0 0 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(120, 140, 90, 0.25), transparent 60%),
+    linear-gradient(#2c3524, #1a1f15 60%, #121510);
+}
+
+.hud-world--boss .hud-world__sky {
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(200, 110, 40, 0.18), transparent 60%),
+    linear-gradient(#090807, #17120e);
+}
+
+.hud-world--boss .hud-world__ground {
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(190, 120, 60, 0.22), transparent 55%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.25) 0 2px, transparent 2px 80px),
+    linear-gradient(#3a2d22, #1a140f 70%);
+}
+
+.hud-prop {
+  position: absolute;
+  width: calc(80 * var(--px));
+  height: calc(170 * var(--px));
+  transform: translate(-50%, -100%) scale(var(--s));
+  transform-origin: 50% 100%;
+}
+
+.hud-prop--wood {
+  background: linear-gradient(#1d3a22, #10241a);
+  clip-path: polygon(50% 0, 88% 72%, 58% 72%, 58% 100%, 42% 100%, 42% 72%, 12% 72%);
+}
+
+.hud-prop--rock {
+  height: calc(60 * var(--px));
+  background: linear-gradient(#5b5a52, #34332e);
+  border-radius: 45% 55% 20% 20%;
+}
+
+.hud-prop--water {
+  width: calc(220 * var(--px));
+  height: calc(40 * var(--px));
+  transform: translate(-50%, -50%) scale(var(--s));
+  background: radial-gradient(ellipse, rgba(70, 120, 160, 0.7), rgba(40, 80, 110, 0.4) 60%, transparent 70%);
+}
+
+.hud-enemy {
+  position: absolute;
+  width: 0;
+  height: 0;
+  --h: calc(var(--s) * 120 * var(--px));
+}
+
+.hud-enemy--boss {
+  --h: calc(var(--s) * 230 * var(--px));
+}
+
+.hud-enemy__body {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: calc(var(--h) * 0.42);
+  height: var(--h);
+  transform: translateX(-50%);
+  background:
+    radial-gradient(circle at 50% 12%, #4a2222 0 18%, transparent 19%),
+    radial-gradient(ellipse at 50% 62%, #3d1c1c 0 46%, transparent 47%);
+}
+
+.hud-enemy--boss .hud-enemy__body {
+  width: calc(var(--h) * 0.6);
+  background:
+    radial-gradient(circle at 50% 12%, #5a2a1a 0 17%, transparent 18%),
+    radial-gradient(ellipse at 50% 62%, #4a2414 0 48%, transparent 49%);
+}
+
+/* A nameplate (Combat): name and level over a thin bar, the same size at any distance. */
+.hud-plate {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--h) + 6 * var(--px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(2 * var(--px));
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.hud-plate__row {
+  display: flex;
+  align-items: baseline;
+  gap: calc(4 * var(--px));
+  font-size: calc(16 * var(--px));
+  text-shadow:
+    0 0 2px #000,
+    0 1px 1px #000;
+}
+
+.hud-plate__row small {
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.hud-plate__bar {
+  display: block;
+  height: calc(6 * var(--px));
+  overflow: hidden;
+}
+
+.hud-plate__bar > i {
+  display: block;
+  height: 100%;
+}
+
+/* The target marker: a down-pointing triangle over the target. */
+.hud-enemy__marker {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--h) + 46 * var(--px));
+  transform: translateX(-50%);
+  border: calc(8 * var(--px)) solid transparent;
+  border-top-color: #ffd34d;
+  border-bottom-width: 0;
+}
+
+/* Damage numbers float up from the target and fade. */
+.hud-number {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--h) + (20 + var(--age) * 70) * var(--px));
+  transform: translateX(-30%);
+  font-size: calc(22 * var(--px));
+  font-weight: 900;
+  color: #fff;
+  opacity: calc(1 - var(--age));
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-number--crit {
+  font-size: calc(32 * var(--px));
+  color: #ffd34d;
+}
+
+.hud-world__you {
+  position: absolute;
+  left: 50%;
+  top: 72%;
+  /* The figure is drawn 200 × 330. */
+  width: calc(127 * var(--px));
+  height: calc(210 * var(--px));
+  transform: translate(-50%, -100%);
+  filter: drop-shadow(0 calc(6 * var(--px)) calc(6 * var(--px)) rgba(0, 0, 0, 0.6));
+}
+
+/* The crosshair: a dot and four short ticks in the middle of the screen. */
+.hud-crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(24 * var(--px));
+  height: calc(24 * var(--px));
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)) 50% 0 / 2px 25% no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)) 50% 100% / 2px 25% no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)) 0 50% / 25% 2px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)) 100% 50% / 25% 2px no-repeat;
+}
+
+.hud-crosshair > i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+}
+
+/* ----- Bars (the HUD's AttributeBar) ----- */
+
+.hud-bar {
+  position: relative;
+  flex: 1;
+  height: calc(26 * var(--px));
+  min-height: 6px;
+  overflow: hidden;
+  background: rgba(10, 12, 16, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: calc(3 * var(--px));
+}
+
+.hud-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  transition: width 90ms linear;
+}
+
+.hud-bar__pips > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(10, 12, 16, 0.9);
+}
+
+.hud-bar__caption,
+.hud-bar__text {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: calc(14 * var(--px));
+  white-space: nowrap;
+  color: rgb(240, 240, 240);
+  text-shadow: 0 1px 2px #000;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-bar__caption {
+  left: calc(8 * var(--px));
+  font-size: calc(12 * var(--px));
+  letter-spacing: 0.06em;
+  color: rgba(240, 240, 240, 0.85);
+}
+
+.hud-bar__text {
+  right: calc(8 * var(--px));
+}
+
+.hud-bar--stamina {
+  flex: none;
+  height: calc(6 * var(--px));
+  border: 0;
+  transition: opacity 120ms;
+}
+
+.hud-bar--cast {
+  flex: none;
+  height: calc(20 * var(--px));
+}
+
+/* ----- Player bars ----- */
+
+.hud-player {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: calc(4 * var(--px));
+}
+
+.hud-player__role {
+  font-size: calc(14 * var(--px));
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-player__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(6 * var(--px));
+  min-height: calc(28 * var(--px));
+}
+
+.hud-player__bars {
+  display: flex;
+  gap: calc(8 * var(--px));
+}
+
+.hud-player--stacked .hud-player__bars {
+  flex-direction: column;
+  gap: calc(4 * var(--px));
+}
+
+.hud-player--stacked .hud-player__bars > .hud-bar {
+  flex: none;
+}
+
+.hud-minions {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(3 * var(--px));
+  padding: calc(2 * var(--px)) calc(8 * var(--px));
+  font-size: calc(13 * var(--px));
+  background: rgba(10, 12, 16, 0.7);
+  border: 1px solid rgba(150, 92, 200, 0.6);
+  border-radius: 999px;
+}
+
+.hud-minions b {
+  font-size: 1.15em;
+}
+
+.hud-minions small {
+  margin-left: calc(4 * var(--px));
+  color: var(--muted);
+}
+
+/* An effect row: icons with stacks and seconds (EffectRowElement). */
+.hud-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(4 * var(--px));
+}
+
+.hud-effect {
+  position: relative;
+  width: calc(28 * var(--px));
+  height: calc(28 * var(--px));
+  border: 1px solid rgba(140, 210, 150, 0.6);
+  border-radius: calc(3 * var(--px));
+  overflow: hidden;
+}
+
+.hud-effect--harmful {
+  border-color: rgb(230, 60, 50);
+}
+
+.hud-effect .art > span {
+  font-size: calc(11 * var(--px));
+}
+
+.hud-effect__stacks {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  font-size: calc(12 * var(--px));
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-effect__time {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  font-size: calc(11 * var(--px));
+  text-align: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* ----- Action bar: 56 px tiles at 1080p, sized here to fit the element's box ----- */
+
+.hud-actions {
+  --tile: min(calc(100cqw / (var(--n) + 0.6)), 100cqh);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud-actions--vertical {
+  --tile: min(100cqw, calc(100cqh / (var(--n) + 0.6)));
+}
+
+.hud-actions__row {
+  display: flex;
+  gap: calc(var(--tile) * 0.07);
+}
+
+.hud-actions--vertical .hud-actions__row {
+  flex-direction: column;
+}
+
+.hud-actions__message {
+  position: absolute;
+  bottom: calc(100% + 6 * var(--px));
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: calc(17 * var(--px));
+  font-weight: 700;
+  white-space: nowrap;
+  color: rgb(255, 214, 120);
+  text-shadow: 0 1px 3px #000;
+}
+
+.hud-actions--vertical .hud-actions__message {
+  bottom: auto;
+  top: 50%;
+  left: auto;
+  right: calc(100% + 8 * var(--px));
+  transform: translateY(-50%);
+}
+
+.hud-tile {
+  position: relative;
+  width: var(--tile);
+  height: var(--tile);
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  color: rgb(240, 240, 240);
+  background: rgba(10, 12, 16, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: calc(var(--tile) * 0.08);
+  cursor: pointer;
+  transition:
+    transform 80ms,
+    border-color 80ms;
+}
+
+.hud-tile__icon {
+  position: absolute;
+  inset: 0;
+}
+
+.hud-tile .art--placeholder > span {
+  opacity: 0.35;
+  font-size: calc(var(--tile) * 0.36);
+}
+
+.hud-tile__name {
+  position: absolute;
+  inset: 18% 3% auto;
+  font-size: calc(var(--tile) * 0.17);
+  font-weight: 700;
+  line-height: 1.05;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+  overflow-wrap: anywhere;
+}
+
+.hud-tile__sweep {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(transparent calc(360deg - var(--sweep)), rgba(0, 0, 0, 0.62) 0);
+}
+
+.hud-tile__cooldown,
+.hud-tile__lock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--tile) * 0.36);
+  font-weight: 900;
+  text-shadow: 0 1px 3px #000;
+}
+
+.hud-tile__lock {
+  font-size: calc(var(--tile) * 0.24);
+  color: rgba(240, 240, 240, 0.8);
+}
+
+.hud-tile--cooling .hud-tile__name {
+  visibility: hidden;
+}
+
+.hud-tile__charges {
+  position: absolute;
+  top: 1px;
+  right: calc(var(--tile) * 0.06);
+  font-size: calc(var(--tile) * 0.22);
+  font-weight: 900;
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-tile__charges--none {
+  color: rgb(255, 120, 100);
+}
+
+.hud-tile__cost {
+  position: absolute;
+  right: calc(var(--tile) * 0.06);
+  bottom: 1px;
+  font-size: calc(var(--tile) * 0.18);
+  color: #9cc8ff;
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-tile__key {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  min-width: calc(var(--tile) * 0.3);
+  padding: 0 calc(var(--tile) * 0.04);
+  font-size: calc(var(--tile) * 0.17);
+  font-weight: 900;
+  line-height: 1.35;
+  text-align: center;
+  background: rgba(10, 12, 16, 0.85);
+  border-radius: 3px;
+}
+
+.hud-tile--passive {
+  margin-left: calc(var(--tile) * 0.2);
+  border-color: rgba(140, 210, 150, 0.45);
+  cursor: default;
+}
+
+.hud-actions--vertical .hud-tile--passive {
+  margin-left: 0;
+  margin-top: calc(var(--tile) * 0.2);
+}
+
+.hud-tile--locked {
+  background: rgba(10, 12, 16, 0.35);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.hud-tile--locked .hud-tile__icon,
+.hud-tile--locked .hud-tile__name,
+.hud-tile--locked .hud-tile__key {
+  opacity: 0.25;
+}
+
+.hud-tile--unusable {
+  background: rgba(30, 20, 40, 0.75);
+}
+
+.hud-tile--unusable .hud-tile__icon {
+  filter: saturate(0.3) brightness(0.55) hue-rotate(200deg);
+}
+
+.hud-tile--unusable .hud-tile__name {
+  color: rgba(150, 150, 190, 0.7);
+}
+
+.hud-tile--pressed {
+  transform: scale(0.94);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.hud-tile--failed {
+  border-color: rgb(230, 60, 50);
+  background: rgba(120, 20, 16, 0.75);
+}
+
+.hud-tile--casting {
+  border-color: rgb(226, 182, 74);
+  box-shadow: 0 0 calc(var(--tile) * 0.15) rgba(226, 182, 74, 0.6);
+}
+
+/* ----- Target, boss and encounter ----- */
+
+.hud-target {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--px));
+}
+
+.hud-target__frame {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--px));
+  padding: calc(4 * var(--px)) calc(8 * var(--px));
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: calc(4 * var(--px));
+}
+
+.hud-target__name {
+  font-size: calc(16 * var(--px));
+  font-weight: 700;
+  color: rgb(255, 120, 100);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-target__bar {
+  flex: none;
+  height: calc(18 * var(--px));
+}
+
+.hud-target--none {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.hud-effects--target {
+  justify-content: center;
+}
+
+.hud-boss {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--px));
+  padding: calc(6 * var(--px)) calc(10 * var(--px));
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: calc(4 * var(--px));
+}
+
+.hud-boss__head,
+.hud-boss__foot,
+.hud-encounter__row {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(8 * var(--px));
+  white-space: nowrap;
+}
+
+.hud-boss__name {
+  font-size: calc(18 * var(--px));
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-boss__difficulty,
+.hud-boss__foot {
+  font-size: calc(13 * var(--px));
+  color: rgb(204, 204, 204);
+}
+
+.hud-boss__bar {
+  position: relative;
+  flex: none;
+  height: calc(22 * var(--px));
+  overflow: hidden;
+  border-radius: calc(3 * var(--px));
+}
+
+.hud-boss__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+}
+
+.hud-boss__tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+}
+
+.hud-boss__health {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(14 * var(--px));
+  font-weight: 700;
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-boss__cast {
+  position: relative;
+  flex: none;
+  height: calc(16 * var(--px));
+  overflow: hidden;
+  background: rgba(31, 20, 5, 0.9);
+  border-radius: calc(3 * var(--px));
+  transition: opacity 120ms;
+}
+
+.hud-boss__cast-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+}
+
+.hud-boss__cast > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(12 * var(--px));
+  font-weight: 700;
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-encounter {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--px));
+  padding: calc(6 * var(--px)) calc(10 * var(--px));
+  font-size: calc(13 * var(--px));
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: calc(4 * var(--px));
+  overflow: hidden;
+}
+
+.hud-encounter__row b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-encounter__row span,
+.hud-encounter__time {
+  color: rgb(204, 204, 204);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-encounter__enrage {
+  color: rgb(255, 217, 140);
+}
+
+/* ----- Group frames (Bots' party frames) ----- */
+
+.hud-party {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(200 * var(--px))), 1fr));
+  align-content: start;
+  gap: calc(6 * var(--px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud-party__frame {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--px));
+  padding: calc(4 * var(--px)) calc(6 * var(--px));
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: calc(4 * var(--px));
+}
+
+.hud-party__role {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: calc(24 * var(--px));
+  height: calc(24 * var(--px));
+  font-size: calc(13 * var(--px));
+  font-weight: 900;
+  border-radius: calc(3 * var(--px));
+}
+
+.hud-party__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(2 * var(--px));
+  min-width: 0;
+}
+
+.hud-party__name {
+  display: flex;
+  justify-content: space-between;
+  font-size: calc(14 * var(--px));
+  color: rgb(240, 240, 240);
+}
+
+.hud-party__name small {
+  color: var(--muted);
+}
+
+.hud-party__bar {
+  display: block;
+  height: calc(8 * var(--px));
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.hud-party__bar--resource {
+  height: calc(5 * var(--px));
+}
+
+.hud-party__bar > i {
+  display: block;
+  height: 100%;
+}
+
+/* ----- Interact prompt ----- */
+
+.hud-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(8 * var(--px));
+  align-self: center;
+  font-size: calc(17 * var(--px));
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-prompt__key {
+  padding: calc(2 * var(--px)) calc(8 * var(--px));
+  font-weight: 900;
+  background: rgba(10, 12, 16, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: calc(4 * var(--px));
+}
+
+/* ----- Micro menu ----- */
+
+.hud-micro {
+  --m: min(calc(100cqw / 4), 100cqh);
+  display: flex;
+  justify-content: flex-end;
+  gap: calc(var(--m) * 0.08);
+}
+
+.hud-micro--vertical {
+  --m: min(100cqw, calc(100cqh / 4));
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.hud-micro__button {
+  position: relative;
+  display: flex;
+  flex: 0 1 var(--m);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: var(--m);
+  padding: 0;
+  font: inherit;
+  color: rgb(240, 240, 240);
+  background: rgba(10, 12, 16, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: calc(var(--m) * 0.12);
+  cursor: pointer;
+}
+
+.hud-micro--vertical .hud-micro__button {
+  flex: none;
+  width: 100%;
+}
+
+.hud-micro__button:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.hud-micro__button[aria-pressed='true'] {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 calc(var(--m) * 0.2) rgba(231, 183, 37, 0.3);
+}
+
+.hud-micro__glyph {
+  font-size: calc(var(--m) * 0.42);
+  line-height: 1;
+}
+
+.hud-micro__name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: calc(var(--m) * 0.17);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-micro__key {
+  position: absolute;
+  right: 2px;
+  top: 1px;
+  font-size: calc(var(--m) * 0.17);
+  color: var(--muted);
+}
+
+/* ----- Minimap ----- */
+
+.hud-map {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(3 * var(--px));
+}
+
+.hud-map__frame {
+  position: relative;
+  width: min(100cqw, calc(100cqh - 22 * var(--px)));
+  aspect-ratio: 1;
+  flex: none;
+}
+
+.hud-map__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.7));
+}
+
+.hud-map__cardinal {
+  font-size: 0.15px;
+  font-weight: 900;
+  fill: #fff;
+  stroke: #000;
+  stroke-width: 0.03px;
+  paint-order: stroke;
+}
+
+.hud-map__cardinal--north {
+  fill: #ff5a4a;
+}
+
+.hud-map__zoom {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hud-map__zoom button {
+  width: calc(26 * var(--px));
+  height: calc(26 * var(--px));
+  padding: 0;
+  font: inherit;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  background: rgba(10, 12, 16, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.hud-map__zone {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: calc(14 * var(--px));
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-map__zone small {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.hud-map__clock {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  padding: 0 calc(5 * var(--px));
+  font-size: calc(13 * var(--px));
+  background: rgba(10, 12, 16, 0.75);
+  border-radius: calc(3 * var(--px));
+}
+
+/* ----- Objectives ----- */
+
+.hud-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--px));
+  padding: calc(8 * var(--px)) calc(10 * var(--px));
+  overflow: hidden;
+  font-size: calc(14 * var(--px));
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.5) 18%);
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-objectives__head {
+  display: flex;
+  flex-direction: column;
+}
+
+.hud-objectives__kind {
+  font-size: calc(11 * var(--px));
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.hud-objectives__zone {
+  font-size: calc(17 * var(--px));
+}
+
+.hud-objectives__title {
+  font-size: calc(13 * var(--px));
+  color: var(--muted);
+}
+
+.hud-objectives__steps,
+.hud-objectives__events {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud-objectives__steps li {
+  display: flex;
+  gap: calc(6 * var(--px));
+}
+
+.hud-objectives__steps .is-done {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.hud-objectives__steps .is-next {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.hud-objectives__mark {
+  flex: none;
+  color: var(--gold);
+}
+
+.hud-objectives__text {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--px));
+  min-width: 0;
+}
+
+.hud-objectives__text small {
+  color: var(--gold);
+}
+
+.hud-objectives__bar {
+  display: block;
+  height: calc(4 * var(--px));
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hud-objectives__bar > i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+
+.hud-objectives__bar--event > i {
+  background: #ff8a3d;
+}
+
+.hud-objectives__events li {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--px));
+}
+
+.hud-objectives__event {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(6 * var(--px));
+  color: #ffb37a;
+}
+
+.hud-objectives__event small {
+  color: rgba(255, 255, 255, 0.75);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-objectives__events .hud-objectives__text {
+  font-size: calc(13 * var(--px));
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ----- Windows: the character screen and the bags ----- */
+
+.hud-window {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: calc(14 * var(--px));
+  background: rgba(33, 33, 33, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: calc(6 * var(--px));
+  box-shadow: 0 calc(16 * var(--px)) calc(40 * var(--px)) rgba(0, 0, 0, 0.6);
+  user-select: text;
+}
+
+.hud-window__head {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--px));
+  flex: none;
+  padding: calc(10 * var(--px)) calc(14 * var(--px));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hud-window__title {
+  font-size: calc(18 * var(--px));
+  letter-spacing: 0.08em;
+}
+
+.hud-char__summary,
+.hud-bags__count {
+  color: var(--gold);
+}
+
+.hud-window__hint {
+  margin-left: auto;
+  font-size: calc(12 * var(--px));
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.hud-window__close {
+  width: calc(30 * var(--px));
+  height: calc(30 * var(--px));
+  padding: 0;
+  font: inherit;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: calc(4 * var(--px));
+  cursor: pointer;
+}
+
+.hud-bags .hud-window__close {
+  margin-left: auto;
+}
+
+.hud-window__close:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.hud-char__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: calc(20 * var(--px));
+  flex: 1;
+  min-height: 0;
+  padding: calc(12 * var(--px)) calc(14 * var(--px));
+}
+
+.hud-char__body--side {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.hud-char__side {
+  display: flex;
+  flex-direction: column;
+  gap: calc(12 * var(--px));
+  min-height: 0;
+  padding: calc(10 * var(--px));
+  overflow-y: auto;
+  background: rgb(26, 26, 26);
+  border-radius: calc(4 * var(--px));
+}
+
+.hud-char__head {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--px));
+}
+
+.hud-char__head > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.hud-char__head small {
+  color: var(--muted);
+}
+
+.hud-char__artifact {
+  width: calc(44 * var(--px));
+  height: calc(44 * var(--px));
+  flex: none;
+}
+
+.hud-char__gear {
+  display: grid;
+  grid-template-columns: calc(52 * var(--px)) minmax(0, 1fr) calc(52 * var(--px));
+  gap: calc(8 * var(--px));
+}
+
+.hud-char__column {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--px));
+}
+
+.hud-char__trinket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(46 * var(--px));
+  font-size: calc(15 * var(--px));
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--rc, rgba(255, 255, 255, 0.14));
+  border-radius: calc(4 * var(--px));
+}
+
+.hud-char__trinket small {
+  font-size: calc(11 * var(--px));
+  color: var(--rc, var(--muted));
+}
+
+.hud-char__trinket--empty small {
+  color: var(--muted);
+}
+
+.hud-char__vitals {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(6 * var(--px));
+  min-width: 0;
+}
+
+.hud-char__vital {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hud-char__vital small {
+  color: var(--muted);
+}
+
+.hud-char__vital b {
+  font-size: calc(20 * var(--px));
+}
+
+.hud-char__vital em {
+  font-style: normal;
+  font-size: calc(12 * var(--px));
+  color: var(--mana);
+}
+
+.hud-char__vital--health b {
+  color: var(--heal);
+}
+
+.hud-char__vital--resource b {
+  color: var(--mana);
+}
+
+.hud-char__figure {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(150 * var(--px));
+  width: 100%;
+}
+
+.hud-char__section h4 {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--px));
+  margin: 0 0 calc(6 * var(--px));
+  font-size: calc(12 * var(--px));
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud-char__sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(4 * var(--px));
+}
+
+.hud-char__set {
+  display: inline-flex;
+  gap: calc(4 * var(--px));
+  padding: calc(3 * var(--px)) calc(8 * var(--px));
+  font: inherit;
+  font-size: calc(13 * var(--px));
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: calc(4 * var(--px));
+  cursor: pointer;
+}
+
+.hud-char__set[aria-pressed='true'] {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.hud-char__set:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.hud-char__bag {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--px));
+  font-size: calc(13 * var(--px));
+}
+
+.hud-char__stats {
+  display: grid;
+  gap: calc(2 * var(--px));
+  margin: 0;
+}
+
+.hud-char__stats > div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.hud-char__stats dd {
+  margin: 0;
+}
+
+.hud-char__trees {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: calc(8 * var(--px));
+  min-height: 0;
+}
+
+.hud-char__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(6 * var(--px));
+  padding: calc(8 * var(--px));
+  text-align: center;
+  background: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: calc(6 * var(--px));
+  overflow: hidden;
+}
+
+.hud-char__card--locked {
+  opacity: 0.45;
+}
+
+.hud-char__card-head {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--px));
+  font-size: calc(12 * var(--px));
+  color: var(--muted);
+}
+
+.hud-char__card-head kbd {
+  padding: 0 calc(4 * var(--px));
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.hud-char__card-icon {
+  width: calc(56 * var(--px));
+  height: calc(56 * var(--px));
+}
+
+.hud-char__card small {
+  font-size: calc(12 * var(--px));
+  color: var(--muted);
+}
+
+.hud-bags__search {
+  margin: calc(10 * var(--px)) calc(14 * var(--px)) 0;
+  padding: calc(6 * var(--px)) calc(10 * var(--px));
+  font: inherit;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: calc(4 * var(--px));
+}
+
+.hud-bags__list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(10 * var(--px));
+  min-height: 0;
+  padding: calc(10 * var(--px)) calc(14 * var(--px));
+  overflow-y: auto;
+}
+
+.hud-bags__group h4 {
+  margin: 0 0 calc(4 * var(--px));
+  font-size: calc(12 * var(--px));
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.hud-bags__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(4 * var(--px));
+}
+
+.hud-bags__item {
+  position: relative;
+  width: calc(46 * var(--px));
+  height: calc(46 * var(--px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: calc(4 * var(--px));
+}
+
+.hud-bags__item--rarity {
+  border: 2px solid var(--rc);
+}
+
+.hud-bags__item .art > span {
+  font-size: calc(15 * var(--px));
+}
+
+.hud-bags__item > b {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font-size: calc(13 * var(--px));
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-bags__empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.hud-bags__foot {
+  flex: none;
+  padding: calc(6 * var(--px)) calc(14 * var(--px));
+  font-size: calc(12 * var(--px));
+  color: var(--muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ----- The edit mode ----- */
+
+.hud-edit {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* One line per block: 32 across, 18 down. */
+.hud-edit__grid {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.13) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.13) 1px, transparent 1px);
+  background-size: calc(100% / 32) calc(100% / 18);
+}
+
+.hud-edit__frame {
+  position: absolute;
+  background: rgba(90, 169, 255, 0.08);
+  outline: 1px dashed rgba(90, 169, 255, 0.85);
+  outline-offset: -1px;
+  cursor: move;
+  touch-action: none;
+}
+
+.hud-edit__frame--new {
+  background: rgba(231, 183, 37, 0.07);
+  outline-color: rgba(231, 183, 37, 0.85);
+}
+
+.hud-edit__frame--window {
+  background: rgba(255, 255, 255, 0.05);
+  outline-style: dotted;
+}
+
+.hud-edit__frame--selected {
+  z-index: 1;
+  outline: 2px solid #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hud-edit__frame--ok {
+  outline-color: var(--green);
+  background: rgba(62, 226, 62, 0.14);
+}
+
+.hud-edit__frame--blocked {
+  outline-color: var(--red);
+  background: rgba(255, 75, 75, 0.2);
+}
+
+.hud-edit__label {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: flex;
+  gap: 6px;
+  max-width: calc(100% - 4px);
+  padding: 0 5px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 3px;
+}
+
+.hud-edit__label small {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.hud-edit__handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 2px;
+  touch-action: none;
+}
+
+.hud-edit__handle--nw {
+  left: -6px;
+  top: -6px;
+  cursor: nwse-resize;
+}
+
+.hud-edit__handle--ne {
+  right: -6px;
+  top: -6px;
+  cursor: nesw-resize;
+}
+
+.hud-edit__handle--sw {
+  left: -6px;
+  bottom: -6px;
+  cursor: nesw-resize;
+}
+
+.hud-edit__handle--se {
+  right: -6px;
+  bottom: -6px;
+  cursor: nwse-resize;
+}
+
+/* The panel sits in the space the default layout leaves free, on the side away from the element selected. */
+.hud-edit__panel {
+  position: absolute;
+  top: calc(100% * 3 / 18);
+  left: calc(100% * 4.5 / 32);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(300px, 45%);
+  max-height: calc(100% * 14 / 18);
+  padding: 12px;
+  overflow-y: auto;
+  background: rgba(20, 20, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  cursor: default;
+}
+
+.hud-edit__panel--right {
+  left: auto;
+  right: calc(100% * 4.5 / 32);
+}
+
+.hud-edit__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+}
+
+.hud-edit__flip {
+  padding: 0 8px;
+  font: inherit;
+  color: #fff;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.hud-edit__info,
+.hud-edit__about,
+.hud-edit__where {
+  margin: 0;
+  color: var(--muted);
+}
+
+.hud-edit__where {
+  font-size: 11.5px;
+}
+
+.hud-edit__note {
+  margin: 0;
+  color: #ffb37a;
+}
+
+.hud-edit__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-edit__caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.hud-edit__caption b {
+  color: #fff;
+}
+
+.hud-edit__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hud-edit__chip {
+  padding: 3px 8px;
+  font: inherit;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.hud-edit__chip:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.hud-edit__chip[aria-pressed='true'] {
+  color: #1a1a1a;
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.hud-edit__chosen,
+.hud-edit__options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-edit__chosen h4,
+.hud-edit__group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.hud-edit__group {
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud-edit__group small {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.hud-tag--unity {
+  color: #9cc8ff;
+  border-color: rgba(90, 169, 255, 0.6);
+}
+
+.hud-tag--new {
+  color: var(--gold);
+  border-color: rgba(231, 183, 37, 0.6);
+}
+
+.hud-edit__choice,
+.hud-edit__range {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-edit__range input {
+  width: 100%;
+  accent-color: var(--gold);
+}
+
+.hud-edit__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.hud-edit__check input,
+.hud-edit__list input {
+  accent-color: var(--gold);
+}
+
+.hud-edit__list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud-edit__list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-edit__spacer {
+  width: 13px;
+}
+
+.hud-edit__pick {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 6px;
+  font: inherit;
+  text-align: left;
+  color: #fff;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.hud-edit__pick:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.hud-edit__pick small {
+  color: var(--muted);
+}
+
+/* Narrow screens: the HUD keeps its 16:9 screen. */
+@media (max-width: 900px) {
+  .ui__stage--world {
+    aspect-ratio: 16 / 9;
+  }
+}

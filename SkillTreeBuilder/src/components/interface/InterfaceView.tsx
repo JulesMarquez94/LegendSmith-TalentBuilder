@@ -1,8 +1,10 @@
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import { CharacterCreate, type NewCharacter } from './CharacterCreate.tsx'
 import { CharacterSelect } from './CharacterSelect.tsx'
 import { TAKEN_NAMES } from './fake.ts'
 import { backFrom, FLOW, SCREEN_LABEL, type Mode, type Screen } from './flow.ts'
+import { SITUATIONS, type Situation } from './hud/world.ts'
+import { KeyHints } from './KeyHints.tsx'
 import { LoadingScreen } from './LoadingScreen.tsx'
 import { LoginScreen } from './LoginScreen.tsx'
 import {
@@ -39,12 +41,23 @@ export function InterfaceView({ active }: Props) {
   const [notice, setNotice] = useState<string | null>(null)
   const [roster, dispatch] = useReducer(rosterReducer, undefined, loadRoster)
   const current = selectedCharacter(roster)
+  // In the world: out in the zone or in the boss fight, and the HUD's edit mode.
+  const [situation, setSituation] = useState<Situation>('explore')
+  const [editing, setEditing] = useState(false)
+  const stage = useRef<HTMLDivElement>(null)
 
   useEffect(() => saveRoster(roster), [roster])
 
   const go = (next: Screen) => {
     setNotice(null)
+    setEditing(false)
     setScreen(next)
+  }
+
+  // The real screen size shows the grid scaling: the same 32 × 18 blocks, bigger.
+  const fullScreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen()
+    else void stage.current?.requestFullscreen?.()
   }
   const back = () => {
     const to = backFrom(screen)
@@ -119,12 +132,31 @@ export function InterfaceView({ active }: Props) {
           Reset prototype
         </button>
       </div>
-      <p className="ui__about">
-        A clickable prototype of the game's first screens, with made-up data: there's no account, server or real login, and your
-        characters are kept in this browser. The arrow keys, Enter and Esc work the way a pad will.
-      </p>
+      {shown === 'world' ? (
+        <div className="ui__controls ui-world-controls">
+          <nav className="tabs" aria-label="Situation">
+            {SITUATIONS.map(([id, label]) => (
+              <button key={id} type="button" className="tabs__tab" aria-pressed={situation === id} onClick={() => setSituation(id)}>
+                {label}
+              </button>
+            ))}
+          </nav>
+          <span className="ui__spacer" />
+          <button type="button" className="btn btn--lg" aria-pressed={editing} onClick={() => setEditing((e) => !e)}>
+            {editing ? 'Leave the edit mode' : 'Edit HUD'}
+          </button>
+          <button type="button" className="btn btn--lg" onClick={fullScreen}>
+            Full screen
+          </button>
+        </div>
+      ) : (
+        <p className="ui__about">
+          A clickable prototype of the game's first screens, with made-up data: there's no account, server or real login, and your
+          characters are kept in this browser. The arrow keys, Enter and Esc work the way a pad will.
+        </p>
+      )}
 
-      <div className={`ui__stage ui__stage--${shown}`}>
+      <div ref={stage} className={`ui__stage ui__stage--${shown}`}>
         {shown === 'title' && <TitleScreen active={active} onStart={() => go('select')} />}
         {shown === 'select' && (
           <CharacterSelect
@@ -157,9 +189,45 @@ export function InterfaceView({ active }: Props) {
           <LoadingScreen character={current} mode={mode} notice={notice} onDone={() => go('world')} />
         )}
         {shown === 'world' && current && (
-          <WorldScreen active={active} character={current} mode={mode} onLogout={() => go('select')} onExit={() => go('title')} />
+          <WorldScreen
+            active={active}
+            character={current}
+            mode={mode}
+            situation={situation}
+            editing={editing}
+            onEditing={setEditing}
+            onLogout={() => go('select')}
+            onExit={() => go('title')}
+          />
         )}
       </div>
+      {shown === 'world' && (
+        <div className="ui-world-hints">
+          <KeyHints
+            hints={
+              editing
+                ? [
+                    ['Drag', 'Move'],
+                    ['Corner', 'Size'],
+                    ['Arrows', 'Nudge a block'],
+                    ['Shift + arrows', 'Size a block'],
+                    ['Delete', 'Turn off'],
+                    ['Esc', 'Let go, then leave'],
+                  ]
+                : [
+                    ['W S', 'Walk'],
+                    ['A D', 'Turn'],
+                    ['LMB RMB Q E F Alt', 'Slots'],
+                    ['V', 'Dodge'],
+                    ['C', 'Character'],
+                    ['B', 'Bags'],
+                    ['R', 'Use'],
+                    ['Esc', 'Game menu'],
+                  ]
+            }
+          />
+        </div>
+      )}
     </div>
   )
 }
