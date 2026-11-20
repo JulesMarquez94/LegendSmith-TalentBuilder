@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { ARTIFACTS } from '../../trees/index.ts'
 import { DEFAULT_APPEARANCE } from './appearance.ts'
-import { SAMPLE_SLOTS, STARTING_ZONE, TAKEN_NAMES } from './fake.ts'
-import { nameProblem } from './names.ts'
+import { SAMPLE_SLOTS, TAKEN_NAMES } from './fake.ts'
+import { hasProblem, nameProblems } from './names.ts'
+import { RACES, STARTING_POINTS } from './origins.ts'
 import {
+  artifactOf,
   characters,
+  kitLabel,
+  nameOf,
   newCharacter,
   readRoster,
   rosterReducer,
@@ -17,7 +21,8 @@ import {
   type Roster,
 } from './roster.ts'
 
-const make = (name: string): Character => newCharacter({ name, artifact: 'spear', appearance: DEFAULT_APPEARANCE })
+const make = (name: string, surname = 'Ashford'): Character =>
+  newCharacter({ name, surname, race: 'human', origin: 'wakeyard', appearance: DEFAULT_APPEARANCE })
 
 /** Seats from names, `null` for an empty seat; the first seat is selected. */
 const roster = (...names: (string | null)[]): Roster => ({
@@ -41,10 +46,14 @@ describe('the sample characters', () => {
     expect(SAMPLE_SLOTS).toContain(null)
   })
 
-  it('have valid, different names and hold real artifacts', () => {
-    const all = samples.map((c) => c.name)
+  it('have valid, different full names, a real race and starting point, and hold real artifacts', () => {
+    const all = samples.map(nameOf)
     samples.forEach((c, i) => {
-      expect(nameProblem(c.name, { yours: all.filter((_, j) => j !== i), others: TAKEN_NAMES })).toBeNull()
+      expect(hasProblem(nameProblems(c.name, c.surname, { yours: all.filter((_, j) => j !== i), others: TAKEN_NAMES }))).toBe(
+        false,
+      )
+      expect(RACES.some((r) => r.id === c.race)).toBe(true)
+      expect(STARTING_POINTS.some((s) => s.id === c.origin)).toBe(true)
       expect(ARTIFACTS.some((a) => a.id === c.artifact)).toBe(true)
     })
   })
@@ -56,8 +65,24 @@ describe('the sample characters', () => {
 })
 
 describe('a new character', () => {
-  it('starts at level 1 in the starting zone, its name formatted', () => {
-    expect(make('  nYSSA')).toMatchObject({ name: 'Nyssa', level: 1, zone: STARTING_ZONE, artifact: 'spear' })
+  it('starts at level 1 at its starting point, its name and surname formatted', () => {
+    const c = make('  nYSSA', 'mossGROVE ')
+    expect(c).toMatchObject({ name: 'Nyssa', surname: 'Mossgrove', race: 'human', origin: 'wakeyard', level: 1 })
+    expect(c.zone).toBe(STARTING_POINTS[0].zone)
+    expect(nameOf(c)).toBe('Nyssa Mossgrove')
+  })
+
+  it('starts with no artifact', () => {
+    const c = make('Nyssa')
+    expect(c.artifact).toBeNull()
+    expect(artifactOf(c)).toBeNull()
+    expect(kitLabel(c)).toBe('No artifact yet')
+    expect(kitLabel(SAMPLE_SLOTS[0]!)).toBe('Healer · Lifewarden Staff')
+  })
+
+  it('gets the first race and starting point for one that is unknown', () => {
+    const c = newCharacter({ name: 'Nyssa', surname: 'Ashford', race: 'orc', origin: 'moon', appearance: DEFAULT_APPEARANCE })
+    expect(c).toMatchObject({ race: RACES[0].id, origin: STARTING_POINTS[0].id })
   })
 
   it("is made on the device, so it waits for the server's check until it first plays online", () => {
@@ -85,6 +110,11 @@ describe('the seats around the fire', () => {
     expect(rosterReducer(start, { type: 'create', slot: 0, character: make('Nyssa') })).toBe(start)
     expect(rosterReducer(start, { type: 'create', slot: SLOT_COUNT, character: make('Nyssa') })).toBe(start)
     expect(rosterReducer(start, { type: 'create', slot: 1, character: make('SEREN') })).toBe(start)
+  })
+
+  it('take a name already used with a different surname', () => {
+    const next = rosterReducer(roster('Seren', null), { type: 'create', slot: 1, character: make('Seren', 'Blackwood') })
+    expect(names(next)).toEqual(['Seren', 'Seren', null, null])
   })
 
   it('leave an empty seat when a character is deleted, and keep everyone else in place', () => {
@@ -138,20 +168,21 @@ describe('the saved seats', () => {
   it('empty the seats of characters that no longer make sense, and fix what they can', () => {
     const good = { id: 'a', name: 'Seren', level: 99, artifact: 'spear', zone: '', appearance: { body: 7, skin: 2 } }
     const stored = {
-      slots: [{ ...good, id: 'b', artifact: 'removed-weapon' }, good, { ...good, id: 'c', name: 'SEREN' }, 'junk', good],
+      slots: [
+        { ...good, id: 'b', name: 'Bram', artifact: 'removed-weapon' },
+        good,
+        { ...good, id: 'c', name: 'SEREN' },
+        'junk',
+        good,
+      ],
       selected: 9,
     }
+    // Missing surname, race and starting point are filled in; a removed artifact leaves it holding none.
+    const fixed = { surname: '', race: 'human', origin: 'wakeyard', level: 60, zone: STARTING_POINTS[0].zone }
     expect(readRoster(JSON.stringify(stored))).toEqual({
       slots: [
-        null,
-        {
-          id: 'a',
-          name: 'Seren',
-          level: 60,
-          artifact: 'spear',
-          zone: STARTING_ZONE,
-          appearance: { body: 0, skin: 2, hair: 0, hairColor: 0 },
-        },
+        { ...fixed, id: 'b', name: 'Bram', artifact: null, appearance: { body: 0, skin: 2, hair: 0, hairColor: 0 } },
+        { ...fixed, id: 'a', name: 'Seren', artifact: 'spear', appearance: { body: 0, skin: 2, hair: 0, hairColor: 0 } },
         null,
         null,
       ],

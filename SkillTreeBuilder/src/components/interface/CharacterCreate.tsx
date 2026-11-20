@@ -1,362 +1,288 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import type { ArtifactDef } from '../../talents/types.ts'
-import { ARTIFACTS, STARTING_LOADOUT } from '../../trees/index.ts'
-import { ArtIcon } from '../ArtIcon.tsx'
-import { SEATS, seatOf } from '../labels.ts'
 import {
   APPEARANCE_ROWS,
   cycle,
   DEFAULT_APPEARANCE,
-  describeAppearance,
-  optionOf,
   randomAppearance,
   type Appearance,
   type AppearanceKey,
+  type AppearanceOption,
 } from './appearance.ts'
 import { CharacterFigure } from './CharacterFigure.tsx'
-import { NAME_IDEAS, STARTING_ZONE } from './fake.ts'
+import { NAME_IDEAS, SURNAME_IDEAS } from './fake.ts'
 import { wrap } from './keys.ts'
 import { KeyHints } from './KeyHints.tsx'
-import { formatName, NAME_MAX, NAME_MIN, nameProblem, type TakenNames } from './names.ts'
+import { fullName, hasProblem, NAME_MAX, NAME_MIN, nameProblems, type TakenNames } from './names.ts'
+import { RACES, STARTING_POINTS } from './origins.ts'
+import type { NewCharacter } from './roster.ts'
 import { useNavKeys } from './useNavKeys.ts'
-
-export interface NewCharacter {
-  name: string
-  artifact: string
-  appearance: Appearance
-}
 
 interface Props {
   active: boolean
-  /** Names it can't have: your characters' and other players'. */
+  /** Full names it can't have: your characters' and other players'. */
   taken: TakenNames
   onCreate: (character: NewCharacter) => void
   onCancel: () => void
 }
 
-const STEPS = ['Appearance', 'Artifact', 'Name', 'Confirm'] as const
+/** One line of choices: the race, an appearance row, or the starting point. */
+interface Row {
+  key: 'race' | AppearanceKey | 'origin'
+  label: string
+  options: readonly AppearanceOption[]
+  value: number
+  /** Shown beside a choice that has only one option so far. */
+  later?: string
+}
 
-/** Artifacts by seat, two to a row like the builder's picker: tanks, healers, melee, then ranged damage. */
-const BY_SEAT: readonly ArtifactDef[] = [...ARTIFACTS].sort((a, b) => SEATS.indexOf(seatOf(a)) - SEATS.indexOf(seatOf(b)))
-const ROW = 2
+const pick = <T,>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)]
 
-/** Steps through the new character: appearance, starting artifact, name, then a last look before creating it. */
+/**
+ * Making a character, on one page: race, appearance and starting point, then the name and surname
+ * with the Create button under them. A character starts with no artifact, in plain underclothes: it
+ * finds one in the game. Race and starting point have one choice each for now.
+ */
 export function CharacterCreate({ active, taken, onCreate, onCancel }: Props) {
   const id = useId()
-  const [step, setStep] = useState(0)
+  const [raceAt, setRaceAt] = useState(0)
+  const [originAt, setOriginAt] = useState(0)
   const [appearance, setAppearance] = useState<Appearance>(DEFAULT_APPEARANCE)
-  const [row, setRow] = useState(0)
-  // The builder's starting artifact comes first here too.
-  const [artifactAt, setArtifactAt] = useState(() =>
-    Math.max(
-      0,
-      BY_SEAT.findIndex((a) => a.id === STARTING_LOADOUT.artifact),
-    ),
-  )
+  const [cursor, setCursor] = useState(0)
   const [name, setName] = useState('')
-  const [triedName, setTriedName] = useState(false)
-  const focusTarget = useRef<HTMLElement | null>(null)
-  const artifact = BY_SEAT[artifactAt]
-  const problem = nameProblem(name, taken)
-  const shown = formatName(name)
+  const [surname, setSurname] = useState('')
+  const [tried, setTried] = useState(false)
+  const choices = useRef<HTMLDivElement>(null)
+  const nameField = useRef<HTMLInputElement>(null)
+  const surnameField = useRef<HTMLInputElement>(null)
+  const race = RACES[raceAt]
+  const origin = STARTING_POINTS[originAt]
+  const problems = nameProblems(name, surname, taken)
+  const shown = fullName(name, surname)
 
-  // Each step puts the keyboard where its choices are.
+  // Top to bottom, the order the arrows go through them: race and starting point, then appearance.
+  const rows: readonly Row[] = [
+    { key: 'race', label: 'Race', options: RACES.map((r) => ({ label: r.name })), value: raceAt, later: 'More later' },
+    {
+      key: 'origin',
+      label: 'Starting point',
+      options: STARTING_POINTS.map((s) => ({ label: s.name })),
+      value: originAt,
+      later: 'More later',
+    },
+    ...APPEARANCE_ROWS.map((r) => ({ key: r.key, label: r.label, options: r.options, value: appearance[r.key] })),
+  ]
+
   useEffect(() => {
-    if (active) focusTarget.current?.focus({ preventScroll: true })
-  }, [active, step])
-  // On a short screen the artifact list scrolls: keep the chosen one in sight.
-  useEffect(() => {
-    if (active && step === 1) focusTarget.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
-  }, [active, step, artifactAt])
-  const focusHere = (el: HTMLElement | null) => {
-    focusTarget.current = el
+    if (active) choices.current?.focus({ preventScroll: true })
+  }, [active])
+
+  const change = (row: Row, by: number) => {
+    if (row.key === 'race') setRaceAt((i) => wrap(i, by, RACES.length))
+    else if (row.key === 'origin') setOriginAt((i) => wrap(i, by, STARTING_POINTS.length))
+    else setAppearance((a) => cycle(a, row.key as AppearanceKey, by))
+  }
+  const choose = (row: Row, index: number) => {
+    if (row.key === 'race') setRaceAt(index)
+    else if (row.key === 'origin') setOriginAt(index)
+    else setAppearance((a) => ({ ...a, [row.key]: index }))
   }
 
-  // A step is done once everything before it is: only the name can hold you back.
-  const reachable = (s: number) => s <= 2 || problem === null
-  const next = () => {
-    if (step === 2 && problem) {
-      setTriedName(true)
+  const create = () => {
+    setTried(true)
+    if (hasProblem(problems)) {
+      // To the first field that needs fixing.
+      const field = problems.name ? nameField : surnameField
+      field.current?.focus()
       return
     }
-    if (step === STEPS.length - 1) onCreate({ name: shown, artifact: artifact.id, appearance })
-    else setStep(step + 1)
+    onCreate({ name, surname, race: race.id, origin: origin.id, appearance })
   }
-  const back = () => (step === 0 ? onCancel() : setStep(step - 1))
-  const change = (key: AppearanceKey, by: number) => setAppearance((a) => cycle(a, key, by))
-  const moveArtifact = (by: number) => setArtifactAt((i) => wrap(i, by, BY_SEAT.length))
 
   useNavKeys(active, {
-    up: () => (step === 0 ? setRow((r) => wrap(r, -1, APPEARANCE_ROWS.length)) : step === 1 ? moveArtifact(-ROW) : undefined),
-    down: () => (step === 0 ? setRow((r) => wrap(r, 1, APPEARANCE_ROWS.length)) : step === 1 ? moveArtifact(ROW) : undefined),
-    left: () => (step === 0 ? change(APPEARANCE_ROWS[row].key, -1) : step === 1 ? moveArtifact(-1) : undefined),
-    right: () => (step === 0 ? change(APPEARANCE_ROWS[row].key, 1) : step === 1 ? moveArtifact(1) : undefined),
-    confirm: next,
-    back,
+    up: () => setCursor((c) => wrap(c, -1, rows.length)),
+    down: () => setCursor((c) => wrap(c, 1, rows.length)),
+    left: () => change(rows[cursor], -1),
+    right: () => change(rows[cursor], 1),
+    // From the choices, Enter goes on to the name; with a good name it creates.
+    confirm: () => (hasProblem(problems) ? nameField.current?.focus() : create()),
+    back: onCancel,
   })
 
   const randomName = () => {
-    const free = NAME_IDEAS.filter((n) => nameProblem(n, taken) === null)
-    if (free.length > 0) setName(free[Math.floor(Math.random() * free.length)])
+    for (let tries = 0; tries < 20; tries++) {
+      const n = pick(NAME_IDEAS)
+      const s = pick(SURNAME_IDEAS)
+      if (!hasProblem(nameProblems(n, s, taken))) {
+        setName(n)
+        setSurname(s)
+        return
+      }
+    }
   }
 
-  const submitName = (e: FormEvent) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault()
-    next()
+    create()
   }
 
-  // You choose offline or online at the fire, after this: the character starts out on the device.
-  const where = 'On this device. The server checks it the first time you play online.'
+  const showName = tried || name !== ''
+  const showSurname = tried || surname !== ''
+
+  const row = (r: Row, i: number) => {
+    const single = r.options.length < 2
+    const chosen = r.options[r.value] ?? r.options[0]
+    return (
+      <div key={r.key} className="ui-look" aria-current={i === cursor ? 'true' : undefined} onClick={() => setCursor(i)}>
+        <span className="ui-look__label">{r.label}</span>
+        <button
+          type="button"
+          className="btn ui-look__step"
+          aria-label={`Previous ${r.label.toLowerCase()}`}
+          disabled={single}
+          onClick={() => change(r, -1)}
+        >
+          ‹
+        </button>
+        <span className="ui-look__value">
+          {chosen.color && (
+            <span className="ui-swatches">
+              {r.options.map((o, j) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  className="ui-swatch"
+                  style={{ background: o.color }}
+                  aria-label={`${r.label}: ${o.label}`}
+                  aria-pressed={r.value === j}
+                  onClick={() => choose(r, j)}
+                />
+              ))}
+            </span>
+          )}
+          <span className="ui-look__name">{chosen.label}</span>
+          {single && r.later && <span className="tag">{r.later}</span>}
+        </span>
+        <button
+          type="button"
+          className="btn ui-look__step"
+          aria-label={`Next ${r.label.toLowerCase()}`}
+          disabled={single}
+          onClick={() => change(r, 1)}
+        >
+          ›
+        </button>
+      </div>
+    )
+  }
 
   return (
     <section className="ui-screen ui-create" aria-labelledby={`${id}-title`}>
       <header className="ui-create__head">
+        <button type="button" className="btn btn--lg" onClick={onCancel}>
+          Back
+        </button>
         <h2 id={`${id}-title`} className="ui-heading">
           Create a character
         </h2>
-        <ol className="ui-steps">
-          {STEPS.map((label, i) => (
-            <li key={label}>
-              <button
-                type="button"
-                className="ui-steps__step"
-                aria-current={i === step ? 'step' : undefined}
-                data-done={i < step || undefined}
-                disabled={i === step || !reachable(i)}
-                onClick={() => setStep(i)}
-              >
-                <span className="ui-steps__num">{i < step ? '✓' : i + 1}</span>
-                {label}
-              </button>
-            </li>
-          ))}
-        </ol>
+        <KeyHints
+          hints={[
+            ['↑ ↓', 'Choose'],
+            ['← →', 'Change'],
+            ['Enter', 'Name, then create'],
+            ['Esc', 'Back'],
+          ]}
+        />
       </header>
 
       <div className="ui-create__preview">
-        <CharacterFigure appearance={appearance} artifact={artifact} className="ui-create__figure" />
+        <CharacterFigure appearance={appearance} artifact={null} className="ui-create__figure" />
         <span className="tag ui-placeholder">Placeholder art</span>
         <div className="ui-plate ui-plate--small">
           <div className="ui-plate__name">{shown || 'New character'}</div>
           <div className="ui-plate__line">
-            Level 1 · {seatOf(artifact)} · {artifact.name}
+            {race.name} · Starts in {origin.name} · No artifact: plain underclothes
           </div>
         </div>
       </div>
 
       <div className="ui-panel ui-create__panel">
-        {step === 0 && (
-          <>
-            <h3 className="ui-subheading">Appearance</h3>
-            <p className="ui-note">Placeholder options until the game has character art.</p>
-            <div
-              ref={focusHere}
-              className="ui-looks"
-              role="group"
-              tabIndex={0}
-              aria-label="Appearance: up and down to choose a row, left and right to change it"
-            >
-              {APPEARANCE_ROWS.map((r, i) => {
-                const chosen = optionOf(appearance, r.key)
-                return (
-                  <div key={r.key} className="ui-look" aria-current={i === row ? 'true' : undefined} onClick={() => setRow(i)}>
-                    <span className="ui-look__label">{r.label}</span>
-                    <button
-                      type="button"
-                      className="btn ui-look__step"
-                      aria-label={`Previous ${r.label.toLowerCase()}`}
-                      onClick={() => change(r.key, -1)}
-                    >
-                      ‹
-                    </button>
-                    <span className="ui-look__value">
-                      {r.options[0].color ? (
-                        <span className="ui-swatches">
-                          {r.options.map((o, j) => (
-                            <button
-                              key={o.label}
-                              type="button"
-                              className="ui-swatch"
-                              style={{ background: o.color }}
-                              aria-label={`${r.label}: ${o.label}`}
-                              aria-pressed={appearance[r.key] === j}
-                              onClick={() => setAppearance((a) => ({ ...a, [r.key]: j }))}
-                            />
-                          ))}
-                        </span>
-                      ) : null}
-                      <span className="ui-look__name">{chosen.label}</span>
-                    </span>
-                    <button
-                      type="button"
-                      className="btn ui-look__step"
-                      aria-label={`Next ${r.label.toLowerCase()}`}
-                      onClick={() => change(r.key, 1)}
-                    >
-                      ›
-                    </button>
-                  </div>
-                )
-              })}
+        <div
+          ref={choices}
+          className="ui-looks"
+          role="group"
+          tabIndex={0}
+          aria-label="Race, appearance and starting point: up and down to choose a row, left and right to change it"
+        >
+          <section className="ui-create__section">
+            <h3 className="picker__group-title">Race and starting point</h3>
+            {rows.slice(0, 2).map((r, i) => row(r, i))}
+            <p className="ui-note ui-create__later">
+              One of each for now: orcs and other races, and more starting points, come later.
+            </p>
+          </section>
+
+          <section className="ui-create__section">
+            <div className="ui-create__section-head">
+              <h3 className="picker__group-title">Appearance</h3>
+              <button type="button" className="btn" onClick={() => setAppearance(randomAppearance())}>
+                Randomize
+              </button>
             </div>
-            <button type="button" className="btn ui-randomize" onClick={() => setAppearance(randomAppearance())}>
-              Randomize
+            {rows.slice(2).map((r, i) => row(r, i + 2))}
+          </section>
+        </div>
+
+        <form className="ui-create__section ui-name" onSubmit={submit} noValidate>
+          <div className="ui-create__section-head">
+            <h3 className="picker__group-title">Name</h3>
+            <button type="button" className="btn" onClick={randomName}>
+              Random name
             </button>
-          </>
-        )}
-
-        {step === 1 && (
-          <>
-            <h3 className="ui-subheading">Starting artifact</h3>
-            <p className="ui-note">Your artifact sets your role and your first ability, its main attack.</p>
-            <div
-              ref={focusHere}
-              className="ui-list ui-artifacts"
-              role="listbox"
-              tabIndex={0}
-              aria-label="Starting artifact"
-              aria-activedescendant={`${id}-${artifact.id}`}
-            >
-              {SEATS.map((seat) => (
-                <div key={seat} className="ui-artifacts__seat" role="group" aria-label={seat}>
-                  <div className="picker__group-title">{seat}</div>
-                  <div className="ui-artifacts__pair">
-                    {BY_SEAT.filter((a) => seatOf(a) === seat).map((a) => (
-                      <div
-                        key={a.id}
-                        id={`${id}-${a.id}`}
-                        className="ui-artifact"
-                        role="option"
-                        aria-selected={a === artifact}
-                        onClick={() => setArtifactAt(BY_SEAT.indexOf(a))}
-                        onDoubleClick={next}
-                      >
-                        <ArtIcon label={a.name} tint={a.color} className="ui-artifact__icon" />
-                        <span className="ui-artifact__text">
-                          <span className="ui-artifact__name">{a.name}</span>
-                          <span className="ui-artifact__meta">
-                            {a.resource}
-                            {a.firstVersion && <span className="tag">First version</span>}
-                          </span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="ui-detail">
-              <p className="picker__desc">{artifact.description}</p>
-              {artifact.tree && (
-                <p className="ui-detail__attack">
-                  <b>Main attack: {artifact.tree.ability.name}</b>
-                  <span>{[artifact.tree.ability.castTime, artifact.tree.ability.range].filter(Boolean).join(' · ')}</span>
-                </p>
-              )}
-            </div>
-          </>
-        )}
-
-        {step === 2 && (
-          <form className="ui-name" onSubmit={submitName} noValidate>
-            <h3 className="ui-subheading">Name</h3>
+          </div>
+          <div className="ui-name__fields">
             <label className="ui-field">
-              <span className="ui-field__label">Character name</span>
+              <span className="ui-field__label">Name</span>
               <input
-                ref={focusHere}
+                ref={nameField}
                 className="ui-input ui-input--name"
                 value={name}
                 maxLength={NAME_MAX * 2}
                 autoComplete="off"
                 spellCheck={false}
-                aria-invalid={(triedName || name !== '') && problem !== null}
-                aria-describedby={`${id}-name-status ${id}-name-rules`}
+                aria-invalid={showName && problems.name !== null}
+                aria-describedby={`${id}-name-error ${id}-rules`}
                 onChange={(e) => setName(e.target.value)}
               />
+              <span id={`${id}-name-error`} className="ui-error" aria-live="polite">
+                {showName && problems.name}
+              </span>
             </label>
-            <p
-              id={`${id}-name-status`}
-              className={problem && (triedName || name !== '') ? 'ui-error' : 'ui-ok'}
-              aria-live="polite"
-            >
-              {problem && (triedName || name !== '') ? problem : problem ? ' ' : `Shows as ${shown}`}
-            </p>
-            <ul id={`${id}-name-rules`} className="ui-rules">
-              <li>
-                One word, {NAME_MIN} to {NAME_MAX} letters
-              </li>
-              <li>No numbers, spaces or symbols</li>
-              <li>No letter three times in a row</li>
-              <li>Capital first letter, the rest lower case: we fix that for you</li>
-            </ul>
-            <button type="button" className="btn" onClick={randomName}>
-              Random name
-            </button>
-          </form>
-        )}
-
-        {step === 3 && (
-          <>
-            <h3 className="ui-subheading">Ready?</h3>
-            <dl className="ui-summary">
-              <dt>Name</dt>
-              <dd>{shown}</dd>
-              <dt>Artifact</dt>
-              <dd>
-                {artifact.name} · {seatOf(artifact)} · {artifact.resource}
-              </dd>
-              {artifact.tree && (
-                <>
-                  <dt>Main attack</dt>
-                  <dd>{artifact.tree.ability.name}</dd>
-                </>
-              )}
-              <dt>Appearance</dt>
-              <dd>{describeAppearance(appearance)}</dd>
-              <dt>Starts</dt>
-              <dd>Level 1, in {STARTING_ZONE}</dd>
-              <dt>Saved</dt>
-              <dd>{where}</dd>
-            </dl>
-          </>
-        )}
+            <label className="ui-field">
+              <span className="ui-field__label">Surname</span>
+              <input
+                ref={surnameField}
+                className="ui-input ui-input--name"
+                value={surname}
+                maxLength={NAME_MAX * 2}
+                autoComplete="off"
+                spellCheck={false}
+                aria-invalid={showSurname && problems.surname !== null}
+                aria-describedby={`${id}-surname-error ${id}-rules`}
+                onChange={(e) => setSurname(e.target.value)}
+              />
+              <span id={`${id}-surname-error`} className="ui-error" aria-live="polite">
+                {showSurname && problems.surname}
+              </span>
+            </label>
+          </div>
+          <p id={`${id}-rules`} className={problems.full ? 'ui-error' : 'ui-note'} aria-live="polite">
+            {problems.full ?? `Each one word of ${NAME_MIN} to ${NAME_MAX} letters. The whole name must be free.`}
+          </p>
+          <button type="submit" className="btn btn--lg btn--primary ui-create__go">
+            Create character
+          </button>
+        </form>
       </div>
-
-      <footer className="ui-footer ui-create__foot">
-        <button type="button" className="btn btn--lg" onClick={back}>
-          {step === 0 ? 'Cancel' : 'Back'}
-        </button>
-        <button
-          ref={step === 3 ? focusHere : undefined}
-          type="button"
-          className="btn btn--lg btn--primary"
-          disabled={step === 2 && triedName && problem !== null}
-          onClick={next}
-        >
-          {step === STEPS.length - 1 ? 'Create character' : `Next: ${STEPS[step + 1]}`}
-        </button>
-        <KeyHints
-          hints={
-            step === 0
-              ? [
-                  ['↑ ↓', 'Row'],
-                  ['← →', 'Change'],
-                  ['Enter', 'Next'],
-                  ['Esc', 'Cancel'],
-                ]
-              : step === 1
-                ? [
-                    ['Arrows', 'Choose'],
-                    ['Enter', 'Next'],
-                    ['Esc', 'Back'],
-                  ]
-                : [
-                    ['Enter', step === 3 ? 'Create' : 'Next'],
-                    ['Esc', 'Back'],
-                  ]
-          }
-        />
-      </footer>
     </section>
   )
 }

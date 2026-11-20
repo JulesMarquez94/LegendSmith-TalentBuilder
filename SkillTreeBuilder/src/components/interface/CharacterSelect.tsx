@@ -1,11 +1,11 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
-import { seatOf } from '../labels.ts'
 import { CampScene } from './CampScene.tsx'
 import { CharacterFigure, EmptySeat } from './CharacterFigure.tsx'
 import { DeleteDialog } from './DeleteDialog.tsx'
 import type { Mode } from './flow.ts'
 import { KeyHints } from './KeyHints.tsx'
-import { artifactOf, characters, seatForNew, selectedCharacter, SLOT_COUNT, type Roster } from './roster.ts'
+import { raceOf } from './origins.ts'
+import { artifactOf, characters, kitLabel, nameOf, seatForNew, selectedCharacter, SLOT_COUNT, type Roster } from './roster.ts'
 import { useNavKeys } from './useNavKeys.ts'
 
 interface Props {
@@ -78,8 +78,6 @@ export function CharacterSelect(props: Props) {
     back: onBack,
   })
 
-  const artifact = current ? artifactOf(current) : null
-
   return (
     <section className="ui-screen camp" aria-label="Character selection">
       <div className="camp__world">
@@ -95,7 +93,6 @@ export function CharacterSelect(props: Props) {
           {roster.slots.map((c, i) => {
             const chosen = i === roster.selected
             const seat = SEATS[i]
-            const a = c ? artifactOf(c) : null
             return (
               <div
                 key={c?.id ?? `empty-${i}`}
@@ -104,14 +101,14 @@ export function CharacterSelect(props: Props) {
                 style={{ '--x': `${seat.x}%`, '--y': `${seat.y}%`, '--scale': seat.scale } as CSSProperties}
                 role="option"
                 aria-selected={chosen}
-                aria-label={c && a ? `${c.name}, level ${c.level} ${seatOf(a).toLowerCase()}` : 'Empty seat'}
+                aria-label={c ? `${nameOf(c)}, level ${c.level}, ${kitLabel(c)}` : 'Empty seat'}
                 onClick={() => onSelect(i)}
                 onDoubleClick={() => (c ? onPlay(mode) : onCreate())}
               >
-                {c && a ? (
+                {c ? (
                   <CharacterFigure
                     appearance={c.appearance}
-                    artifact={a}
+                    artifact={artifactOf(c)}
                     pose={chosen ? 'stand' : 'sit'}
                     className="camp__figure"
                   />
@@ -119,7 +116,7 @@ export function CharacterSelect(props: Props) {
                   <EmptySeat className="camp__figure" />
                 )}
                 <span className="camp__tag">
-                  <b>{c ? c.name : 'Empty seat'}</b>
+                  <b>{c ? nameOf(c) : 'Empty seat'}</b>
                   {c && <small>Level {c.level}</small>}
                 </span>
               </div>
@@ -149,11 +146,11 @@ export function CharacterSelect(props: Props) {
       </header>
 
       <div className="camp__plate" aria-live="polite">
-        {current && artifact ? (
+        {current ? (
           <>
-            <h2 className="camp__name">{current.name}</h2>
+            <h2 className="camp__name">{nameOf(current)}</h2>
             <div className="camp__line">
-              Level {current.level} · {seatOf(artifact)} · {artifact.name}
+              Level {current.level} · {raceOf(current.race).name} · {kitLabel(current)}
               {current.unchecked && (
                 <span
                   className="tag tag--wip"

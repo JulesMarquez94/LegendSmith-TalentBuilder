@@ -686,16 +686,19 @@ the way a pad will, and each screen lists its keys.
   session you log in (a pretend login: any name and password work), and on the way in the server checks
   the progress saved on the device. A character with progress the server hasn't seen yet (made or
   played offline) is tagged *Not synced* until then.
-- **Create**: appearance (placeholder body, skin and hair), a starting artifact from the builder's
-  eight, a name, then a last look. Names are one word of 2 to 12 letters, no letter three times in a
-  row, not reserved and not taken (by your characters or anyone else's), and show with a capital first
-  letter.
+- **Create**, on one page: race and starting point, appearance (placeholder body, skin and hair),
+  then at the bottom the name and surname with **Create character** under them. A new character starts
+  with **no artifact**, in plain underclothes, and finds one in the game. Race and starting point are
+  already choices with one option each (Human, Wakeyard): adding orcs or another starting point is an
+  entry in `origins.ts`. Each part of the name is one word of 2 to 12 letters, no letter three times in
+  a row and not reserved, shown with a capital first letter; the whole name must be free (not yours,
+  not anyone else's).
 - Going in shows a loading screen, then a placeholder for the world, with the game menu on Esc (log
   out back to the fire, exit to title).
 
-The characters are kept in this browser (`legendsmith.interface.v2`); nothing else is, so a reload
+The characters are kept in this browser (`legendsmith.interface.v3`); nothing else is, so a reload
 starts at the title like the game. Everything lives in `src/components/interface/`: the screens, the
-rules with their tests (`names.ts`, `roster.ts`, `keys.ts`, `flow.ts`, `appearance.ts`) and the fake
+rules with their tests (`names.ts`, `roster.ts`, `origins.ts`, `keys.ts`, `flow.ts`, `appearance.ts`) and the fake
 data (`fake.ts`). The figures are placeholders drawn from the appearance and the artifact, standing or
 sitting on a log, and the campfire scene is `CampScene.tsx`.
 

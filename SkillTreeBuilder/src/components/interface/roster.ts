@@ -5,17 +5,27 @@
 import { MAX_LEVEL } from '../../talents/levels.ts'
 import type { ArtifactDef } from '../../talents/types.ts'
 import { ARTIFACTS } from '../../trees/index.ts'
+import { seatOf } from '../labels.ts'
 import { cleanAppearance, type Appearance } from './appearance.ts'
-import { SAMPLE_SLOTS, STARTING_ZONE } from './fake.ts'
+import { SAMPLE_SLOTS } from './fake.ts'
 import { wrap } from './keys.ts'
-import { formatName, NAME_MAX } from './names.ts'
+import { formatName, fullName, NAME_MAX } from './names.ts'
+import { raceOf, RACES, startOf, STARTING_POINTS } from './origins.ts'
 
 export interface Character {
   id: string
   name: string
+  surname: string
+  /** A race id from `RACES`. */
+  race: string
+  /** The starting point it began at, an id from `STARTING_POINTS`. */
+  origin: string
   level: number
-  /** The artifact it holds, an id from `ARTIFACTS`: it sets the role and the abilities. */
-  artifact: string
+  /**
+   * The artifact it holds, an id from `ARTIFACTS`: it sets the role and the abilities. A new
+   * character starts with none, in plain underclothes, and finds one in the game.
+   */
+  artifact: string | null
   /** Where it logged out. */
   zone: string
   appearance: Appearance
@@ -58,6 +68,9 @@ export const sampleRoster = (): Roster => ({
 
 export const characters = (roster: Roster): Character[] => roster.slots.filter((c): c is Character => c !== null)
 
+/** "Seren Ashdown". */
+export const nameOf = (c: Pick<Character, 'name' | 'surname'>) => fullName(c.name, c.surname)
+
 /** The character in the selected seat, or null when it's empty. */
 export const selectedCharacter = (roster: Roster): Character | null => roster.slots[roster.selected] ?? null
 
@@ -68,18 +81,30 @@ export const seatForNew = (roster: Roster): number =>
 /** How many characters have offline progress the server hasn't checked yet. */
 export const uncheckedCount = (roster: Roster) => characters(roster).filter((c) => c.unchecked).length
 
+export interface NewCharacter {
+  name: string
+  surname: string
+  race: string
+  origin: string
+  appearance: Appearance
+}
+
 /**
- * A brand new level 1 character in the starting zone. It's made on this device, before you choose to
- * play offline or online, so the server first sees (and checks) it the first time you play online.
+ * A brand new level 1 character at its starting point, with no artifact. It's made on this device,
+ * before you choose to play offline or online, so the server first sees (and checks) it the first
+ * time you play online.
  */
-export function newCharacter(input: { name: string; artifact: string; appearance: Appearance }): Character {
+export function newCharacter(input: NewCharacter): Character {
   const id = `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
   return {
     id,
     name: formatName(input.name),
+    surname: formatName(input.surname),
+    race: raceOf(input.race).id,
+    origin: startOf(input.origin).id,
     level: 1,
-    artifact: input.artifact,
-    zone: STARTING_ZONE,
+    artifact: null,
+    zone: startOf(input.origin).zone,
     appearance: { ...input.appearance },
     unchecked: true,
   }
@@ -96,9 +121,9 @@ export function rosterReducer(roster: Roster, action: RosterAction): Roster {
   switch (action.type) {
     case 'create': {
       const { character, slot } = action
-      const key = character.name.toLocaleLowerCase()
+      const key = nameOf(character).toLocaleLowerCase()
       if (!inRange(slot) || roster.slots[slot] !== null) return roster
-      if (characters(roster).some((c) => c.name.toLocaleLowerCase() === key)) return roster
+      if (characters(roster).some((c) => nameOf(c).toLocaleLowerCase() === key)) return roster
       return { ...withSlot(roster, slot, character), selected: slot }
     }
     case 'delete':
@@ -128,9 +153,18 @@ export function rosterReducer(roster: Roster, action: RosterAction): Roster {
   }
 }
 
-/** The artifact a character holds (the first one if its artifact was removed since). */
-export const artifactOf = (character: Pick<Character, 'artifact'>): ArtifactDef =>
-  ARTIFACTS.find((a) => a.id === character.artifact) ?? ARTIFACTS[0]
+/** The artifact a character holds, or null while it has none. */
+export const artifactOf = (character: Pick<Character, 'artifact'>): ArtifactDef | null =>
+  ARTIFACTS.find((a) => a.id === character.artifact) ?? null
+
+/** "Healer · Lifewarden Staff", or "No artifact yet" for a character that hasn't found one. */
+export function kitLabel(character: Pick<Character, 'artifact'>): string {
+  const artifact = artifactOf(character)
+  return artifact ? `${seatOf(artifact)} · ${artifact.name}` : 'No artifact yet'
+}
+
+/** The colour screens tint with: the artifact's, or a plain warm one without. */
+export const colorOf = (character: Pick<Character, 'artifact'>): string => artifactOf(character)?.color ?? '#b9a27a'
 
 const ARTIFACT_IDS = new Set(ARTIFACTS.map((a) => a.id))
 
@@ -138,15 +172,20 @@ function cleanCharacter(stored: unknown): Character | null {
   if (!stored || typeof stored !== 'object') return null
   const c = stored as Partial<Record<keyof Character, unknown>>
   if (typeof c.id !== 'string' || c.id === '') return null
-  if (typeof c.name !== 'string' || !/^\p{L}+$/u.test(c.name) || [...c.name].length > NAME_MAX) return null
-  if (typeof c.artifact !== 'string' || !ARTIFACT_IDS.has(c.artifact)) return null
+  const word = (v: unknown): v is string => typeof v === 'string' && /^\p{L}+$/u.test(v) && [...v].length <= NAME_MAX
+  if (!word(c.name)) return null
   const level = typeof c.level === 'number' && Number.isInteger(c.level) ? Math.min(MAX_LEVEL, Math.max(1, c.level)) : 1
-  const zone = typeof c.zone === 'string' && c.zone.trim() !== '' ? c.zone.slice(0, 40) : STARTING_ZONE
+  const origin = typeof c.origin === 'string' && STARTING_POINTS.some((s) => s.id === c.origin) ? c.origin : STARTING_POINTS[0].id
+  const zone = typeof c.zone === 'string' && c.zone.trim() !== '' ? c.zone.slice(0, 40) : startOf(origin).zone
   return {
     id: c.id,
     name: c.name,
+    surname: word(c.surname) ? c.surname : '',
+    race: typeof c.race === 'string' && RACES.some((r) => r.id === c.race) ? c.race : RACES[0].id,
+    origin,
     level,
-    artifact: c.artifact,
+    // An artifact removed since it was saved is gone: the character holds none.
+    artifact: typeof c.artifact === 'string' && ARTIFACT_IDS.has(c.artifact) ? c.artifact : null,
     zone,
     appearance: cleanAppearance(c.appearance),
     ...(c.unchecked === true ? { unchecked: true } : {}),
@@ -155,7 +194,7 @@ function cleanCharacter(stored: unknown): Character | null {
 
 /**
  * A roster from what this browser stored: the samples on a first visit (nothing stored) or when it
- * can't be read, and otherwise every stored character that still makes sense (a removed artifact
+ * can't be read, and otherwise every stored character that still makes sense (one with a bad name
  * empties its seat). Empty seats stay empty: you deleted those characters.
  */
 export function readRoster(stored: string | null): Roster {
@@ -171,15 +210,16 @@ export function readRoster(stored: string | null): Roster {
   const slots: Slot[] = []
   for (let i = 0; i < SLOT_COUNT; i++) {
     const c = cleanCharacter(raw.slots[i])
-    const key = c?.name.toLocaleLowerCase()
-    const clash = c !== null && slots.some((o) => o !== null && (o.id === c.id || o.name.toLocaleLowerCase() === key))
+    const key = c && nameOf(c).toLocaleLowerCase()
+    const clash = c !== null && slots.some((o) => o !== null && (o.id === c.id || nameOf(o).toLocaleLowerCase() === key))
     slots.push(clash ? null : c)
   }
   const selected = typeof raw.selected === 'number' && inRange(raw.selected) ? raw.selected : 0
   return { slots, selected }
 }
 
-const KEY = 'legendsmith.interface.v2'
+// v3: two-part names, races and starting points; characters saved before start over from the samples.
+const KEY = 'legendsmith.interface.v3'
 
 export function loadRoster(): Roster {
   try {

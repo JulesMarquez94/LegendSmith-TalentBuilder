@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useState } from 'react'
-import { CharacterCreate, type NewCharacter } from './CharacterCreate.tsx'
+import { CharacterCreate } from './CharacterCreate.tsx'
 import { CharacterSelect } from './CharacterSelect.tsx'
 import { TAKEN_NAMES } from './fake.ts'
 import { backFrom, FLOW, SCREEN_LABEL, type Mode, type Screen } from './flow.ts'
@@ -9,6 +9,8 @@ import {
   characters,
   loadRoster,
   newCharacter,
+  nameOf,
+  type NewCharacter,
   rosterReducer,
   sampleRoster,
   saveRoster,
@@ -94,7 +96,7 @@ export function InterfaceView({ active }: Props) {
   // The loading screen and the world need a character: without one, you're back at the fire.
   const shown: Screen = (screen === 'loading' || screen === 'world') && !current ? 'select' : screen
   // Names are one per player across the game, so the made-up ones other players have are taken too.
-  const taken = { yours: characters(roster).map((c) => c.name), others: TAKEN_NAMES }
+  const taken = { yours: characters(roster).map(nameOf), others: TAKEN_NAMES }
 
   return (
     <div className="ui">

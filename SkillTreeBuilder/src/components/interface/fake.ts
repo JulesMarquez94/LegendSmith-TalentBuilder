@@ -2,14 +2,17 @@
 
 import type { Character } from './roster.ts'
 
-/** Where every new character starts. */
-export const STARTING_ZONE = 'Ashvale'
-
-/** Characters to start the prototype with, by seat around the fire: the third seat is left empty. */
+/**
+ * Characters to start the prototype with, by seat around the fire: the third seat is left empty.
+ * They've played a while, so they hold artifacts; a new character starts with none.
+ */
 export const SAMPLE_SLOTS: readonly (Character | null)[] = [
   {
     id: 'sample-seren',
     name: 'Seren',
+    surname: 'Ashdown',
+    race: 'human',
+    origin: 'wakeyard',
     level: 60,
     artifact: 'lifewarden-staff',
     zone: 'The Sunken Archive',
@@ -18,6 +21,9 @@ export const SAMPLE_SLOTS: readonly (Character | null)[] = [
   {
     id: 'sample-korrin',
     name: 'Korrin',
+    surname: 'Blackwood',
+    race: 'human',
+    origin: 'wakeyard',
     level: 34,
     artifact: 'tome-of-summoning',
     zone: 'Thornwood Marches',
@@ -28,6 +34,9 @@ export const SAMPLE_SLOTS: readonly (Character | null)[] = [
   {
     id: 'sample-bram',
     name: 'Bram',
+    surname: 'Holloway',
+    race: 'human',
+    origin: 'wakeyard',
     level: 12,
     artifact: 'sword-and-shield',
     zone: 'Greyhollow',
@@ -35,8 +44,15 @@ export const SAMPLE_SLOTS: readonly (Character | null)[] = [
   },
 ]
 
-/** Names other players already have, so the online name check has something to say no to. */
-export const TAKEN_NAMES: readonly string[] = ['Aldric', 'Brynn', 'Kestrel', 'Mireth', 'Tamsin', 'Wren']
+/** Full names other players already have, so the name check has something to say no to. */
+export const TAKEN_NAMES: readonly string[] = [
+  'Aldric Thorne',
+  'Brynn Marsh',
+  'Kestrel Greyhill',
+  'Mireth Redfern',
+  'Tamsin Coldbrook',
+  'Wren Fairweather',
+]
 
 /** Names for the "Random name" button. */
 export const NAME_IDEAS: readonly string[] = [
@@ -56,6 +72,22 @@ export const NAME_IDEAS: readonly string[] = [
   'Sable',
   'Theron',
   'Yara',
+]
+
+/** Surnames for the "Random name" button. */
+export const SURNAME_IDEAS: readonly string[] = [
+  'Ashford',
+  'Brightwater',
+  'Coldwell',
+  'Dunmore',
+  'Fairholt',
+  'Greaves',
+  'Harrow',
+  'Kettleby',
+  'Mossgrove',
+  'Pennick',
+  'Ravensby',
+  'Stonebridge',
 ]
 
 /** Loading screen tips, from the builder's own rules. */

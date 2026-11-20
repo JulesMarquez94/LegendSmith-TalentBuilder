@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ArtIcon } from '../ArtIcon.tsx'
-import { seatOf } from '../labels.ts'
 import type { Mode } from './flow.ts'
 import { wrap } from './keys.ts'
 import { KeyHints } from './KeyHints.tsx'
-import { artifactOf, type Character } from './roster.ts'
+import { colorOf, kitLabel, nameOf, type Character } from './roster.ts'
 import { useNavKeys } from './useNavKeys.ts'
 
 interface Props {
@@ -24,7 +23,7 @@ export function WorldScreen({ active, character, mode, onLogout, onExit }: Props
   const [cursor, setCursor] = useState(0)
   const items = useRef<(HTMLButtonElement | null)[]>([])
   const open = useRef<HTMLButtonElement>(null)
-  const artifact = artifactOf(character)
+  const tint = colorOf(character)
 
   const entries: readonly { label: string; act?: () => void }[] = [
     { label: 'Return to game', act: () => setMenu(false) },
@@ -53,13 +52,13 @@ export function WorldScreen({ active, character, mode, onLogout, onExit }: Props
   })
 
   return (
-    <section className="ui-screen ui-world" aria-label="In the world" style={{ '--tint': artifact.color } as CSSProperties}>
+    <section className="ui-screen ui-world" aria-label="In the world" style={{ '--tint': tint } as CSSProperties}>
       <div className="ui-world__who">
-        <ArtIcon label={artifact.name} tint={artifact.color} className="ui-world__icon" />
+        <ArtIcon label={nameOf(character)} tint={tint} className="ui-world__icon" />
         <span className="ui-world__text">
-          <b>{character.name}</b>
+          <b>{nameOf(character)}</b>
           <small>
-            Level {character.level} · {seatOf(artifact)}
+            Level {character.level} · {kitLabel(character)}
           </small>
         </span>
       </div>

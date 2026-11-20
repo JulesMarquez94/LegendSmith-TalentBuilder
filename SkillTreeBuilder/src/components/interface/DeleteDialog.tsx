@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
-import { seatOf } from '../labels.ts'
-import { artifactOf, type Character } from './roster.ts'
+import { raceOf } from './origins.ts'
+import { kitLabel, nameOf, type Character } from './roster.ts'
 
 interface Props {
   character: Character
@@ -13,7 +13,7 @@ export function DeleteDialog({ character, onDelete, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const cancel = useRef<HTMLButtonElement>(null)
   const titleId = useId()
-  const artifact = artifactOf(character)
+  const name = nameOf(character)
 
   useEffect(() => {
     const dialog = ref.current
@@ -43,10 +43,10 @@ export function DeleteDialog({ character, onDelete, onClose }: Props) {
     >
       <div className="picker__body">
         <h2 id={titleId} className="picker__title">
-          Delete {character.name}?
+          Delete {name}?
         </h2>
         <p className="picker__sub">
-          Level {character.level} {seatOf(artifact).toLowerCase()} with the {artifact.name}. Deleting can't be undone.
+          Level {character.level} {raceOf(character.race).name.toLowerCase()} · {kitLabel(character)}. Deleting can't be undone.
         </p>
         <div className="picker__footer ui-confirm__actions">
           <button ref={cancel} type="button" className="btn btn--lg" onClick={finish}>
@@ -60,7 +60,7 @@ export function DeleteDialog({ character, onDelete, onClose }: Props) {
               finish()
             }}
           >
-            Delete {character.name}
+            Delete {name}
           </button>
         </div>
       </div>

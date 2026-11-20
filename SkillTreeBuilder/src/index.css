@@ -2822,26 +2822,17 @@ select {
   border-color: var(--red);
 }
 
-/* Lists that take the keyboard (realms, characters, artifacts): arrows move the gold highlight. */
-.ui-list {
-  display: grid;
-  gap: 6px;
-  border-radius: 6px;
-}
-
-.ui-list:focus,
+/* Rows of choices that take the keyboard: the arrows move the gold highlight. */
 .ui-looks:focus {
   outline: none;
 }
 
-/* The gold highlight shows where the arrows are; a faint ring shows the list has the keyboard. */
-.ui-list:focus-visible,
+/* The gold highlight shows where the arrows are; a faint ring shows the rows have the keyboard. */
 .ui-looks:focus-visible {
   outline: 1px solid rgba(255, 255, 255, 0.3);
   outline-offset: 4px;
 }
 
-.ui-artifact,
 .ui-look {
   padding: 10px;
   background: rgba(255, 255, 255, 0.03);
@@ -2854,13 +2845,11 @@ select {
     border-color 120ms;
 }
 
-.ui-artifact:hover,
 .ui-look:hover {
   background: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.55);
 }
 
-.ui-artifact[aria-selected='true'],
 .ui-look[aria-current='true'] {
   background: rgba(231, 183, 37, 0.09);
   border-color: var(--gold);
@@ -2997,21 +2986,16 @@ select {
 }
 
 .ui-input--name {
-  padding: 10px 12px;
+  padding: 9px 12px;
   font-weight: 900;
-  font-size: 22px;
+  font-size: 18px;
 }
 
-.ui-error,
-.ui-ok {
+.ui-error {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.45;
   color: #ffb4a8;
-}
-
-.ui-ok {
-  color: var(--heal);
 }
 
 .ui-connecting {
@@ -3373,12 +3357,11 @@ select {
 
 .ui-create {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 16px 28px;
 }
 
-.ui-create__head,
-.ui-create__foot {
+.ui-create__head {
   grid-column: 1 / -1;
 }
 
@@ -3448,90 +3431,24 @@ select {
 /* ---------- Character creation ---------- */
 
 .ui-create {
-  grid-template-columns: minmax(0, 1fr) minmax(380px, 520px);
+  grid-template-columns: minmax(0, 1fr) minmax(440px, 600px);
 }
 
+/* Back, the title, then the keys on the right. */
 .ui-create__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px 24px;
+  gap: 10px 16px;
 }
 
 .ui-create__figure {
   height: min(27cqw, 380px);
 }
 
-.ui-steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ui-steps__step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 12px 4px 5px;
-  font-size: 13px;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.ui-steps__step:hover:not(:disabled) {
-  color: var(--text);
-  border-color: rgba(255, 255, 255, 0.55);
-}
-
-.ui-steps__step:disabled {
-  cursor: default;
-}
-
-.ui-steps__step:disabled:not([aria-current]) {
-  opacity: 0.45;
-}
-
-.ui-steps__step[data-done] {
-  color: var(--text);
-}
-
-.ui-steps__step[aria-current='step'] {
-  color: #111;
-  background: var(--gold);
-  border-color: var(--gold);
-  font-weight: 900;
-}
-
-.ui-steps__num {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  font-size: 11px;
-  font-weight: 900;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-}
-
-.ui-steps__step[aria-current='step'] .ui-steps__num {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.ui-steps__step[data-done] .ui-steps__num {
-  color: #111;
-  background: var(--heal);
-}
-
 .ui-looks {
   display: grid;
-  gap: 6px;
+  gap: 14px;
   border-radius: 6px;
 }
 
@@ -3540,7 +3457,7 @@ select {
   grid-template-columns: 92px 30px minmax(0, 1fr) 30px;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 6px 10px;
 }
 
 .ui-look__label {
@@ -3595,129 +3512,49 @@ select {
   outline-offset: 2px;
 }
 
-.ui-randomize {
-  align-self: flex-start;
+/* The panel's sections: race, appearance, starting point, then the name and Create at the bottom. */
+.ui-create__panel {
+  gap: 12px;
 }
 
-.ui-artifacts {
-  gap: 8px;
+.ui-create__section {
+  display: grid;
+  gap: 6px;
 }
 
-.ui-artifacts .picker__group-title {
-  margin-bottom: 5px;
+.ui-create__section .picker__group-title {
+  margin: 0 0 2px;
 }
 
-.ui-artifacts__pair {
+.ui-create__section-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.ui-create__section-head .picker__group-title {
+  flex: 1;
+}
+
+.ui-create__later {
+  font-size: 12px;
+}
+
+.ui-name__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 12px;
 }
 
-.ui-artifact {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 8px;
+/* Room for a field's message, so the form doesn't jump when one appears. */
+.ui-name .ui-error {
+  min-height: 1.45em;
 }
 
-.ui-artifact__icon {
-  flex: none;
-  width: 34px;
-  height: 34px;
-  border-radius: 4px;
-  box-shadow: 0 0 0 1px #000;
-}
-
-.ui-artifact__text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-width: 0;
-}
-
-.ui-artifact__name {
-  font-weight: 900;
-  font-size: 13.5px;
-}
-
-.ui-artifact__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 6px;
-  font-size: 11.5px;
-  color: var(--muted);
-}
-
-.ui-artifact .tag {
-  padding: 1px 6px;
-  font-size: 9px;
-}
-
-.ui-detail {
-  display: grid;
-  gap: 6px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 6px;
-}
-
-.ui-detail .picker__desc {
-  margin: 0;
-}
-
-.ui-detail__attack {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 10px;
-  margin: 0;
-  font-size: 12.5px;
-}
-
-.ui-detail__attack span {
-  color: var(--muted);
-}
-
-.ui-name {
-  display: grid;
-  gap: 10px;
-}
-
-.ui-name > .btn {
-  justify-self: start;
-}
-
-.ui-rules {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding-left: 18px;
-  font-size: 12.5px;
-  color: var(--muted);
-}
-
-.ui-summary {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 10px 18px;
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.4;
-}
-
-.ui-summary dt {
-  color: var(--muted);
-}
-
-.ui-summary dd {
-  margin: 0;
-}
-
-.ui-summary dd:first-of-type {
-  font-weight: 900;
-  font-size: 18px;
-  line-height: 1.2;
+.ui-create__go {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 15px;
 }
 
 /* ---------- Loading and the world ---------- */
@@ -3903,7 +3740,7 @@ select {
 }
 
 @media (max-width: 600px) {
-  .ui-artifacts__pair {
+  .ui-name__fields {
     grid-template-columns: minmax(0, 1fr);
   }
 }

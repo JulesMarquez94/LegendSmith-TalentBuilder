@@ -4,11 +4,16 @@ import { optionOf, type Appearance } from './appearance.ts'
 
 interface Props {
   appearance: Appearance
-  artifact: ArtifactDef
+  /** What it holds, or null for a new character: no artifact, just plain underclothes. */
+  artifact: ArtifactDef | null
   /** Standing, or sitting on a log (around the campfire). Either way the feet are on the same ground. */
   pose?: 'stand' | 'sit'
   className?: string
 }
+
+/** Plain linen underclothes, for a character with nothing yet, and the glow around one. */
+const LINEN = '#d6c9ad'
+const PLAIN = '#b9a27a'
 
 /** Where the feet touch the ground, in the figure's units. */
 const GROUND = 306
@@ -98,8 +103,13 @@ export function CharacterFigure({ appearance, artifact, pose = 'stand', classNam
   const hairColor = optionOf(appearance, 'hairColor').color ?? '#4b3221'
   const hair = optionOf(appearance, 'hair').label
   const broad = appearance.body === 0
-  const tunic = shade(artifact.color, 0.45)
-  const sleeve = shade(artifact.color, 0.58)
+  // With an artifact, clothes in its colour; without one, bare arms and legs and linen underclothes.
+  const color = artifact?.color ?? PLAIN
+  const tunic = artifact ? shade(color, 0.45) : LINEN
+  const sleeve = artifact ? shade(color, 0.58) : skin
+  const legs = artifact ? '#2a2a30' : skin
+  const shins = artifact ? '#242429' : skin
+  const feet = artifact ? '#18181c' : shade(skin, 0.15)
   // Shoulders and waist, left and right.
   const [s1, s2] = broad ? [60, 140] : [68, 132]
   const [w1, w2] = broad ? [70, 130] : [78, 122]
@@ -113,12 +123,12 @@ export function CharacterFigure({ appearance, artifact, pose = 'stand', classNam
       className={`figure ${className}`}
       viewBox="0 0 200 330"
       role="img"
-      aria-label={`${sitting ? 'Sitting' : 'Standing'}, ${hair.toLowerCase()} hair, holding the ${artifact.name}`}
+      aria-label={`${sitting ? 'Sitting' : 'Standing'}, ${hair.toLowerCase()} hair, ${artifact ? `holding the ${artifact.name}` : 'in plain underclothes, with no artifact'}`}
     >
       <defs>
         <radialGradient id={`${id}-aura`}>
-          <stop offset="0%" stopColor={artifact.color} stopOpacity={0.45} />
-          <stop offset="100%" stopColor={artifact.color} stopOpacity={0} />
+          <stop offset="0%" stopColor={color} stopOpacity={artifact ? 0.45 : 0.25} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
         </radialGradient>
       </defs>
       <ellipse cx={100} cy={180} rx={100} ry={150} fill={`url(#${id}-aura)`} />
@@ -128,19 +138,21 @@ export function CharacterFigure({ appearance, artifact, pose = 'stand', classNam
         <>
           <Log />
           {/* Knees toward us, then the shins down to the ground */}
-          <rect x={w1 + 3} y={244} width={28} height={34} rx={13} fill="#2a2a30" />
-          <rect x={w2 - 31} y={244} width={28} height={34} rx={13} fill="#2a2a30" />
-          <rect x={w1 + 7} y={266} width={20} height={34} rx={8} fill="#242429" />
-          <rect x={w2 - 27} y={266} width={20} height={34} rx={8} fill="#242429" />
+          <rect x={w1 + 3} y={244} width={28} height={34} rx={13} fill={legs} />
+          <rect x={w2 - 31} y={244} width={28} height={34} rx={13} fill={legs} />
+          <rect x={w1 + 7} y={266} width={20} height={34} rx={8} fill={shins} />
+          <rect x={w2 - 27} y={266} width={20} height={34} rx={8} fill={shins} />
+          {!artifact && <rect x={w1 + 1} y={240} width={w2 - w1 - 2} height={24} rx={10} fill={LINEN} />}
         </>
       ) : (
         <>
-          <rect x={w1 + 6} y={204} width={22} height={100} rx={8} fill="#2a2a30" />
-          <rect x={w2 - 28} y={204} width={22} height={100} rx={8} fill="#2a2a30" />
+          <rect x={w1 + 6} y={204} width={22} height={100} rx={8} fill={legs} />
+          <rect x={w2 - 28} y={204} width={22} height={100} rx={8} fill={legs} />
+          {!artifact && <rect x={w1 + 3} y={198} width={w2 - w1 - 6} height={46} rx={7} fill={LINEN} />}
         </>
       )}
-      <rect x={w1 + 2} y={290} width={28} height={16} rx={6} fill="#18181c" />
-      <rect x={w2 - 30} y={290} width={28} height={16} rx={6} fill="#18181c" />
+      <rect x={w1 + 2} y={290} width={28} height={16} rx={artifact ? 6 : 8} fill={feet} />
+      <rect x={w2 - 30} y={290} width={28} height={16} rx={artifact ? 6 : 8} fill={feet} />
 
       <g transform={drop ? `translate(0 ${drop})` : undefined}>
         {/* Long hair falls behind the shoulders. */}
@@ -155,9 +167,19 @@ export function CharacterFigure({ appearance, artifact, pose = 'stand', classNam
           d={`M${s1},118 Q${s1},104 ${s1 + 16},102 L${s2 - 16},102 Q${s2},104 ${s2},118 L${w2},212 L${w1},212 Z`}
           fill={tunic}
         />
-        <path d={`M${100 - 10},102 L100,124 L${100 + 10},102`} fill="none" stroke={artifact.color} strokeWidth={3} />
-        <rect x={w1} y={196} width={w2 - w1} height={9} fill="#3a2a1c" />
-        <rect x={96} y={195} width={8} height={11} rx={1} fill={artifact.color} />
+        {artifact ? (
+          <>
+            <path d={`M${100 - 10},102 L100,124 L${100 + 10},102`} fill="none" stroke={color} strokeWidth={3} />
+            <rect x={w1} y={196} width={w2 - w1} height={9} fill="#3a2a1c" />
+            <rect x={96} y={195} width={8} height={11} rx={1} fill={color} />
+          </>
+        ) : (
+          // A plain neckline and a cord at the waist.
+          <>
+            <path d="M88,102 Q100,114 112,102" fill="none" stroke="rgba(0,0,0,0.25)" strokeWidth={2} />
+            <rect x={w1} y={198} width={w2 - w1} height={4} fill="#8a7a5c" />
+          </>
+        )}
 
         {/* Neck, head and hair */}
         <rect x={92} y={84} width={16} height={22} rx={4} fill={skin} />
@@ -172,9 +194,9 @@ export function CharacterFigure({ appearance, artifact, pose = 'stand', classNam
       </g>
 
       {/* Hands, and the weapon in the right one */}
-      <Weapon artifact={artifact} hand={right} />
-      {artifact.traits.includes('dagger') && <Weapon artifact={artifact} hand={left} />}
-      {artifact.traits.includes('shield') && (
+      {artifact && <Weapon artifact={artifact} hand={right} />}
+      {artifact?.traits.includes('dagger') && <Weapon artifact={artifact} hand={left} />}
+      {artifact?.traits.includes('shield') && (
         <path
           d={`M${left.x - 26},${left.y - 44} L${left.x + 20},${left.y - 44} L${left.x + 20},${left.y + 6} Q${left.x - 3},${left.y + 40} ${left.x - 26},${left.y + 6} Z`}
           fill={shade(artifact.color, 0.2)}
