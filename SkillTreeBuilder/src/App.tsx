@@ -36,6 +36,9 @@ const TREE_BY_ID = new Map(TREES.map((tree) => [tree.id, tree]))
 /** The builder, the test arena, and a prototype of the game's own screens. */
 type View = 'build' | 'arena' | 'interface'
 
+/** The overview opens the second row: it sits just before this slot (mobility), after the four tall trees. */
+const OVERVIEW_BEFORE = 4
+
 /** The build view's two tabs: the artifact's abilities, and the character's own tree. */
 type SkillTab = 'artifact' | 'character'
 
@@ -199,22 +202,13 @@ export default function App() {
 
             {skillTab === 'artifact' ? (
               <>
-                {/* 4 across, 2 down: the overview, then the artifact and its six abilities. */}
+                {/* 4 across, 2 down. First row: the artifact and the three abilities with the tall trees.
+                    Second row: the overview, then mobility, ultimate and group buff, whose trees are short. */}
                 <div className="slots">
-                  <SlotOverview
-                    kinds={kinds}
-                    trees={trees}
-                    artifact={artifact}
-                    level={loadout.level}
-                    points={trees.map((tree) =>
-                      tree ? `${pointsSpent(tree, ranksIn(loadout, tree))}/${capFor(tree, rules)}` : null,
-                    )}
-                    onChoose={setPicking}
-                  />
                   {kinds.map((kind, index) => {
                     if (kind === 'character') return null
                     const tree = trees[index] ?? undefined
-                    return (
+                    const card = (
                       <SlotCard
                         key={index}
                         index={index}
@@ -234,6 +228,21 @@ export default function App() {
                         onTakeSide={build.takeSide}
                       />
                     )
+                    if (index !== OVERVIEW_BEFORE) return card
+                    return [
+                      <SlotOverview
+                        key="overview"
+                        kinds={kinds}
+                        trees={trees}
+                        artifact={artifact}
+                        level={loadout.level}
+                        points={trees.map((tree) =>
+                          tree ? `${pointsSpent(tree, ranksIn(loadout, tree))}/${capFor(tree, rules)}` : null,
+                        )}
+                        onChoose={setPicking}
+                      />,
+                      card,
+                    ]
                   })}
                 </div>
                 <AbilityNumbers kinds={kinds} trees={trees} live={kit.slots} base={bare.slots} />
