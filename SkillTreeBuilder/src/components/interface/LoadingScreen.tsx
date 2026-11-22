@@ -1,8 +1,7 @@
 import { useState, type CSSProperties } from 'react'
-import { seatOf } from '../labels.ts'
 import { TIPS } from './fake.ts'
 import type { Mode } from './flow.ts'
-import { artifactOf, type Character } from './roster.ts'
+import { colorOf, kitLabel, nameOf, type Character } from './roster.ts'
 
 interface Props {
   character: Character
@@ -15,14 +14,13 @@ interface Props {
 /** The loading screen on the way into the world: the zone, a tip, and a bar that fills (a CSS animation). */
 export function LoadingScreen({ character, mode, notice, onDone }: Props) {
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)])
-  const artifact = artifactOf(character)
 
   return (
     <section
       className="ui-screen ui-loading"
       aria-label="Loading"
       aria-busy="true"
-      style={{ '--tint': artifact.color } as CSSProperties}
+      style={{ '--tint': colorOf(character) } as CSSProperties}
     >
       <div className="ui-loading__zone">
         <span className="ui-loading__kicker">
@@ -30,7 +28,7 @@ export function LoadingScreen({ character, mode, notice, onDone }: Props) {
         </span>
         <h2 className="ui-loading__name">{character.zone}</h2>
         <span className="ui-note">
-          {character.name} · Level {character.level} {seatOf(artifact).toLowerCase()}
+          {nameOf(character)} · Level {character.level} · {kitLabel(character)}
         </span>
         {notice && (
           <span className="ui-notice ui-notice--center" role="status">
