@@ -44,7 +44,9 @@ export function CompendiumView({ active }: { active: boolean }) {
           <p className="compendium__intro">
             Every general boss and enemy mechanic built in the game so far, recorded in the Unity project’s arena test level. In the
             game, press the altar in the arena and pick <strong>Ability test</strong>: a trainer casts the chosen mechanic over and
-            over. Mechanics made for more players bring stand-in allies when you are alone.
+            over, gathering the spell in its hands while the area fills and letting it go as it lands. Mechanics made for more
+            players bring stand-in allies when you are alone. Every sound slot is wired but stays silent until a real recording is
+            chosen for it.
           </p>
         </div>
         <dl className="compendium__stats">
