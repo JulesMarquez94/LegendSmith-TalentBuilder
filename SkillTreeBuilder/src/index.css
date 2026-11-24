@@ -3756,3 +3756,413 @@ select {
     animation: none;
   }
 }
+
+/* ---------- Ability compendium: the game's boss and enemy mechanics, recorded in the arena ---------- */
+
+.builder--compendium {
+  align-items: stretch;
+}
+
+.compendium {
+  --harmful: #ff8c0d;
+  --lethal: #f20f0f;
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.compendium__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 32px;
+}
+
+.compendium__title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--gold);
+}
+
+.compendium__intro {
+  margin: 0;
+  max-width: 78ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.compendium__intro strong {
+  color: var(--text);
+}
+
+.compendium__stats {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+}
+
+.compendium__stats > div {
+  min-width: 112px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.compendium__stats dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.compendium__stats dd {
+  margin: 2px 0 0;
+  font-size: 22px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.compendium__basics {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 16px;
+}
+
+@media (max-width: 1000px) {
+  .compendium__basics {
+    grid-template-columns: 1fr;
+  }
+}
+
+.compendium__panel {
+  padding: 14px 18px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.compendium__h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.compendium__h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.compendium__note,
+.compendium__blurb {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.compendium__blurb {
+  margin: 4px 0 12px;
+}
+
+.legend {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.legend__swatch {
+  flex: none;
+  width: 26px;
+  height: 14px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.knobs {
+  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px 16px;
+}
+
+.knobs__item dt {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.knobs__item dd {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.compendium__filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+}
+
+.compendium__count {
+  margin-left: 6px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.compendium__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.mech {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 3px solid var(--harmful);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.mech--lethal {
+  border-top-color: var(--lethal);
+}
+
+.mech__media {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: #0d0d0d;
+  cursor: zoom-in;
+}
+
+.mech__media:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+
+.recording {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.recording--missing {
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  background: repeating-linear-gradient(-45deg, #151515 0 10px, #1b1b1b 10px 20px);
+}
+
+.mech__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+.mech__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mech__name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  padding: 1px 7px;
+  font-size: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  color: var(--muted);
+}
+
+.chip--harmful {
+  color: #111;
+  font-weight: 900;
+  background: var(--harmful);
+  border-color: var(--harmful);
+}
+
+.chip--lethal {
+  color: #fff;
+  font-weight: 900;
+  background: var(--lethal);
+  border-color: var(--lethal);
+}
+
+.mech__summary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mech__line {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.mech__label {
+  display: inline-block;
+  min-width: 34px;
+  margin-right: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mech__label--do {
+  color: var(--green);
+}
+
+.mech__label--fail {
+  color: var(--red);
+}
+
+.check {
+  flex: none;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.check::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--locked);
+  vertical-align: 1px;
+}
+
+.check--pass::before {
+  background: var(--green);
+}
+
+.check--fail::before {
+  background: var(--red);
+}
+
+.mech-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.mech-dialog__box {
+  width: min(1200px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 18px 22px 22px;
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+}
+
+.mech-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.mech-dialog__category {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.mech-dialog__name {
+  margin: 2px 0 0;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.mech-dialog__media {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 800px) {
+  .mech-dialog__media {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mech-dialog__media figure {
+  margin: 0;
+  overflow: hidden;
+  background: #0d0d0d;
+  border-radius: 8px;
+}
+
+.mech-dialog__media figcaption {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mech-dialog__text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.mech-dialog__text .compendium__h3 {
+  margin-top: 6px;
+}
+
+.mech-dialog__numbers {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+}

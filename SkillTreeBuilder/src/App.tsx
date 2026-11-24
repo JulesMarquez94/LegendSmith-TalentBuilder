@@ -4,6 +4,7 @@ import { AbilityNumbers } from './components/AbilityNumbers.tsx'
 import { AbilityPicker, type PickerOption } from './components/AbilityPicker.tsx'
 import { ArenaView } from './components/arena/ArenaView.tsx'
 import { CharacterSkills } from './components/CharacterSkills.tsx'
+import { CompendiumView } from './components/compendium/CompendiumView.tsx'
 import { CharacterPanel } from './components/gear/CharacterPanel.tsx'
 import { InterfaceView } from './components/interface/InterfaceView.tsx'
 import { KIND_LABEL, SEATS, seatOf } from './components/labels.ts'
@@ -33,8 +34,8 @@ const PROBLEMS = [
 
 const TREE_BY_ID = new Map(TREES.map((tree) => [tree.id, tree]))
 
-/** The builder, the test arena, and a prototype of the game's own screens. */
-type View = 'build' | 'arena' | 'interface'
+/** The builder, the test arena, a prototype of the game's own screens, and the compendium of the game's boss mechanics. */
+type View = 'build' | 'arena' | 'interface' | 'compendium'
 
 /** The overview opens the second row: it sits just before this slot (mobility), after the four tall trees. */
 const OVERVIEW_BEFORE = 4
@@ -139,10 +140,13 @@ export default function App() {
           <button type="button" className="tabs__tab" aria-pressed={view === 'interface'} onClick={() => setView('interface')}>
             Interface
           </button>
+          <button type="button" className="tabs__tab" aria-pressed={view === 'compendium'} onClick={() => setView('compendium')}>
+            Ability compendium
+          </button>
         </nav>
         {view === 'build' && <p className="topbar__help">Click to learn · Right-click or Shift-click to unlearn</p>}
-        {/* The interface prototype doesn't use the build, so its controls step aside there. */}
-        {view !== 'interface' && (
+        {/* The interface prototype and the compendium don't use the build, so its controls step aside there. */}
+        {(view === 'build' || view === 'arena') && (
           <>
             <LevelControl level={loadout.level} needed={levelNeeded(loadout)} onLevel={build.level} />
             <div className="points">
@@ -258,6 +262,9 @@ export default function App() {
       </main>
       <main className="builder builder--interface" hidden={view !== 'interface'}>
         <InterfaceView active={view === 'interface'} />
+      </main>
+      <main className="builder builder--compendium" hidden={view !== 'compendium'}>
+        <CompendiumView active={view === 'compendium'} />
       </main>
 
       {picking !== null && (
