@@ -473,6 +473,23 @@ export const TEMPLATES: Template[] = [
     events: [],
   },
   {
+    id: 'DEVICE',
+    name: 'Room Device',
+    family: 'general',
+    codes: [],
+    what: 'A bell, lever or brazier in the room that anyone can use: it answers the boss (a stun, a stacking buff cleared, cover opened), then recharges.',
+    knobs: [
+      'What it answers: a stun, a cleared buff, cover',
+      'Recharge time',
+      'The cost of using it: the user gets the reticle, a debuff',
+    ],
+    skins: 'An alarm bell, a winch lever, a brazier, a sluice gate',
+    counter: 'Someone free uses it at the right moment.',
+    built: [],
+    proposed: [{ ability: 'Frenzy and the Bell', boss: 'The Unrung (first dungeon)' }],
+    events: [],
+  },
+  {
     id: 'TANKHIT',
     name: 'Facing Strike',
     family: 'tank',
@@ -571,6 +588,24 @@ export const TEMPLATES: Template[] = [
     proposed: [
       { ability: 'Bog Brute', boss: 'Hollowheart' },
     ],
+    events: [],
+  },
+  {
+    id: 'ADDS',
+    name: 'Add Wave',
+    family: 'tank',
+    codes: [],
+    what: 'Adds join at health marks or on a timer; the tank gathers them while the others cleave them down.',
+    knobs: [
+      'When: health marks or a timer',
+      'How many (by party size), how tough',
+      'Where they come from: holes, chains, the dark',
+      'Open version: slow enough to kite',
+    ],
+    skins: 'A gobold wave, freed ferals, rats from the racks, bone constructs',
+    counter: 'The tank picks them up and holds them in the cleave.',
+    built: ['Gobold Wave (Snikkit, in the game)', 'Unchain a Feral (Malacarne, in the game)'],
+    proposed: [],
     events: [],
   },
   {
@@ -686,6 +721,24 @@ export const TEMPLATES: Template[] = [
     events: [
       { event: 'Bone-carriers', frame: 'F01', boss: 'The Marrow Engine' },
     ],
+  },
+  {
+    id: 'THIEF',
+    name: 'Thief Run',
+    family: 'dps',
+    codes: ['RETICLE'],
+    what: 'An enemy grabs something (a buff, a relic) and flees; hit it enough times before it gets away. The robbed player gets the reticle.',
+    knobs: [
+      'What it takes and from whom',
+      'How long it runs and how fast',
+      'Hits to catch it; what keeping it does',
+      'Open version: no faster than a player',
+    ],
+    skins: 'A gobold with a stolen buff, a rat with a relic, a wisp with a spark',
+    counter: 'The damage dealers chase it down and hit it before it escapes.',
+    built: ['Sticky Fingers (Snikkit, in the game)'],
+    proposed: [],
+    events: [],
   },
   {
     id: 'SHARE',
