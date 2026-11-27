@@ -353,14 +353,6 @@ export const MECHANICS: Mechanic[] = [
   },
 ]
 
-/** The colours a mechanic is drawn in (the game's CombatDef). */
-export const COLOURS = [
-  { name: 'Orange', hex: '#ff8c0d', text: 'Failing hurts. Not meant to kill on its own.' },
-  { name: 'Red', hex: '#f20f0f', text: 'Failing kills.' },
-  { name: 'Blue', hex: '#3399ff', text: 'A safe spot inside a zone.' },
-  { name: 'Violet', hex: '#b85cff', text: 'A shield on the boss, and the emitters’ beams feeding it.' },
-]
-
 /** What every mechanic is made of: one ability, a list of zone steps, each set by these. */
 export const KNOBS = [
   { name: 'Shape', text: 'Circle, cone, line or ring (a donut whose hole is safe).' },
